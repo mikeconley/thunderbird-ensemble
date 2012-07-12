@@ -1,0 +1,13 @@
+<overlay id="ensemble-messenger-overlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+  <script type="application/x-javascript" src="messenger-overlay.js" />
+
+  <toolbarpalette id="MailToolbarPalette">
+    <toolbarbutton id="button-open-contacts"
+                   type="menu-button"
+                   class="toolbarbutton-1"
+                   label="Open Contacts"
+                   tooltiptext="Open Contacts"
+                   oncommand="Ensemble.openDebugTab();" />
+  </toolbarpalette>
+</overlay>

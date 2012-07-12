@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. --><RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+  <Description about="urn:mozilla:install-manifest">
+    <em:id>thunderbird-ensemble@mikeconley.ca</em:id>
+    <em:version>0.0.1DEV</em:version>
+    <em:type>2</em:type>
+    <em:unpack>false</em:unpack>
+
+    <!-- Thunderbird -->
+    <em:targetApplication>
+      <Description>
+        <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id> <!-- Thunderbird -->
+        <em:minVersion>13.0</em:minVersion>
+        <em:maxVersion>16.*</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+
+    <!-- Front End MetaData -->
+    <em:name>Thunderbird Ensemble</em:name>
+    <em:description>An attempt to bring some sanity to Thunderbird's Address Book</em:description>
+    <em:creator>Mike Conley</em:creator>
+  </Description>
+</RDF>
