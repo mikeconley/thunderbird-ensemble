@@ -201,6 +201,8 @@ ContactRecord.prototype = {
    * @param aRecord the other ContactRecord to diff against.
    */
   diff: function ContactRecord_diff(aRecord) {
+    
+
     return {};
   },
 
