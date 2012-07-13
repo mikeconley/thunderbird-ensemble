@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 const Cu = Components.utils;
 
 let EXPORTED_SYMBOLS = ["ContactRecord"];
@@ -10,6 +14,14 @@ function ContactRecord(aServiceID, aFields, aMeta) {
 
   this.fields = {};
 
+  /**
+   * Helper function that allows us to accept both a string, or an array
+   * of strings for a particular field. Returns an array of strings, or an
+   * empty array.
+   *
+   * @param the field to convert into an array of strings.
+   * @returns an array of strings, or an empty array.
+   */
   function _createBasic(aField) {
     if (!aField)
       return [];
@@ -25,6 +37,7 @@ function ContactRecord(aServiceID, aFields, aMeta) {
     }
   };
 
+  // These are the fields that accept either a string, or an array of strings.
   const kBasicFields = ['name', 'honorificPrefix', 'givenName',
                         'additionalName', 'familyName', 'honorificSuffix',
                         'nickname', 'photo', 'url', 'category', 'org',
@@ -33,15 +46,55 @@ function ContactRecord(aServiceID, aFields, aMeta) {
   for each (let [, field] in Iterator(kBasicFields))
     this.fields[field] = _createBasic(aFields[field]);
 
+  /**
+   * Helper function that returns either a Date representing aField, or null
+   * if aField cannot be turned into a Date.
+   *
+   * @param aField the field to try turning into a Date.
+   * @returns a Date, or null.
+   */
   function _createDate(aField) {
     return (aField === undefined || aField === null) ? null : new Date(aField);
   }
 
+  // These are our date fields.
   const kDateFields = ['bday', 'anniversary'];
 
   for each (let [, field] in Iterator(kDateFields))
     this.fields[field] = _createDate(aFields[field]);
 
+  /**
+   * Helper function that operates for fields that should be arrays of objects
+   * that have a 'type' value, and an aTypeValue property representing the
+   * value.
+   *
+   * For example, the tel field is an array of objects that could look like
+   * this:
+   *   {
+   *     type: 'Home',
+   *     number: '555-123-1511'
+   *   }
+   *
+   * In this case, aTypeValue is 'number'.
+   *
+   * This function is rather flexible - it accepts either an array of objects,
+   * an array of strings, or just a string.
+   *
+   * In the case of an array of objects, the function hopes that the object
+   * has type and aTypeValue properties. If so, we simply return those objects
+   * cloned into an array.
+   *
+   * In the case of a string X, it returns a single element array of objects
+   * where the type property is blank and the aTypeValue is set to X.
+   *
+   * In the case of an array of strings, we simply follow the same rules as
+   * the lone-string case, but with the whole array of strings. We then return
+   * a full array of objects representing that array of strings.
+   *
+   * @param aTyped the string, object, or array of strings / objects to process.
+   * @param aTypedValue the name of the type value for the resulting object.
+   * @returns an array of objects with 'type' and aTypeValue properties.
+   */
   function _createTyped(aTyped, aTypeValue) {
     if (!aTyped)
       return [];
@@ -75,6 +128,23 @@ function ContactRecord(aServiceID, aFields, aMeta) {
   this.fields['email'] = _createTyped(aFields.email, 'address');
   this.fields['impp'] = _createTyped(aFields.impp, 'handle');
 
+  /**
+   * Helper function that accepts either a string, an array of strings, or
+   * an object that contains any of the following properties: 'type',
+   * 'streetAddress', 'locality', 'region', 'postalCode', 'countryName'.
+   *
+   * In the case of a single string, or an array of strings, the function
+   * returns an array of one or more objects with most of the above properties
+   * set to null, but the streetAddress will be set to the passed in string(s).
+   *
+   * In the case of an array of objects, if those objects contain any of the
+   * properties listed above, those values are cloned. If the object does not
+   * contain a particular property, it'll be set to null.
+   *
+   * @param aAddresses a string, an array of strings, an object, or an array of
+   *                   objects to convert into our internal notion of addresses.
+   * @returns an array of address objects
+   */
   function _createAddresses(aAddresses) {
     if (!aAddresses)
       return [];
@@ -106,8 +176,6 @@ function ContactRecord(aServiceID, aFields, aMeta) {
   this.fields['sex'] = (aFields.sex !== undefined) ? aFields.sex : null;
   this.fields['genderIdentity'] = (aFields.genderIdentity !== undefined)
                                   ? aFields.genderIdentity : null;
-
-  this.fields.name = ["House"];
 
   this._serviceID = aServiceID;
   this.meta = aMeta || {};
