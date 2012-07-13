@@ -10,20 +10,122 @@ function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
 }
 
-function assert_string_arrays_equal(aArray, aOtherArray, aMsg) {
-  if (!aMsg)
-    aMsg = aArray + " != " + aOtherArray;
+function test_items_equal_strings() {
+  assert_true(itemsEqual(["this", "is", "a", "test"],
+                         ["this", "is", "a", "test"]));
 
-  if (aArray.length != aOtherArray.length)
-    throw new Error(aMsg);
+  assert_true(itemsEqual(["This", "is", "A", "test"],
+                         ["This", "is", "A", "test"]));
 
-  let equal = aArray.every(function(aItem) {
-    return aOtherArray.indexOf(aItem) != -1;
-  });
 
-  if (!equal)
-    throw new Error(aMsg);
+  assert_false(itemsEqual(["This", "is", "a", "test"],
+                          ["this", "is", "a", "test"]));
+  assert_false(itemsEqual(["this", "a", "is", "test"],
+                          ["this", "is", "a", "test"]));
+  assert_false(itemsEqual(["this", "is"],
+                          ["this"]));
 }
+
+function test_items_equal_objects() {
+
+  assert_true(itemsEqual({
+    single: 'member'
+  }, {
+    single: 'member'
+  }));
+
+  assert_true(itemsEqual({
+    multiple: 'member',
+    object: 'instance'
+  }, {
+    multiple: 'member',
+    object: 'instance'
+  }));
+
+  assert_true(itemsEqual({
+    multiple: 'member',
+    object: 'instance',
+    somedate: new Date("Fri Jul 13 2012 12:53:17 GMT-0400 (EDT)").toJSON()
+  }, {
+    multiple: 'member',
+    object: 'instance',
+    somedate: new Date("Fri Jul 13 2012 12:53:17 GMT-0400 (EDT)").toJSON()
+  }));
+
+  assert_true(itemsEqual([{
+    nested: {
+      some: 'value',
+      inside: {
+        another: 'object'
+      }
+    }
+  }, "Another string"], [{
+    nested: {
+      some: 'value',
+      inside: {
+        another: 'object'
+      }
+    }
+  }, "Another string"]));
+
+  assert_false(itemsEqual({
+    single: 'member'
+  }, {
+    changed: 'member'
+  }));
+
+  assert_false(itemsEqual({
+    single: 'member'
+  }, {
+    single: 'changed'
+  }));
+
+  assert_false(itemsEqual({
+    multiple: 'member',
+    object: 'instance'
+  }, {
+    multiple: 'member',
+    object: 'changed'
+  }));
+
+  assert_false(itemsEqual({
+    multiple: 'member',
+    object: 'instance'
+  }, {
+    multiple: 'member',
+    changed: 'instance'
+  }));
+
+  assert_false(itemsEqual({
+    multiple: 'member',
+    object: 'instance',
+    somedate: new Date("Fri Jul 13 2012 12:53:17 GMT-0400 (EDT)").toJSON()
+  }, {
+    multiple: 'member',
+    object: 'instance',
+    somedate: new Date("Fri Jul 10 2012 12:53:18 GMT-0400 (EDT)").toJSON()
+  }));
+
+  assert_false(itemsEqual([{
+    nested: {
+      some: 'value',
+      inside: {
+        another: 'object'
+      }
+    }
+  }, "Another string"], [{
+    nested: {
+      some: 'value',
+      inside: {
+        another: 'changed'
+      }
+    }
+  }, "Another string"]));
+
+}
+
+// The following tests make use of itemsEqual, and assume that it's working
+// properly to check the equivalence of various things.
 
 function test_array_complement_with_strings() {
   const kArrayA = ["This", "is", "my", "test", "array"];
@@ -32,10 +134,10 @@ function test_array_complement_with_strings() {
   const kExpectedB = ["My", "awesome", "folks"];
 
   let complement = arrayComplement(kArrayA, kArrayB);
-  assert_string_arrays_equal(complement, kExpectedA);
+  assert_true(itemsEqual(complement, kExpectedA));
 
   complement = arrayComplement(kArrayB, kArrayA);
-  assert_string_arrays_equal(complement, kExpectedB);
+  assert_true(itemsEqual(complement, kExpectedB));
 }
 
 function test_array_complement_with_empty_arrays() {
@@ -47,7 +149,7 @@ function test_array_complement_with_empty_arrays() {
                 "Should have returned an empty array.");
 
   complement = arrayComplement(kArrayB, kArrayA);
-  assert_string_arrays_equal(complement, kArrayB);
+  assert_true(itemsEqual(complement, kArrayB));
 }
 
 function test_array_complement_with_objects() {
@@ -108,8 +210,12 @@ function test_array_complement_with_objects() {
   ];
 
   let complement = arrayComplement(kArrayA, kArrayB);
+  assert_true(itemsEqual(complement, kExpectedA));
 
+  complement = arrayComplement(kArrayB, kArrayA);
+  assert_true(itemsEqual(complement, kExpectedB));
+
+  complement = arrayComplement([{empty: {}}], [{empty: {}}]);
+  assert_true(itemsEqual(complement, []));
 }
 
-function test_array_complement_mixed() {
-}

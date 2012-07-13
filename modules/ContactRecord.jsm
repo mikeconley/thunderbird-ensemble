@@ -8,6 +8,21 @@ let EXPORTED_SYMBOLS = ["ContactRecord"];
 
 Cu.import('resource://ensemble/EnsembleUtils.jsm');
 
+// These are the fields that accept either a string, or an array of strings.
+const kBasicFields = ['name', 'honorificPrefix', 'givenName',
+                      'additionalName', 'familyName', 'honorificSuffix',
+                      'nickname', 'photo', 'url', 'category', 'org',
+                      'jobTitle', 'note'];
+
+const kTypedFields = ['tel', 'email', 'impp'];
+const kAddressFields = ['adr'];
+const kDateFields = ['bday', 'anniversary'];
+
+const kArrayFields = kBasicFields.concat(kTypedFields)
+                                 .concat(kAddressFields);
+
+const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
+
 function ContactRecord(aServiceID, aFields, aMeta) {
   if (!aServiceID)
     throw new Error("Expected a service ID when constructing ContactRecord");
@@ -37,12 +52,6 @@ function ContactRecord(aServiceID, aFields, aMeta) {
     }
   };
 
-  // These are the fields that accept either a string, or an array of strings.
-  const kBasicFields = ['name', 'honorificPrefix', 'givenName',
-                        'additionalName', 'familyName', 'honorificSuffix',
-                        'nickname', 'photo', 'url', 'category', 'org',
-                        'jobTitle', 'note'];
-
   for each (let [, field] in Iterator(kBasicFields))
     this.fields[field] = _createBasic(aFields[field]);
 
@@ -54,11 +63,8 @@ function ContactRecord(aServiceID, aFields, aMeta) {
    * @returns a Date, or null.
    */
   function _createDate(aField) {
-    return (aField === undefined || aField === null) ? null : new Date(aField);
+    return (aField === undefined || aField === null) ? null : new Date(aField).toJSON();
   }
-
-  // These are our date fields.
-  const kDateFields = ['bday', 'anniversary'];
 
   for each (let [, field] in Iterator(kDateFields))
     this.fields[field] = _createDate(aFields[field]);
@@ -201,9 +207,34 @@ ContactRecord.prototype = {
    * @param aRecord the other ContactRecord to diff against.
    */
   diff: function ContactRecord_diff(aRecord) {
-    
 
-    return {};
+    let added = {};
+    let removed = {};
+    let changed = {};
+
+    for each (let [, fieldName] in Iterator(kArrayFields)) {
+      let addedComp = arrayComplement(this.fields[fieldName],
+                                      aRecord.fields[fieldName]);
+
+      let removedComp = arrayComplement(aRecord.fields[fieldName],
+                                        this.fields[fieldName]);
+
+      if (addedComp.length)
+        added[fieldName] = addedComp;
+      if (removedComp.length)
+        removed[fieldName] = removedComp;
+    }
+
+    for each (let [, fieldName] in Iterator(kStringFields)) {
+      if (this.fields[fieldName] != aRecord.fields[fieldName])
+        changed[fieldName] = this.fields[fieldName];
+    }
+
+    return {
+      added: added,
+      removed: removed,
+      changed: changed
+    };
   },
 
   /**
