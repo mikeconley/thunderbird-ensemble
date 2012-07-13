@@ -204,6 +204,9 @@ ContactRecord.prototype = {
    * The resulting diff, if applied to aRecord, will result in this
    * ContactRecord.
    *
+   * See the header for applyDiff for a description of the generated
+   * diff.
+   *
    * @param aRecord the other ContactRecord to diff against.
    */
   diff: function ContactRecord_diff(aRecord) {
@@ -240,9 +243,92 @@ ContactRecord.prototype = {
   /**
    * Apply a diff to this ContactRecord.
    *
+   * A diff is an object with 'added', 'removed', and 'changed'
+   * properties that list the difference.
+   *
+   * Example (copied from the test suite):
+   *
+   * {
+   *   added: {
+   *     name: ['House'],
+   *     givenName: ['Gregory'],
+   *     additionalName: ['Berton'],
+   *     familyName: ['House'],
+   *     honorificSuffix: ['Junior'],
+   *     nickname: ['Hugh'],
+   *     email: [{
+   *       type: 'Work',
+   *       address: 'house@example.com',
+   *     }],
+   *     url: ['https://www.example.com'],
+   *     adr: [{
+   *       type: 'Work',
+   *       streetAddress: '123 Fake St.',
+   *       locality: 'Toronto',
+   *        region: 'Ontario',
+   *       postalCode: 'L5T2R1',
+   *       countryName: 'Canada',
+   *     }],
+   *     tel: [{
+   *       type: 'Work',
+   *        number: '5553125123'
+   *     }, {
+   *       type: 'Cell',
+   *       number: '5124241521'
+   *     }],
+   *     org: ['Princeton-Plainsboro Teaching Hospital'],
+   *     jobTitle: ['Diagnostician'],
+   *     note: ['Sharp as a tack',
+   *            'Not exactly the king of bedside manor.'],
+   *   },
+   *   removed: {
+   *     name: ['Wilson'],
+   *     givenName: ['James'],
+   *     additionalName: ['Coleman'],
+   *     familyName: ['Wilson'],
+   *     nickname: ['Robert'],
+   *     email: [{
+   *       type: 'Work',
+   *       address: 'wilson@example.com',
+   *     }, {
+   *       type: 'Copy',
+   *       address: 'house@example.com',
+   *     }],
+   *     photo: ['somedata'],
+   *   },
+   *   changed: {
+   *     bday: '2012-07-13T20:44:16.028Z',
+   *     sex: 'Male',
+   *     genderIdentity: 'Male',
+   *   }
+   * }
+   *
    * @param aDiff the diff to apply to this ContactRecord.
    */
   applyDiff: function ContactRecord_applyDiff(aDiff) {
+    if (typeof(aDiff) !== 'object')
+      throw new Error("Expected a diff object");
+    if (!('added' in aDiff))
+      throw new Error("The diff being applied is missing 'added'");
+    if (!('removed' in aDiff))
+      throw new Error("The diff being applied is missing 'removed'");
+    if (!('changed' in aDiff))
+      throw new Error("The diff being applied is missing 'changed'");
+
+    // The changed items are easy, so let's take care of those first.
+    for (let field in aDiff.changed)
+      this.fields[field] = aDiff.changed[field];
+
+    // Now what was removed?
+    for (let field in aDiff.removed)
+      this.fields[field] = arrayComplement(this.fields[field],
+                                           aDiff.removed[field]);
+
+    // Finally, what was added?
+    for (let field in aDiff.added)
+      this.fields[field] = arrayUnion(this.fields[field],
+                                      aDiff.added[field]);
+
   },
 
   /**

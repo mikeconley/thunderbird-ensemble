@@ -138,6 +138,86 @@ const kTestFields2 = {
   }
 };
 
+const kFieldsForDiff = {
+  name: 'Wilson',
+  honorificPrefix: 'Dr.',
+  givenName: 'James',
+  additionalName: ['Coleman', 'Ryan'],
+  familyName: 'Wilson',
+  nickname: 'Robert',
+  email: [{
+    type: 'Work',
+    address: 'wilson@example.com',
+  }, {
+    type: 'Copy',
+    address: 'house@example.com',
+  }, {
+    type: 'Home',
+    address: 'houseOther@example.com'
+  }],
+  photo: ['somedata'],
+  impp: [{
+    type: 'ICQ',
+    handle: '15215125'
+  }],
+  bday: 'Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)',
+};
+
+const kResultingDiff = {
+  added: {
+    name: ['House'],
+    givenName: ['Gregory'],
+    additionalName: ['Berton'],
+    familyName: ['House'],
+    honorificSuffix: ['Junior'],
+    nickname: ['Hugh'],
+    email: [{
+      type: 'Work',
+      address: 'house@example.com',
+    }],
+    url: ['https://www.example.com'],
+    adr: [{
+      type: 'Work',
+      streetAddress: '123 Fake St.',
+      locality: 'Toronto',
+      region: 'Ontario',
+      postalCode: 'L5T2R1',
+      countryName: 'Canada',
+    }],
+    tel: [{
+      type: 'Work',
+      number: '5553125123'
+    }, {
+      type: 'Cell',
+      number: '5124241521'
+    }],
+    org: ['Princeton-Plainsboro Teaching Hospital'],
+    jobTitle: ['Diagnostician'],
+    note: ['Sharp as a tack',
+           'Not exactly the king of bedside manor.'],
+  },
+  removed: {
+    name: ['Wilson'],
+    givenName: ['James'],
+    additionalName: ['Coleman'],
+    familyName: ['Wilson'],
+    nickname: ['Robert'],
+    email: [{
+      type: 'Work',
+      address: 'wilson@example.com',
+    }, {
+      type: 'Copy',
+      address: 'house@example.com',
+    }],
+    photo: ['somedata'],
+  },
+  changed: {
+    bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
+    sex: 'Male',
+    genderIdentity: 'Male',
+  }
+};
+
 function assert_items_equal(aItemA, aItemB, aMsg) {
   if (!aMsg) {
     aMsg = JSON.stringify(aItemA, null, " ")
@@ -316,89 +396,20 @@ function test_can_produce_simple_diff_with_changes() {
 
 function test_can_produce_diff_mixed() {
   let a = new ContactRecord('foo', kTestFields);
-  let b = new ContactRecord('foo', {
-    name: 'Wilson',
-    honorificPrefix: 'Dr.',
-    givenName: 'James',
-    additionalName: ['Coleman', 'Ryan'],
-    familyName: 'Wilson',
-    nickname: 'Robert',
-    email: [{
-      type: 'Work',
-      address: 'wilson@example.com',
-    }, {
-      type: 'Copy',
-      address: 'house@example.com',
-    }, {
-      type: 'Home',
-      address: 'houseOther@example.com'
-    }],
-    photo: ['somedata'],
-    impp: [{
-      type: 'ICQ',
-      handle: '15215125'
-    }],
-    bday: 'Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)',
-  });
-
-  const kExpectedDiff = {
-    added: {
-      name: ['House'],
-      givenName: ['Gregory'],
-      additionalName: ['Berton'],
-      familyName: ['House'],
-      honorificSuffix: ['Junior'],
-      nickname: ['Hugh'],
-      email: [{
-        type: 'Work',
-        address: 'house@example.com',
-      }],
-      url: ['https://www.example.com'],
-      adr: [{
-        type: 'Work',
-        streetAddress: '123 Fake St.',
-        locality: 'Toronto',
-        region: 'Ontario',
-        postalCode: 'L5T2R1',
-        countryName: 'Canada',
-      }],
-      tel: [{
-        type: 'Work',
-        number: '5553125123'
-      }, {
-        type: 'Cell',
-        number: '5124241521'
-      }],
-      org: ['Princeton-Plainsboro Teaching Hospital'],
-      jobTitle: ['Diagnostician'],
-      note: ['Sharp as a tack',
-             'Not exactly the king of bedside manor.'],
-    },
-    removed: {
-      name: ['Wilson'],
-      givenName: ['James'],
-      additionalName: ['Coleman'],
-      familyName: ['Wilson'],
-      nickname: ['Robert'],
-      email: [{
-        type: 'Work',
-        address: 'wilson@example.com',
-      }, {
-        type: 'Copy',
-        address: 'house@example.com',
-      }],
-      photo: ['somedata'],
-    },
-    changed: {
-      bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
-      sex: 'Male',
-      genderIdentity: 'Male',
-    },
-  };
+  let b = new ContactRecord('foo', kFieldsForDiff);
 
   let diff = a.diff(b);
 
-  assert_items_equal(diff, kExpectedDiff);
+  assert_items_equal(diff, kResultingDiff);
+}
+
+function test_can_apply_diff() {
+  let house = new ContactRecord('foo', kTestFields);
+  let wilson = new ContactRecord('foo', kFieldsForDiff);
+
+  wilson.applyDiff(kResultingDiff);
+
+  assert_items_equal(wilson.fields, house.fields);
 }
 
 // Merging tests

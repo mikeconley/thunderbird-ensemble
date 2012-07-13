@@ -1,4 +1,5 @@
-let EXPORTED_SYMBOLS = ["itemsEqual", "arrayComplement"];
+let EXPORTED_SYMBOLS = ["itemsEqual", "arrayComplement", "arrayContains",
+                        "arrayUnion"];
 
 function itemsEqual(obj, reference) {
   if (obj === reference) return true;
@@ -54,13 +55,39 @@ function arrayComplement(aArray, aOther) {
       if (aOther.indexOf(arrayItem) == -1)
         result.push(arrayItem);
     } else {
-      if (!(aOther.some(function(aOtherItem) {
-        return itemsEqual(aOtherItem, arrayItem);
-      }))) {
+      if (!arrayContains(aOther, arrayItem)) {
         result.push(arrayItem);
       }
     }
   }
 
   return result;
+}
+
+function arrayUnion(aArray, aOther) {
+  let smallArray, largeArray;
+
+  if (aArray.length < aOther.length) {
+    smallArray = aArray;
+    largeArray = aOther;
+  } else {
+    smallArray = aOther;
+    largeArray = aArray;
+  }
+
+  let result = [];
+
+  for (let i = 0; i < smallArray.length; ++i) {
+    let item = smallArray[i];
+    if (!arrayContains(largeArray, item))
+      result.push(item);
+  }
+
+  return result;
+}
+
+function arrayContains(aArray, aItem) {
+  return aArray.some(function(aOtherItem) {
+    return itemsEqual(aOtherItem, aItem);
+  });
 }
