@@ -16,11 +16,11 @@ function test_items_equal_strings() {
 
   assert_true(itemsEqual(["This", "is", "A", "test"],
                          ["This", "is", "A", "test"]));
+  assert_true(itemsEqual(["This", "is", "a", "test"],
+                         ["test", "is", "a", "This"]));
 
 
   assert_false(itemsEqual(["This", "is", "a", "test"],
-                          ["this", "is", "a", "test"]));
-  assert_false(itemsEqual(["this", "a", "is", "test"],
                           ["this", "is", "a", "test"]));
   assert_false(itemsEqual(["this", "is"],
                           ["this"]));
@@ -219,3 +219,13 @@ function test_array_complement_with_objects() {
   assert_true(itemsEqual(complement, []));
 }
 
+function test_array_union() {
+  const kArrayA = ["This", "is", "some", "text"];
+  const kArrayB = ["And", "here", "is", "some", "more"];
+  const kExpected = ["This", "is", "some", "text", "And", "here",
+                     "more"];
+
+  let union = arrayUnion(kArrayA, kArrayB);
+
+  assert_true(itemsEqual(union, kExpected));
+}

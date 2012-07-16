@@ -335,9 +335,31 @@ ContactRecord.prototype = {
    * Merge the fields from aRecord into this ContactRecord. aRecord can
    * potentially overwrite fields in this ContactRecord.
    *
+   * This function computes the difference between aRecord and this
+   * ContactRecord, clears the "removed" portion of the diff, and then
+   * applies the diff to this ContactRecord.
+   *
+   * This way, we get all of the added data from aRecord, but no items
+   * are lost from collections (like phone numbers, email addresses, etc).
+   * Singleton fields like sex, genderIdentity, bday, or anniversary will
+   * be overwritten if those fields has values in aRecord.
+   *
    * @param aRecord the ContactRecord to merge in.
    */
   merge: function ContactRecord_merge(aRecord) {
+    // Calculate the diff between aRecord and this ContactRecord.
+    let diff = aRecord.diff(this);
+
+    // Clear the removals.
+    diff.removed = {};
+    // Remove any of the changes that result in nulls
+    let changed = diff.changed;
+    for (let changedField in diff.changed) {
+      if (changed[changedField] == null)
+        delete diff.changed[changedField];
+    }
+
+    this.applyDiff(diff);
   },
 
   /**

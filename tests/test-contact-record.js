@@ -413,5 +413,64 @@ function test_can_apply_diff() {
 }
 
 // Merging tests
+function test_can_do_simple_merge() {
+  const kExpectedMerge = {
+    name: ['Captain Haddock', 'Wilson'],
+    honorificPrefix: ['Dr.'],
+    givenName: ['Archibald', 'James'],
+    additionalName: ['Coleman', 'Ryan'],
+    familyName: ['Wilson', 'Haddock'],
+    honorificSuffix: [],
+    nickname: ['Robert'],
+    email: [{
+      type: 'Work',
+      address: 'captain.haddock@example.com',
+    }, {
+      type: 'Work',
+      address: 'wilson@example.com',
+    }, {
+      type: 'Copy',
+      address: 'house@example.com',
+    }, {
+      type: 'Home',
+      address: 'houseOther@example.com',
+    }],
+    photo: ['somedata'],
+    url: [],
+    category: [],
+    adr: [{
+      type: 'Work',
+      streetAddress: '123 Fake St.',
+      locality: 'Toronto',
+      region: 'Ontario',
+      postalCode: 'L5T2R1',
+      countryName: 'Canada',
+    }],
+    tel: [{
+      type: 'Home',
+      number: '555-125-1512',
+    }, {
+      type: 'Cell',
+      number: '555-555-1555',
+    }],
+    impp: [{
+      type: 'ICQ',
+      handle: '15215125'
+    }],
+    org: [],
+    jobTitle: [],
+    bday: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
+    note: [],
+    anniversary: null,
+    sex: null,
+    genderIdentity: null
+  }
+
+  let haddock = new ContactRecord('foo', kTestFields2);
+  let wilson = new ContactRecord('foo', kFieldsForDiff);
+  wilson.merge(haddock);
+
+  assert_items_equal(wilson.fields, kExpectedMerge);
+}
 
 // Equivalence tests

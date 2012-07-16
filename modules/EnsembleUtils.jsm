@@ -3,14 +3,11 @@ let EXPORTED_SYMBOLS = ["itemsEqual", "arrayComplement", "arrayContains",
 
 function itemsEqual(obj, reference) {
   if (obj === reference) return true;
-  if (obj instanceof Array) {
+  if (Array.isArray(obj)) {
     if (obj.length !== reference.length) return false;
     for (let i = 0, len = obj.length; i < len; i++){
-      if (typeof obj[i] == "object" && typeof reference[i] == "object") {
-        if (!itemsEqual(obj[i], reference[i])) return false;
-      }
-      else {
-        if (obj[i] !== reference[i]) return false;
+      if (!arrayContains(reference, obj[i])) {
+        return false;
       }
     }
   }
@@ -21,7 +18,6 @@ function itemsEqual(obj, reference) {
       objListCounter++;
       if (typeof obj[i] == "object" && typeof reference[i] == "object") {
         if (!itemsEqual(obj[i], reference[i])) {
-          dump("Failed on: " + i + "\n");
           return false;
         }
       }
@@ -65,24 +61,11 @@ function arrayComplement(aArray, aOther) {
 }
 
 function arrayUnion(aArray, aOther) {
-  let smallArray, largeArray;
-
-  if (aArray.length < aOther.length) {
-    smallArray = aArray;
-    largeArray = aOther;
-  } else {
-    smallArray = aOther;
-    largeArray = aArray;
-  }
-
+  let combined = aArray.concat(aOther);
   let result = [];
-
-  for (let i = 0; i < smallArray.length; ++i) {
-    let item = smallArray[i];
-    if (!arrayContains(largeArray, item))
-      result.push(item);
-  }
-
+  for (let i = 0; i < combined.length; ++i)
+    if (!arrayContains(result, combined[i]))
+      result.push(combined[i]);
   return result;
 }
 
