@@ -3,6 +3,8 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
 
+Cu.import("resource:///modules/gloda/suffixtree.js");
+
 let DebugTab = {
   _progress: null,
 
@@ -11,6 +13,8 @@ let DebugTab = {
 
     document.getElementById('insertFakeContacts')
             .addEventListener('click', this.insertFakeContacts.bind(this));
+    document.getElementById('createDb')
+            .addEventListener('click', this._createDb.bind(this));
   },
 
   insertFakeContacts: function DebugTab_insertFakeContacts() {
@@ -24,10 +28,12 @@ let DebugTab = {
       true);
 
     req.onreadystatechange = function() {
-      if (req.readyState === 4) {
+      if (req.readyState === 4 && (req.status === 200 ||
+                                   req.status === 0)) {
         let contacts = JSON.parse(req.responseText);
         if (contacts) {
           this._progress.max = contacts.length;
+          dump("\n\nGot contacts!\n\n");
           this._insertContacts(contacts);
         }
       }
@@ -37,12 +43,38 @@ let DebugTab = {
   },
 
   _insertContacts: function DebugTab_insertContacts(aContacts) {
+    let strings = [];
+    let values = [];
+    for each (let [, contact] in Iterator(aContacts)) {
+      strings.push(contact.givenName);
+      values.push(contact.givenName + " " + contact.familyName);
+    }
+
+    dump("\n\nCreating suffix tree\n\n");
+    let st = new MultiSuffixTree(strings, values);
+
+    dump("\n\nSearching!\n\n");
+    dump(st.findMatches('er'))
+
+/*
     if (aContacts.length > 0) {
       let contactData = aContacts.shift(0);
-//      let newContact = new Contact();
-      this._progress.value += 1;
-      this._insertContacts(aContacts);
-    }
+      let newContact = new Contact(contactData);
+
+      let onSaveComplete = function(aStatus) {
+        this._progress.value += 1;
+        this._insertContacts(aContacts);
+      }
+
+      newContact.save(onSaveComplete.bind(this));
+    }*/
+  },
+
+  _createDb: function DebugTab_createDb() {
+    Components.utils.import("resource://ensemble/SQLiteContactStore.jsm");
+    SQLiteContactStore.init(function(aResult) {
+      alert("Done! Result was: " + aResult);
+    });
   },
 };
 
