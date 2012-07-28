@@ -177,8 +177,12 @@ let SQLiteContactStore = {
           "CREATE TABLE IF NOT EXISTS contacts (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, " +
             "popularity INTEGER NOT NULL DEFAULT (0), " +
+            "default_email INTEGER NOT NULL, " +
+            "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
+            "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
             "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
-            "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP))",
+            "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
+            "FOREIGN KEY (default_email) REFERENCES contact_data(id))",
 
           "CREATE TABLE IF NOT EXISTS contact_records (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, " +
@@ -186,7 +190,7 @@ let SQLiteContactStore = {
             "data TEXT NOT NULL DEFAULT ('{}'), " +
             "source TEXT NOT NULL, " +
             "FOREIGN KEY(contact_id) REFERENCES contacts(id))",
-  
+
           "CREATE TABLE IF NOT EXISTS contact_data (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, " +
             "contact_id INTEGER NOT NULL, " +
