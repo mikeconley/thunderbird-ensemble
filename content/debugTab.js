@@ -1,5 +1,6 @@
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
+Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
 
@@ -74,8 +75,18 @@ let DebugTab = {
     Components.utils.import("resource://ensemble/SQLiteContactStore.jsm");
     SQLiteContactStore.init(function(aResult) {
       alert("Done! Result was: " + aResult);
+      if (aResult != Cr.NS_OK) {
+        alert(aResult.code);
+      }
     });
+
+    Services.obs.addObserver(this, "profile-before-change", false);
   },
+
+  observe: function(aSubject, aTopic, aData) {
+    if (aTopic == "profile-before-change")
+      SQLiteContactStore.uninit();
+  }
 };
 
 window.addEventListener('load', function() {
