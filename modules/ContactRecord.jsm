@@ -12,7 +12,7 @@ Cu.import('resource://ensemble/EnsembleUtils.jsm');
 const kBasicFields = ['name', 'honorificPrefix', 'givenName',
                       'additionalName', 'familyName', 'honorificSuffix',
                       'nickname', 'photo', 'url', 'category', 'org',
-                      'jobTitle', 'note'];
+                      'jobTitle', 'department', 'note'];
 
 const kTypedFields = ['tel', 'email', 'impp'];
 const kAddressFields = ['adr'];
@@ -71,27 +71,25 @@ function ContactRecord(aServiceID, aFields, aMeta) {
 
   /**
    * Helper function that operates for fields that should be arrays of objects
-   * that have a 'type' value, and an aTypeValue property representing the
-   * value.
+   * that have 'type' and 'value' properties.
    *
    * For example, the tel field is an array of objects that could look like
    * this:
    *   {
    *     type: 'Home',
-   *     number: '555-123-1511'
+   *     value: '555-123-1511'
    *   }
    *
-   * In this case, aTypeValue is 'number'.
    *
    * This function is rather flexible - it accepts either an array of objects,
    * an array of strings, or just a string.
    *
    * In the case of an array of objects, the function hopes that the object
-   * has type and aTypeValue properties. If so, we simply return those objects
-   * cloned into an array.
+   * has type and value properties. If so, we simply return those objects
+   * in an array.
    *
    * In the case of a string X, it returns a single element array of objects
-   * where the type property is blank and the aTypeValue is set to X.
+   * where the type property is blank and the value is set to X.
    *
    * In the case of an array of strings, we simply follow the same rules as
    * the lone-string case, but with the whole array of strings. We then return
@@ -101,7 +99,7 @@ function ContactRecord(aServiceID, aFields, aMeta) {
    * @param aTypedValue the name of the type value for the resulting object.
    * @returns an array of objects with 'type' and aTypeValue properties.
    */
-  function _createTyped(aTyped, aTypeValue) {
+  function _createTyped(aTyped) {
     if (!aTyped)
       return [];
 
@@ -114,15 +112,14 @@ function ContactRecord(aServiceID, aFields, aMeta) {
       let item = {'type': ''};
 
       if (typeof(typedValue) == 'object'
-          && 'type' in typedValue && aTypeValue in typedValue) {
-        item[aTypeValue] = String(typedValue[aTypeValue]);
-        item['type'] = String(typedValue['type']);
+          && 'type' in typedValue && 'value' in typedValue) {
+        item = typedValue;
       }
       else if (typeof typedValue === "string") {
-        item[aTypeValue] = typedValue;
+        item['value'] = typedValue;
       }
       else {
-        item[aTypeValue] = String(typedValue);
+        item['value'] = String(typedValue);
       }
       result.push(item);
     }
@@ -130,9 +127,9 @@ function ContactRecord(aServiceID, aFields, aMeta) {
     return result;
   }
 
-  this.fields['tel'] = _createTyped(aFields.tel, 'number');
-  this.fields['email'] = _createTyped(aFields.email, 'address');
-  this.fields['impp'] = _createTyped(aFields.impp, 'handle');
+  this.fields['tel'] = _createTyped(aFields.tel);
+  this.fields['email'] = _createTyped(aFields.email);
+  this.fields['impp'] = _createTyped(aFields.impp);
 
   /**
    * Helper function that accepts either a string, an array of strings, or

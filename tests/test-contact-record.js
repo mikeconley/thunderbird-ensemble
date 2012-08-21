@@ -17,10 +17,10 @@ let kTestFields = {
   nickname: 'Hugh',
   email: [{
     type: 'Work',
-    address: 'house@example.com',
+    value: 'house@example.com',
   }, {
     type: 'Home',
-    address: 'houseOther@example.com'
+    value: 'houseOther@example.com'
   }],
 
   photo: [],
@@ -37,19 +37,20 @@ let kTestFields = {
 
   tel: [{
     type: 'Work',
-    number: '5553125123'
+    value: '5553125123'
   }, {
     type: 'Cell',
-    number: '5124241521'
+    value: '5124241521'
   }],
 
   impp: [{
     type: 'ICQ',
-    handle: '15215125'
+    value: '15215125'
   }],
 
   org: ['Princeton-Plainsboro Teaching Hospital'],
   jobTitle: 'Diagnostician',
+  department: 'Diagnostics',
   bday: 'Sun Apr 13 1980 00:00:00 GMT-0500 (EST)',
   note: ['Sharp as a tack', 'Not exactly the king of bedside manor.'],
 
@@ -68,10 +69,10 @@ let kResultingFields = {
   nickname: ['Hugh'],
   email: [{
     type: 'Work',
-    address: 'house@example.com',
+    value: 'house@example.com',
   }, {
     type: 'Home',
-    address: 'houseOther@example.com'
+    value: 'houseOther@example.com'
   }],
 
   photo: [],
@@ -88,19 +89,20 @@ let kResultingFields = {
 
   tel: [{
     type: 'Work',
-    number: '5553125123'
+    value: '5553125123'
   }, {
     type: 'Cell',
-    number: '5124241521'
+    value: '5124241521'
   }],
 
   impp: [{
     type: 'ICQ',
-    handle: '15215125'
+    value: '15215125'
   }],
 
   org: ['Princeton-Plainsboro Teaching Hospital'],
   jobTitle: ['Diagnostician'],
+  department: ['Diagnostics'],
   bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
   note: ['Sharp as a tack', 'Not exactly the king of bedside manor.'],
 
@@ -115,14 +117,14 @@ const kTestFields2 = {
   familyName: 'Haddock',
   tel: [{
     type: 'Home',
-    number: '555-125-1512'
+    value: '555-125-1512'
   }, {
     type: 'Cell',
-    number: '555-555-1555'
+    value: '555-555-1555'
   }],
   email: {
     type: 'Work',
-    address: 'captain.haddock@example.com',
+    value: 'captain.haddock@example.com',
   },
   adr: [{
     type: 'Work',
@@ -134,7 +136,7 @@ const kTestFields2 = {
   }],
   impp: {
     type: 'ICQ',
-    handle: '15215125'
+    value: '15215125'
   }
 };
 
@@ -147,18 +149,18 @@ const kFieldsForDiff = {
   nickname: 'Robert',
   email: [{
     type: 'Work',
-    address: 'wilson@example.com',
+    value: 'wilson@example.com',
   }, {
     type: 'Copy',
-    address: 'house@example.com',
+    value: 'house@example.com',
   }, {
     type: 'Home',
-    address: 'houseOther@example.com'
+    value: 'houseOther@example.com'
   }],
   photo: ['somedata'],
   impp: [{
     type: 'ICQ',
-    handle: '15215125'
+    value: '15215125'
   }],
   bday: 'Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)',
 };
@@ -173,7 +175,7 @@ const kResultingDiff = {
     nickname: ['Hugh'],
     email: [{
       type: 'Work',
-      address: 'house@example.com',
+      value: 'house@example.com',
     }],
     url: ['https://www.example.com'],
     adr: [{
@@ -186,13 +188,14 @@ const kResultingDiff = {
     }],
     tel: [{
       type: 'Work',
-      number: '5553125123'
+      value: '5553125123'
     }, {
       type: 'Cell',
-      number: '5124241521'
+      value: '5124241521'
     }],
     org: ['Princeton-Plainsboro Teaching Hospital'],
     jobTitle: ['Diagnostician'],
+    department: ['Diagnostics'],
     note: ['Sharp as a tack',
            'Not exactly the king of bedside manor.'],
   },
@@ -204,10 +207,10 @@ const kResultingDiff = {
     nickname: ['Robert'],
     email: [{
       type: 'Work',
-      address: 'wilson@example.com',
+      value: 'wilson@example.com',
     }, {
       type: 'Copy',
-      address: 'house@example.com',
+      value: 'house@example.com',
     }],
     photo: ['somedata'],
   },
@@ -289,14 +292,14 @@ function test_can_produce_simple_diff_with_adds() {
       familyName: ['Haddock'],
       tel: [{
         type: 'Home',
-        number: '555-125-1512'
+        value: '555-125-1512'
       }, {
         type: 'Cell',
-        number: '555-555-1555'
+        value: '555-555-1555'
       }],
       email: [{
         type: 'Work',
-        address: 'captain.haddock@example.com'
+        value: 'captain.haddock@example.com'
       }],
       adr: [{
         type: 'Work',
@@ -308,7 +311,7 @@ function test_can_produce_simple_diff_with_adds() {
       }],
       impp: [{
         type: 'ICQ',
-        handle: '15215125'
+        value: '15215125'
       }],
     },
     removed: {},
@@ -334,14 +337,14 @@ function test_can_produce_simple_diff_with_removes() {
       familyName: ['Haddock'],
       tel: [{
         type: 'Home',
-        number: '555-125-1512'
+        value: '555-125-1512'
       }, {
         type: 'Cell',
-        number: '555-555-1555'
+        value: '555-555-1555'
       }],
       email: [{
         type: 'Work',
-        address: 'captain.haddock@example.com'
+        value: 'captain.haddock@example.com'
       }],
       adr: [{
         type: 'Work',
@@ -353,7 +356,7 @@ function test_can_produce_simple_diff_with_removes() {
       }],
       impp: [{
         type: 'ICQ',
-        handle: '15215125'
+        value: '15215125'
       }],
     },
     changed: {},
@@ -424,16 +427,16 @@ function test_can_do_simple_merge() {
     nickname: ['Robert'],
     email: [{
       type: 'Work',
-      address: 'captain.haddock@example.com',
+      value: 'captain.haddock@example.com',
     }, {
       type: 'Work',
-      address: 'wilson@example.com',
+      value: 'wilson@example.com',
     }, {
       type: 'Copy',
-      address: 'house@example.com',
+      value: 'house@example.com',
     }, {
       type: 'Home',
-      address: 'houseOther@example.com',
+      value: 'houseOther@example.com',
     }],
     photo: ['somedata'],
     url: [],
@@ -448,17 +451,18 @@ function test_can_do_simple_merge() {
     }],
     tel: [{
       type: 'Home',
-      number: '555-125-1512',
+      value: '555-125-1512',
     }, {
       type: 'Cell',
-      number: '555-555-1555',
+      value: '555-555-1555',
     }],
     impp: [{
       type: 'ICQ',
-      handle: '15215125'
+      value: '15215125'
     }],
     org: [],
     jobTitle: [],
+    department: [],
     bday: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
     note: [],
     anniversary: null,
