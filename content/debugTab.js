@@ -16,6 +16,8 @@ let DebugTab = {
             .addEventListener('click', this.insertFakeContacts.bind(this));
     document.getElementById('createDb')
             .addEventListener('click', this._createDb.bind(this));
+    document.getElementById('importOldTB')
+            .addEventListener('click', this._importOldTB.bind(this));
   },
 
   insertFakeContacts: function DebugTab_insertFakeContacts() {
@@ -81,6 +83,12 @@ let DebugTab = {
     });
 
     Services.obs.addObserver(this, "profile-before-change", false);
+  },
+
+  _importOldTB: function DebugTab_importOldTB() {
+    Components.utils.import("resource://ensemble/connectors/TBMorkConnector.jsm");
+    let c = new TBMorkConnector();;
+    c.getAllContacts();
   },
 
   observe: function(aSubject, aTopic, aData) {
