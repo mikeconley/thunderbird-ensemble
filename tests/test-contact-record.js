@@ -24,7 +24,10 @@ let kTestFields = {
   }],
 
   photo: [],
-  url: ['https://www.example.com'],
+  url: [{
+    type: 'Homepage',
+    value: 'https://www.example.com'
+  }],
   category: [],
   adr: [{
     type: 'Work',
@@ -48,6 +51,7 @@ let kTestFields = {
     value: '15215125'
   }],
 
+  other: [],
   org: ['Princeton-Plainsboro Teaching Hospital'],
   jobTitle: 'Diagnostician',
   department: 'Diagnostics',
@@ -76,7 +80,10 @@ let kResultingFields = {
   }],
 
   photo: [],
-  url: ['https://www.example.com'],
+  url: [{
+    type: 'Homepage',
+    value: 'https://www.example.com'
+  }],
   category: [],
   adr: [{
     type: 'Work',
@@ -100,6 +107,7 @@ let kResultingFields = {
     value: '15215125'
   }],
 
+  other: [],
   org: ['Princeton-Plainsboro Teaching Hospital'],
   jobTitle: ['Diagnostician'],
   department: ['Diagnostics'],
@@ -177,7 +185,10 @@ const kResultingDiff = {
       type: 'Work',
       value: 'house@example.com',
     }],
-    url: ['https://www.example.com'],
+    url: [{
+      type: 'Homepage',
+      value: 'https://www.example.com'
+    }],
     adr: [{
       type: 'Work',
       streetAddress: '123 Fake St.',
@@ -460,6 +471,7 @@ function test_can_do_simple_merge() {
       type: 'ICQ',
       value: '15215125'
     }],
+    other: [],
     org: [],
     jobTitle: [],
     department: [],

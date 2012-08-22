@@ -87,8 +87,11 @@ let DebugTab = {
 
   _importOldTB: function DebugTab_importOldTB() {
     Components.utils.import("resource://ensemble/connectors/TBMorkConnector.jsm");
-    let c = new TBMorkConnector();;
-    c.getAllContacts();
+    let c = new TBMorkConnector();
+    let result = c.getAllRecords(function(aRecords, aTags) {
+      dump(JSON.stringify(aRecords, null, "\t"));
+      dump(JSON.stringify(aTags, null, "\t"));
+    });
   },
 
   observe: function(aSubject, aTopic, aData) {

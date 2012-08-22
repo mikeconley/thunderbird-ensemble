@@ -11,10 +11,10 @@ Cu.import('resource://ensemble/EnsembleUtils.jsm');
 // These are the fields that accept either a string, or an array of strings.
 const kBasicFields = ['name', 'honorificPrefix', 'givenName',
                       'additionalName', 'familyName', 'honorificSuffix',
-                      'nickname', 'photo', 'url', 'category', 'org',
+                      'nickname', 'photo', 'category', 'org',
                       'jobTitle', 'department', 'note'];
 
-const kTypedFields = ['tel', 'email', 'impp'];
+const kTypedFields = ['tel', 'email', 'impp', 'url', 'other'];
 const kAddressFields = ['adr'];
 const kDateFields = ['bday', 'anniversary'];
 
@@ -130,6 +130,8 @@ function ContactRecord(aServiceID, aFields, aMeta) {
   this.fields['tel'] = _createTyped(aFields.tel);
   this.fields['email'] = _createTyped(aFields.email);
   this.fields['impp'] = _createTyped(aFields.impp);
+  this.fields['url'] = _createTyped(aFields.url);
+  this.fields['other'] = _createTyped(aFields.other);
 
   /**
    * Helper function that accepts either a string, an array of strings, or

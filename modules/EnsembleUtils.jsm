@@ -75,28 +75,3 @@ function arrayContains(aArray, aItem) {
   });
 }
 
-function getEmptyRecord() {
-  return {
-    name: [],
-    honorificPrefix: [],
-    givenName: [],
-    additionalName: [],
-    familyName: [],
-    honorificSuffix: [],
-    nickname: [],
-    email: [],
-    photo: [],
-    url: [],
-    category: [],
-    adr: [],
-    tel: [],
-    org: [],
-    jobTitle: [],
-    department: [],
-    bday: null,
-    note: [],
-    anniversary: null,
-    sex: null,
-    genderIdentity: null,
-  };
-}

@@ -12,23 +12,14 @@ const Cr = Components.results;
 const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
 const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 
+Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/iteratorUtils.jsm");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/EnsembleUtils.jsm");
+Cu.import("resource://gre/modules/NetUtil.jsm");
 
 const kStrings = ["FirstName", "LastName", "DisplayName", "NickName",
                   "JobTitle", "Department", "Company", "Notes"];
-const kStringMap = {
-  FirstName: "givenName",
-  LastName: "familyName",
-  DisplayName: "name",
-  NickName: "nickname",
-  JobTitle: "jobTitle",
-  Department: "department",
-  Company: "org",
-  Notes: "note",
-}
-
 const kEmails = ["PrimaryEmail", "SecondEmail"]; 
 const kAddresses = ["HomeAddress", "HomeAddress2", "HomeCity", "HomeState",
                     "HomeZipCode", "HomeCountry",  "WorkAddress",
@@ -39,46 +30,29 @@ const kTels = ["HomePhone", "HomePhoneType", "WorkPhone", "WorkPhoneType",
                "PagerNumberType", "CellularNumber", "CellularNumberType"];
 const kIMs = ["_GoogleTalk", "_AimScreenName", "_Yahoo", "_Skype", "_QQ",
               "_MSN", "_ICQ", "_JabberId"];
-const kIMMap = {
-  "_GoogleTalk": "GTalk",
-  "_AimScreenName": "AIM",
-  "_Yahoo': 'Yahoo",
-  "_Skype': 'Skype",
-  "_QQ': 'QQ",
-  "_MSN': 'MSN",
-  "_ICQ': 'ICQ",
-  "_JabberId': 'Jabber",
-};
 
 const kWebsites = ["WebPage1", "WebPage2"];
-const kDates = ["Anniversary", "Birth"];
+const kDates = ["AnniversaryYear", "AnniversaryMonth", "AnniversaryDay",
+                "BirthYear", "BirthMonth", "BirthDay"];
 
 const kOthers = ["PhoneticFirstName", "PhoneticLastName", "SpouseName",
                  "FamilyName", "Custom1", "Custom2", "Custom3", "Custom4"];
 
-const kOthersMap = {
-  PhoneticFirstName: "Phonetic first name",
-  PhoneticLastName: "Phonetic last name",
-  SpouseName: "Spouse name",
-  FamilyName: "Family name",
-  Custom1: "Custom",
-  Custom2: "Custom",
-  Custom3: "Custom",
-  Custom4: "Custom",
-}
+// Photos
+const kPhotos = ["PhotoName"];
 
-const kPopularity = "PopularityIndex";
-
-// Tags
+// More complex tags that we handle specially
 const kPreferMailFormat = ["PreferMailFormat"];
-const kPreferMailFormatMap = {
-  plaintext: "Receive in plaintext",
-  html: "Receive in HTML",
-}
 
-const kAllowRemoteContent = ["AllowRemoteContent"];
+// Simple boolean tags...
+const kBooleanTags = ["AllowRemoteContent", "PreferDisplayName"];
 
-// LastModifiedDate?
+// Meta stuff
+const kMeta = ["PopularityIndex"];
+
+// Stuff we don't need
+const kDiscards = ["RecordKey", "DbRowID", "LowercasePrimaryEmail",
+                   "LastModifiedDate", "PhotoType", "PhotoURI"];
 
 let TBMorkConnector = function(aParams) {
   this._params = aParams;
@@ -88,79 +62,190 @@ TBMorkConnector.prototype = {
   writable: false,
   syncable: false,
 
-  getAllRecordFields: function TBMC_getAllRecordFields(aCallback) {
-    let result = [];
+  _processDirectories: function TBMC__processDirectories(aEnumerator,
+                                                         aResult,
+                                                         aTags,
+                                                         aCallback) {
+    if (aEnumerator.hasMoreElements())
+      this._processDirectory(aEnumerator, aResult, aTags);
+    else
+      aCallback(aResult, aTags);
+  },
 
-    let abs = MailServices.ab.directories;
+  _processDirectory: function TBMC__processDirectory(aEnumerator, aResult,
+                                                     aTags) {
+    let ab = aEnumerator.getNext();
+    if (!(ab instanceof Ci.nsIAbDirectory))
 
-    while (abs.hasMoreElements()) {
-      let ab = abs.getNext();
-      if (ab instanceof Ci.nsIAbDirectory) {
-        // What kind of directory do we have here? An LDAP directory? If so,
-        // skip it - we'll want to use the LDAP Connector to get those contacts.
-        // Same with the OSX address book.
-        if (ab instanceof Ci.nsIAbLDAPDirectory ||
-            ab.URI.indexOf("moz-abosxdirectory") != -1) {
-          continue;
+      // What kind of directory do we have here? An LDAP directory? If so,
+      // skip it - we'll want to use the LDAP Connector to get those contacts.
+      // Same with the OSX address book.
+      if (ab instanceof Ci.nsIAbLDAPDirectory ||
+          ab.URI.indexOf("moz-abosxdirectory") != -1) {
+        continue;
+      }
+
+      // Handle the Collected AB and Personal AB differently.
+      let isPersonal = (ab.URI == kPersonalAddressbookURI);
+      let isCollected = (ab.URI == kCollectedAddressbookURI);
+
+      let mailingLists = [];
+      let cache = {};
+      let cards = ab.childCards;
+      while (cards.hasMoreElements()) {
+        let card = cards.getNext();
+        if (card instanceof Ci.nsIAbCard) {
+
+          // Or wait, is this a mailing list? If so, stash this for
+          // processing at the end.
+          if (card.isMailList) {
+            mailingLists.push(MailServices.ab
+                                          .getDirectory(card.mailListURI));
+            continue;
+          }
+
+          let mapping = new CardMapping(card.localId);
+          for (let property in fixIterator(card.properties,
+                                           Ci.nsIProperty)) {
+            mapping.handle(property.name, property.value);
+          }
+
+          // Now put it in the right categories...
+          if (isPersonal)
+            mapping.addCategory("system:personal");
+          else if (isCollected)
+            mapping.addCategory("system:collected");
+          else {
+            // Or were we part of some other, user-defined address book?
+            mapping.addCategory(ab.dirName);
+            tags[ab.dirName] = ab.dirName;
+          }
+
+          // Cache the result. We'll extract later once we've done
+          // the mailing lists.
+          cache[card.localId] = mapping;
         }
+      }
 
-        // Handle the Collected AB and Personal AB differently.
-        let isPersonal = (ab.URI == kPersonalAddressbookURI);
-        let isCollected = (ab.URI == kCollectedAddressbookURI);
-
-        if (isPersonal)
-          dump("\nNow it's personal!\n");
-        else if (isCollected)
-          dump("\nCollected, beeyotches!\n");
-
-        // Or are we in some kind of other address book?
-
-        // Or wait, is this a mailing list?
-
-        let cards = ab.childCards;
-        while (cards.hasMoreElements()) {
-          let card = cards.getNext();
-          if (card instanceof Ci.nsIAbCard) {
-            let mapping = new CardMapping();
-            for (let property in fixIterator(card.properties,
-                                             Ci.nsIProperty)) {
-              mapping.handle(property.name, property.value);
+      // Now for the mailing lists.
+      for each (let [, list] in Iterator(mailingLists)) {
+        if (list instanceof Ci.nsIAbDirectory) {
+          let cards = list.childCards;
+          while (cards.hasMoreElements()) {
+            let card = cards.getNext();
+            if (card instanceof Ci.nsIAbCard) {
+              if (card.localId in cache) {
+                let mapping = cache[card.localId];
+                mapping.addCategory(list.dirName);
+                tags[list.dirName] = list.dirName;
+              }
             }
-
-            // TODO: Now put it in the right categories...
-
-
-            // And add it to our result.
-            result.push(mapping.fields);
           }
         }
       }
+
+      // Ok, extract to results.
+      for each (let [, mapping] in Iterator(cache)) {
+        result.push({
+          fields: mapping.fields,
+          meta: mapping.meta,
+        });
+      }
+    }
+  },
+
+  getAllRecords: function TBMC_getAllRecords(aCallback) {
+    let result = [];
+    let tags = {};
+
+    this._processDirectories(MailServices.ab.directories, result, tags,
+                             aCallback);
+
+    return;
+
+
+    while (abs.hasMoreElements()) {
+      let ab = abs.getNext();
+
     }
 
-    return result;
+    aCallback(result, tags);
   },
 };
 
 function CardMapping() {
   this._fields = getEmptyRecord();
-  this._emails = [];
-};
+  this._meta = {};
+
+  this._handlers = new Map();
+  this._handlers.set(kStrings, this._handleString);
+  this._handlers.set(kEmails, this._handleEmail);
+  this._handlers.set(kAddresses, this._handleAddress);
+  this._handlers.set(kTels, this._handleTel);
+  this._handlers.set(kIMs, this._handleIM);
+  this._handlers.set(kWebsites, this._handleWebsite);
+  this._handlers.set(kDates, this._handleDate);
+  this._handlers.set(kOthers, this._handleOther);
+  this._handlers.set(kPhotos, this._handlePhoto);
+  this._handlers.set(kPreferMailFormat, this._handlePreferMailFormat);
+  this._handlers.set(kBooleanTags, this._handleBooleanTags);
+  this._handlers.set(kMeta, this._handleMeta);
+  this._handlers.set(kDiscards, this._handleDiscard);
+}
 
 CardMapping.prototype = {
-  _handlers: {
-    kStrings: this._handleString,
-    kEmails: this._handleEmail,
-    kAddresses: this._handleAddress,
-    kTels: this._handleTel,
-    kIMs: this._handleIM,
-    kWebsites: this._handleWebsite,
-    kDates: this._handleDate,
-    kOthers: this._handleOther,
-    kPreferMailFormat: this._handlePreferMailFormat,
-    kAllowRemoteContent: this._handleAllowRemoteContent,
+  handle: function CardMapping_handle(aName, aValue) {
+    for (let [names, handler] of this._handlers) {
+      if (names.indexOf(aName) != -1) {
+        handler.call(this, aName, aValue);
+        return;
+      }
+    }
+
+    // If all else fails, it's other.
+    this._handleOther(aName, aValue);
+  },
+
+  get fields() {
+    // Process the fields, scrunching down any empty spaces in the Arrays,
+    // and converting the Dates to JSON dates.
+    let result = getEmptyRecord();
+    for (let field in result) {
+      // Arrays...
+      if (Array.isArray(this._fields[field])) {
+        for (let i = 0; i < this._fields[field].length; ++i)
+          if (this._fields[field][i])
+            result[field].push(this._fields[field][i]);
+      }
+      else if (this._fields[field] instanceof Date)
+        result[field] = this._fields[field].toJSON();
+      else if (typeof(this._fields[field]) == "string")
+        result[field] = this._fields[field];
+    }
+
+    return result;
+  },
+
+  get meta() {
+    return this._meta;
+  },
+
+  addCategory: function(aCategory) {
+    this._fields.category.push(aCategory);
   },
 
   _handleString: function CardMapping__handleString(aName, aValue) {
+    const kStringMap = {
+      "FirstName": "givenName",
+      "LastName": "familyName",
+      "DisplayName": "name",
+      "NickName": "nickname",
+      "JobTitle": "jobTitle",
+      "Department": "department",
+      "Company": "org",
+      "Notes": "note",
+    };
+
     let key = kStringMap[aName];
     this._fields[key] = [aValue];
   },
@@ -170,44 +255,250 @@ CardMapping.prototype = {
     // resulting emails array being sent back as the total fields.
     const kEmailIndexMap = ["PrimaryEmail", "SecondEmail"];
     let index = kEmailIndexMap.indexOf(aName);
-    this._emails[index] = {type: '', address: aValue};
+    this._fields.email[index] = {type: "", value: aValue};
   },
 
   _handleAddress: function CardMapping__handleAddress(aName, aValue) {
-    const kAddressPrefixIndexMap = ["Home", "Work"];
+    const kAddressIndexMap = ["Home", "Work"];
+    const kSuffixMap = {
+      "Address": "streetAddress",
+      "Address2": "streetAddress",
+      "City": "locality",
+      "State": "region",
+      "ZipCode": "postalCode",
+      "Country": "countryName",
+    };
 
+    // The first 4 characters will tell us the type - either Home or Work.
+    let type = aName.substring(0, 4);
+    let suffix = aName.substring(4);
+    let index = kAddressIndexMap.indexOf(type);
+
+    if (index == -1)
+      throw new Error("Somehow, we didn't get an address field that " +
+                      "started with Home or Work. Probably shouldn't be " +
+                      "possible, but checking just in case.");
+    if (!(suffix in kSuffixMap))
+      throw new Error("Got unexpected Address suffix: " + suffix);
+
+    let valueType = kSuffixMap[suffix];
+
+    if (!this._fields.adr[index])
+      this._fields.adr[index] = {
+        type: '',
+        streetAddress: '',
+        locality: '',
+        region: '',
+        postalCode: '',
+        countryName: '',
+      };
+
+    if (!this._fields.adr[index][valueType])
+      this._fields.adr[index][valueType] = aValue;
+    else {
+      // This might be naive...we'll see.
+      // We must be processing either Address or Address2. If we've got
+      // Address, prepend the current value with aValue. Otherwise, append
+      // the value.
+      let orig = this._fields.adr[index][valueType];
+      if (aName == "Address")
+        this._fields.adr[index][valueType] = aValue + " " + orig;
+      else
+        this._fields.adr[index][valueType] = orig + " " + aValue;
+    }
   },
 
   _handleTel: function CardMapping__handleTel(aName, aValue) {
+    const kTelIndexMap = ["Home", "Work", "Cellular", "Fax", "Pager"];
+
+    let index = -1, telPrefix = "";
+
+    for each (let [i, prefix] in Iterator(kTelIndexMap)) {
+      if (aName.indexOf(prefix) != -1) {
+        telPrefix = prefix;
+        index = i;
+        break;
+      }
+    }
+
+    if (index == -1 || telPrefix == "")
+      throw new Error("Couldn't find mapping for property named " + aName);
+
+    if (!this._fields.tel[index])
+      this._fields.tel[index] = {type: '', value: ''};
+
+    let suffix = aName.substring(aName.length, aName.length - 4);
+    if (suffix == "Type")
+      this._fields.tel[index].type = aValue;
+    else
+      this._fields.tel[index].value = aValue;
   },
 
   _handleIM: function CardMapping__handleIM(aName, aValue) {
+    const kIMMap = {
+      "_GoogleTalk": "GTalk",
+      "_AimScreenName": "AIM",
+      "_Yahoo": "Yahoo",
+      "_Skype": "Skype",
+      "_QQ": "QQ",
+      "_MSN": "MSN",
+      "_ICQ": "ICQ",
+      "_JabberId": "Jabber",
+    };
+    if (!(aName in kIMMap))
+      throw new Error("Got an unexpected IM type: " + aName);
+
+    let index = Object.keys(kIMMap).indexOf(aName);
+    this._fields.impp[index] = {type: kIMMap[aName], value: aValue};
   },
 
   _handleWebsite: function CardMapping__handleWebsite(aName, aValue) {
+    const kWebsiteMap = ["WebPage1", "WebPage2"];
+    let index = kWebsiteMap.indexOf(aName);
+
+    if (index == -1)
+      throw new Error("Unexpected website type: " + aName);
+
+    this._fields.url[index] = {
+      type: '',
+      value: aValue,
+    };
   },
 
   _handleDate: function CardMapping__handleDate(aName, aValue) {
+    const kDatePrefix = {
+      "Anniversary": "anniversary",
+      "Birth": "bday",
+    };
+
+    let mapping;
+    for (let key in kDatePrefix) {
+      if (aName.indexOf(key) != -1) {
+        mapping = kDatePrefix[key];
+        break;
+      }
+    }
+    if (!mapping)
+      throw new Error("Unexpected date type: " + aName);
+
+    if (!this._fields[mapping])
+      this._fields[mapping] = new Date();
+
+    if (aName.indexOf("Day") != -1) {
+      this._fields[mapping].setDate(aValue);
+    }
+    else if (aName.indexOf("Month") != -1) {
+      // Strangely, month is 0-indexed...
+      this._fields[mapping].setMonth(parseInt(aValue) - 1);
+    }
+    else if (aName.indexOf("Year") != -1) {
+      this._fields[mapping].setFullYear(aValue);
+    }
   },
 
   _handleOther: function CardMapping__handleOther(aName, aValue) {
+    this._fields.other.push({
+      type: aName,
+      value: aValue,
+    });
+  },
+
+  _handleDiscard: function CardMapping__handleDiscard(aName, aValue) {
+    // This one's easy...we just don't add it.
   },
 
   _handlePreferMailFormat: function CardMapping__handlePrefMailFormat
     (aName, aValue) {
+    if (parseInt(aValue) == Ci.nsIAbPreferMailFormat.plaintext)
+      this.addCategory("system:receive-in-plaintext");
+    else if (parseInt(aValue) == Ci.nsIAbPreferMailFormat.html)
+      this.addCategory("system:receive-in-html");
   },
 
-  _handleAllowRemoteContent: function CardMapping__handleAllowRemoteContent
+  _handleBooleanTags: function CardMapping__handleBooleanTags
     (aName, aValue) {
-  }
 
-  handle: function CardMapping_handle(aName, aValue) {
-    for (let [names, handler] in Iterator(this._handlers)) {
-      if (names.indexOf(aName) != -1)
-        handler(aName, aValue);
-    }
+    const kTagMap = {
+      "AllowRemoteContent": "system:allow-remote-content",
+      "PreferDisplayName": "system:prefers-display-name",
+    };
 
-    // If all else fails, it's other.
-    this._handleOther(aName, aValue);
+    if (!(aName in kTagMap))
+      throw new Error("Unexpected tag name: " + aName);
+
+    if (aValue)
+      this.addCategory(kTagMap[aName]);
+  },
+
+  _handleMeta: function CardMapping__handleMeta(aName, aValue) {
+    const kMetaMap = {
+      "PopularityIndex": "popularityIndex",
+    };
+
+    if (!(aName in kMetaMap))
+      throw new Error("Unexpected Meta value: " + aName);
+
+    this._meta[kMetaMap[aName]] = aValue;
+  },
+
+  _handlePhoto: function CardMapping__handlePhoto(aName, aValue) {
+    if (aName != "PhotoName")
+      throw new Error("Unexpected photo value: " + aName);
+
+    // Ok, the contact has a photo. The old TB address book stashes
+    // this photo in a Photos subdirectory under the profile directory
+    // using the filename stored in PhotoName.  Let's get that.
+    let photoFile = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
+    photoFile.append("Photos");
+    if (!photoFile.exists() || !photoFile.isDirectory())
+      throw new Error("Could not find Photos directory under current "
+                      + "profile");
+
+    photoFile.append(aValue);
+    if (!photoFile.exists())
+      throw new Error("Could not find photo file for contact.");
+
+    // We'll want the MIME type, since we're storing as a data URL.
+    let mimeSvc = Cc["@mozilla.org/mime;1"].getService(Ci.nsIMIMEService);
+    let mimeType = mimeSvc.getTypeFromFile(photoFile);
+
+    NetUtil.asyncFetch(photoFile, function(aInputStream, aStatus) {
+      if (!Components.isSuccessCode(aStatus))
+        throw new Error("Couldn't get data from photo file " + aValue);
+
+      let data = NetUtil.readInputStreamToString(aInputStream,
+                                                 aInputStream.available());
+
+      let dataURI = "data:" + mimeType + ";base64," + btoa(data);
+      this._fields.photo.push(dataURI);
+    }.bind(this));
   },
 };
+
+function getEmptyRecord() {
+  return {
+    name: [],
+    honorificPrefix: [],
+    givenName: [],
+    additionalName: [],
+    familyName: [],
+    honorificSuffix: [],
+    nickname: [],
+    email: [],
+    photo: [],
+    url: [],
+    category: [],
+    adr: [],
+    tel: [],
+    impp: [],
+    org: [],
+    other: [],
+    jobTitle: [],
+    department: [],
+    bday: null,
+    note: [],
+    anniversary: null,
+    sex: null,
+    genderIdentity: null,
+  };
+}
