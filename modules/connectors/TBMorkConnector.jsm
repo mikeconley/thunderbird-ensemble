@@ -66,112 +66,151 @@ TBMorkConnector.prototype = {
                                                          aResult,
                                                          aTags,
                                                          aCallback) {
-    if (aEnumerator.hasMoreElements())
-      this._processDirectory(aEnumerator, aResult, aTags);
-    else
+    let q = new JobQueue();
+
+    while (aEnumerator.hasMoreElements()) {
+      let ab = aEnumerator.getNext();
+
+      q.addJob(function(aJobFinished) {
+        this._processDirectory(ab, aResult, aTags, aJobFinished);
+      }.bind(this));
+    }
+
+    q.start(function() {
       aCallback(aResult, aTags);
+    });
   },
 
-  _processDirectory: function TBMC__processDirectory(aEnumerator, aResult,
-                                                     aTags) {
-    let ab = aEnumerator.getNext();
-    if (!(ab instanceof Ci.nsIAbDirectory))
+  _processDirectory: function TBMC__processDirectory(aDirectory, aResult,
+                                                     aTags, aJobFinished) {
+    if (!(aDirectory instanceof Ci.nsIAbDirectory)) {
+      aJobFinished();
+      return;
+    }
 
-      // What kind of directory do we have here? An LDAP directory? If so,
-      // skip it - we'll want to use the LDAP Connector to get those contacts.
-      // Same with the OSX address book.
-      if (ab instanceof Ci.nsIAbLDAPDirectory ||
-          ab.URI.indexOf("moz-abosxdirectory") != -1) {
-        continue;
-      }
 
-      // Handle the Collected AB and Personal AB differently.
-      let isPersonal = (ab.URI == kPersonalAddressbookURI);
-      let isCollected = (ab.URI == kCollectedAddressbookURI);
+    // What kind of directory do we have here? An LDAP directory? If so,
+    // skip it - we'll want to use the LDAP Connector to get those contacts.
+    // Same with the OSX address book.
+    if (aDirectory instanceof Ci.nsIAbLDAPDirectory ||
+        aDirectory.URI.indexOf("moz-abosxdirectory") != -1) {
+      aJobFinished();
+      return;
+    }
 
-      let mailingLists = [];
-      let cache = {};
-      let cards = ab.childCards;
-      while (cards.hasMoreElements()) {
-        let card = cards.getNext();
-        if (card instanceof Ci.nsIAbCard) {
+    // Handle the Collected AB and Personal AB differently.
+    let isPersonal = (aDirectory.URI == kPersonalAddressbookURI);
+    let isCollected = (aDirectory.URI == kCollectedAddressbookURI);
 
-          // Or wait, is this a mailing list? If so, stash this for
-          // processing at the end.
-          if (card.isMailList) {
-            mailingLists.push(MailServices.ab
-                                          .getDirectory(card.mailListURI));
-            continue;
-          }
+    let mailingLists = [];
+    let cache = {};
+    let cards = aDirectory.childCards;
+    while (cards.hasMoreElements()) {
+      let card = cards.getNext();
+      if (card instanceof Ci.nsIAbCard) {
 
-          let mapping = new CardMapping(card.localId);
-          for (let property in fixIterator(card.properties,
-                                           Ci.nsIProperty)) {
-            mapping.handle(property.name, property.value);
-          }
-
-          // Now put it in the right categories...
-          if (isPersonal)
-            mapping.addCategory("system:personal");
-          else if (isCollected)
-            mapping.addCategory("system:collected");
-          else {
-            // Or were we part of some other, user-defined address book?
-            mapping.addCategory(ab.dirName);
-            tags[ab.dirName] = ab.dirName;
-          }
-
-          // Cache the result. We'll extract later once we've done
-          // the mailing lists.
-          cache[card.localId] = mapping;
+        // Or wait, is this a mailing list? If so, stash this for
+        // processing at the end.
+        if (card.isMailList) {
+          mailingLists.push(MailServices.ab
+                                        .getDirectory(card.mailListURI));
+          continue;
         }
-      }
 
-      // Now for the mailing lists.
-      for each (let [, list] in Iterator(mailingLists)) {
-        if (list instanceof Ci.nsIAbDirectory) {
-          let cards = list.childCards;
-          while (cards.hasMoreElements()) {
-            let card = cards.getNext();
-            if (card instanceof Ci.nsIAbCard) {
-              if (card.localId in cache) {
-                let mapping = cache[card.localId];
-                mapping.addCategory(list.dirName);
-                tags[list.dirName] = list.dirName;
-              }
+        let mapping = new CardMapping(card.localId);
+        for (let property in fixIterator(card.properties,
+                                         Ci.nsIProperty)) {
+          mapping.handle(property.name, property.value);
+        }
+
+        // Now put it in the right categories...
+        if (isPersonal)
+          mapping.addCategory("system:personal");
+        else if (isCollected)
+          mapping.addCategory("system:collected");
+        else {
+          // Or were we part of some other, user-defined address book?
+          mapping.addCategory(aDirectory.dirName);
+          aTags[aDirectory.dirName] = aDirectory.dirName;
+        }
+
+        // Cache the result. We'll extract later once we've done
+        // the mailing lists.
+        cache[card.localId] = mapping;
+      }
+    }
+
+    // Now for the mailing lists.
+    for each (let [, list] in Iterator(mailingLists)) {
+      if (list instanceof Ci.nsIAbDirectory) {
+        let cards = list.childCards;
+        while (cards.hasMoreElements()) {
+          let card = cards.getNext();
+          if (card instanceof Ci.nsIAbCard) {
+            if (card.localId in cache) {
+              let mapping = cache[card.localId];
+              mapping.addCategory(list.dirName);
+              aTags[list.dirName] = list.dirName;
             }
           }
         }
       }
-
-      // Ok, extract to results.
-      for each (let [, mapping] in Iterator(cache)) {
-        result.push({
-          fields: mapping.fields,
-          meta: mapping.meta,
-        });
-      }
     }
+
+    let q = new JobQueue();
+
+    // Ok, extract to results.
+    for each (let [, mapping] in Iterator(cache)) {
+      q.addJob(function(aJobFinished) {
+        mapping.deriveRecord(function(aFields, aMeta) {
+          aResult.push({
+            fields: aFields,
+            meta: aMeta,
+          });
+          aJobFinished();
+        });
+      });
+    }
+
+    q.start(function() {
+      aJobFinished();
+    });
+
   },
 
   getAllRecords: function TBMC_getAllRecords(aCallback) {
     let result = [];
     let tags = {};
-
     this._processDirectories(MailServices.ab.directories, result, tags,
                              aCallback);
-
-    return;
-
-
-    while (abs.hasMoreElements()) {
-      let ab = abs.getNext();
-
-    }
-
-    aCallback(result, tags);
   },
 };
+
+function JobQueue() {
+  this._queue = [];
+};
+
+JobQueue.prototype = {
+  addJob: function JQ_addJob(aFunction) {
+    this._queue.push(aFunction);
+  },
+
+  start: function(aFinishedCallback) {
+    this._finishedCallback = aFinishedCallback;
+    this._tick();
+  },
+
+  _tick: function() {
+    if (this._queue.length == 0) {
+      this._finishedCallback();
+      return;
+    }
+
+    let currentFunction = this._queue.shift();
+    currentFunction(this._tick.bind(this));
+  },
+};
+
 
 function CardMapping() {
   this._fields = getEmptyRecord();
@@ -191,9 +230,22 @@ function CardMapping() {
   this._handlers.set(kBooleanTags, this._handleBooleanTags);
   this._handlers.set(kMeta, this._handleMeta);
   this._handlers.set(kDiscards, this._handleDiscard);
+
+  this._asyncOps = 0;
 }
 
 CardMapping.prototype = {
+  get asyncOps() {
+    return this._asyncOps;
+  },
+
+  set asyncOps(aVal) {
+    this._asyncOps = aVal;
+
+    if (this._asyncOps == 0)
+      this._finish();
+  },
+
   handle: function CardMapping_handle(aName, aValue) {
     for (let [names, handler] of this._handlers) {
       if (names.indexOf(aName) != -1) {
@@ -206,7 +258,20 @@ CardMapping.prototype = {
     this._handleOther(aName, aValue);
   },
 
-  get fields() {
+  deriveRecord: function CardMapping_deriveRecord(aCallback) {
+    this._finishDerivationCb = aCallback;
+    if (this.asyncOps == 0)
+      this._finish();
+  },
+
+  addCategory: function CardMapping_addCategory(aCategory) {
+    this._fields.category.push(aCategory);
+  },
+
+  _finish: function CardMapping__finish() {
+    if (!this._finishDerivationCb)
+      return;
+
     // Process the fields, scrunching down any empty spaces in the Arrays,
     // and converting the Dates to JSON dates.
     let result = getEmptyRecord();
@@ -223,15 +288,7 @@ CardMapping.prototype = {
         result[field] = this._fields[field];
     }
 
-    return result;
-  },
-
-  get meta() {
-    return this._meta;
-  },
-
-  addCategory: function(aCategory) {
-    this._fields.category.push(aCategory);
+    this._finishDerivationCb(result, this._meta);
   },
 
   _handleString: function CardMapping__handleString(aName, aValue) {
@@ -462,6 +519,8 @@ CardMapping.prototype = {
     let mimeSvc = Cc["@mozilla.org/mime;1"].getService(Ci.nsIMIMEService);
     let mimeType = mimeSvc.getTypeFromFile(photoFile);
 
+    this.asyncOps++;
+
     NetUtil.asyncFetch(photoFile, function(aInputStream, aStatus) {
       if (!Components.isSuccessCode(aStatus))
         throw new Error("Couldn't get data from photo file " + aValue);
@@ -471,7 +530,9 @@ CardMapping.prototype = {
 
       let dataURI = "data:" + mimeType + ";base64," + btoa(data);
       this._fields.photo.push(dataURI);
+      this.asyncOps--;
     }.bind(this));
+
   },
 };
 
