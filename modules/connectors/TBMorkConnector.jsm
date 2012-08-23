@@ -207,7 +207,14 @@ JobQueue.prototype = {
     }
 
     let currentFunction = this._queue.shift();
-    currentFunction(this._tick.bind(this));
+
+    let timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+    let timerEvent = {
+      notify: function(aTimer) {
+        currentFunction(this._tick.bind(this));
+      }.bind(this),
+    };
+    timer.initWithCallback(timerEvent, 10, Ci.nsITimer.TYPE_ONE_SHOT);
   },
 };
 

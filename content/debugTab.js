@@ -1,17 +1,20 @@
+// Nothing in this file is going to be used in the final product - it's
+// just the logic behind a crappy little UI tool for testing things when
+// I don't feel like automating.
+//
+// So there's bad code in here. And that's expected. Please ignore.
+
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
+const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
 
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
 
-Cu.import("resource:///modules/gloda/suffixtree.js");
-
 let DebugTab = {
-  _progress: null,
 
   init: function DebugTab_init() {
-    this._progress = document.getElementById('jobProgress');
-
     document.getElementById('insertFakeContacts')
             .addEventListener('click', this.insertFakeContacts.bind(this));
     document.getElementById('createDb')
@@ -27,7 +30,7 @@ let DebugTab = {
 
     req.overrideMimeType('application/json');
     req.open('GET',
-      'chrome://ensemble-test-data/content/fakecontacts/fakecontacts.json',
+      'resource://ensemble-test-data/fakecontacts/fakecontacts.json',
       true);
 
     req.onreadystatechange = function() {
@@ -35,8 +38,6 @@ let DebugTab = {
                                    req.status === 0)) {
         let contacts = JSON.parse(req.responseText);
         if (contacts) {
-          this._progress.max = contacts.length;
-          dump("\n\nGot contacts!\n\n");
           this._insertContacts(contacts);
         }
       }
@@ -46,35 +47,54 @@ let DebugTab = {
   },
 
   _insertContacts: function DebugTab_insertContacts(aContacts) {
-    let strings = [];
-    let values = [];
-    for each (let [, contact] in Iterator(aContacts)) {
-      strings.push(contact.givenName);
-      values.push(contact.givenName + " " + contact.familyName);
+    // Synchronously (bleh) jam ~500 contacts into the old TB address book.
+    let pab = MailServices.ab.getDirectory(kPersonalAddressbookURI);
+
+    function setFirstIfAvailable(aCard, aProp, aVal) {
+      if (aVal && aVal[0])
+        aCard.setProperty(aProp, aVal[0]);
     }
 
-    dump("\n\nCreating suffix tree\n\n");
-    let st = new MultiSuffixTree(strings, values);
+    for each (let [, contact] in Iterator(aContacts)) {
+      let card = Cc["@mozilla.org/addressbook/cardproperty;1"]
+                   .createInstance(Ci.nsIAbCard);
+      setFirstIfAvailable(card, "DisplayName", contact.name);
+      setFirstIfAvailable(card, "PrimaryEmail", contact.email);
+      setFirstIfAvailable(card, "FirstName", contact.givenName);
+      setFirstIfAvailable(card, "LastName", contact.familyName);
+      setFirstIfAvailable(card, "JobTitle", contact.jobTitle);
+      setFirstIfAvailable(card, "Company", contact.org);
+      setFirstIfAvailable(card, "NickName", contact.additionalName);
+      if (contact.tel[0] && contact.tel[0].number)
+        card.setProperty("HomePhone", contact.tel[0].number);
 
-    dump("\n\nSearching!\n\n");
-    dump(st.findMatches('er'))
-
-/*
-    if (aContacts.length > 0) {
-      let contactData = aContacts.shift(0);
-      let newContact = new Contact(contactData);
-
-      let onSaveComplete = function(aStatus) {
-        this._progress.value += 1;
-        this._insertContacts(aContacts);
+      if (contact.adr[0]) {
+        let adr = contact.adr[0];
+        if (adr.countryName)
+          card.setProperty("HomeCountry", adr.countryName);
+        if (adr.locality)
+          card.setProperty("HomeCity", adr.locality);
+        if (adr.postalCode)
+          card.setProperty("HomeZipCode", adr.postalCode);
+        if (adr.region)
+          card.setProperty("HomeState", adr.region);
+        if (adr.streetAddress)
+          card.setProperty("HomeAddress", adr.streetAddress);
       }
 
-      newContact.save(onSaveComplete.bind(this));
-    }*/
+      if (contact.bday) {
+        let d = new Date(contact.bday);
+        card.setProperty("BirthDay", d.getDate());
+        card.setProperty("BirthMonth", d.getMonth());
+        card.setProperty("BirthYear", d.getFullYear());
+      }
+
+      pab.addCard(card);
+    }
   },
 
   _createDb: function DebugTab_createDb() {
-    Components.utils.import("resource://ensemble/SQLiteContactStore.jsm");
+    Cu.import("resource://ensemble/SQLiteContactStore.jsm");
     SQLiteContactStore.init(function(aResult) {
       alert("Done! Result was: " + aResult);
       if (aResult != Cr.NS_OK) {
@@ -86,11 +106,17 @@ let DebugTab = {
   },
 
   _importOldTB: function DebugTab_importOldTB() {
-    Components.utils.import("resource://ensemble/connectors/TBMorkConnector.jsm");
-    let c = new TBMorkConnector();
-    let result = c.getAllRecords(function(aRecords, aTags) {
-      dump(JSON.stringify(aRecords, null, "\t"));
-      dump(JSON.stringify(aTags, null, "\t"));
+    Cu.import("resource://ensemble/connectors/TBMorkConnector.jsm");
+    let mork = new TBMorkConnector();
+    let result = mork.getAllRecords(function(aRecords, aTags) {
+
+      for each (let [, record] in Iterator(aRecords)) {
+        let contact = new Contact(record.fields, record.meta);
+        Ensemble.saveContact(contact, function(aSaved) {
+          dump("\n\nContact saved!\n\n");
+        });
+      }
+
     });
   },
 
