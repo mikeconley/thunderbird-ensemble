@@ -175,7 +175,7 @@ let SQLiteContactStore = {
       trans.steps.push(function(aDb, aStorageCallback) {
         let stmtStrings = [
           "CREATE TABLE IF NOT EXISTS contacts (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, " +
+            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "popularity INTEGER NOT NULL DEFAULT (0), " +
             "default_email INTEGER NOT NULL, " +
             "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
@@ -185,14 +185,14 @@ let SQLiteContactStore = {
             "FOREIGN KEY (default_email) REFERENCES contact_data(id))",
 
           "CREATE TABLE IF NOT EXISTS contact_records (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, " +
+            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "contact_id INTEGER NOT NULL, " +
             "data TEXT NOT NULL DEFAULT ('{}'), " +
             "source TEXT NOT NULL, " +
             "FOREIGN KEY(contact_id) REFERENCES contacts(id))",
 
           "CREATE TABLE IF NOT EXISTS contact_data (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, " +
+            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "contact_id INTEGER NOT NULL, " +
             "data1 TEXT NOT NULL DEFAULT (''), " +
             "data2 TEXT NOT NULL DEFAULT (''), " +
@@ -202,7 +202,7 @@ let SQLiteContactStore = {
             "FOREIGN KEY(contact_id) REFERENCES contacts(id)) ",
 
           "CREATE TABLE IF NOT EXISTS categories (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, " +
+            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "display_name TEXT NOT NULL, " +
             "export_name TEXT NOT NULL, " +
             "originator TEXT NOT NULL)",
