@@ -8,20 +8,52 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://ensemble/Logging.jsm");
+Cu.import("resource://ensemble/JobQueue.jsm");
 
 let Ensemble = {
   _initted: false,
+  _initting: false,
+  _datastore: null,
 
-  init: function Ensemble_init() {
+  init: function Ensemble_init(aDatastore, aCallback) {
+    if (this._initted || this._initting)
+      return;
+
     Log.info("Starting up.");
-    this._initted = true;
-    Log.info("Startup complete.");
+    this._initting = true;
+
+    dump("\n\nDATASTORE: " + aDatastore + "\n");
+
+    this._datastore = aDatastore;
+    this._datastore.init(function(aResult) {
+      if (Components.isSuccessCode(aResult)) {
+        this._initting = false;
+        this._initted = true;
+        Log.info("Startup complete.");
+      } else {
+        Log.error("Init failed with message: " + aResult.message);
+      }
+
+      aCallback(aResult);
+
+    }.bind(this));
   },
 
   uninit: function Ensemble_uninit() {
+    if (!this._initted)
+      return;
+
     Log.info("Shutting down.");
-    this._initted = false;
-    Log.info("Shutdown complete.");
+    this._datastore.uninit(function(aResult) {
+      if (Components.isSuccessCode(aResult)) {
+        this._initted = false;
+        Log.info("Shutdown complete.");
+      } else {
+        Log.error("Uninit failed with message: " + aResult.message);
+      }
+
+      aCallback(aResult);
+    }.bind(this));
   },
 
   openDebugTab: function Ensemble_openOrFocusDebugTab() {

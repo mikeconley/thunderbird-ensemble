@@ -75,7 +75,7 @@ let SQLiteContactStore = {
     // Handy function to be executed once we're done migrations, if any.
     let finished = function(aResult) {
       // We got one of two things back - an Error, or Cr.NS_OK.
-      if (aResult === Cr.NS_OK) {
+      if (Components.isSuccessCode(aResult)) {
         // Hooray! We're set up.
         Log.info("SQLiteContactStore initialized.");
         this._initting = false;
@@ -240,7 +240,7 @@ let SQLiteContactStore = {
     }
 
     trans.run(function(aResult) {
-      if (aResult == Cr.NS_OK) {
+      if (Components.isSuccessCode(aResult)) {
         // Bump the dbVersion to current
         aDb.schemaVersion = kDbCurrentVersion;
         Log.info("Successfully migrated to schema version "

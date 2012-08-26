@@ -11,8 +11,13 @@ function Contact(aParams) {
 Contact.prototype = {
   _root: null,
 
-  save: function(aCallback, aMaskServices) {
-    //ContactStore.save(this._root, aCallback);
+  get id() {
+  },
+
+  get popularity() {
+  },
+
+  set popularity(aValue) {
   },
 };
 

@@ -23,6 +23,7 @@ Cu.import("resource:///modules/iteratorUtils.jsm");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/EnsembleUtils.jsm");
 Cu.import("resource://gre/modules/NetUtil.jsm");
+Cu.import("resource://ensemble/JobQueue.jsm");
 
 const kStrings = ["FirstName", "LastName", "DisplayName", "NickName",
                   "JobTitle", "Department", "Company", "Notes"];
@@ -82,15 +83,22 @@ TBMorkConnector.prototype = {
       }.bind(this));
     }
 
-    q.start(function() {
-      aCallback(aResult, aTags);
+    let outerResult = aResult;
+    q.start(function(aInnerResult) {
+      if (Components.isSuccessCode(aInnerResult)) {
+        aCallback(outerResult, aTags);
+      } else {
+        aCallback(aInnerResult);
+      }
     });
   },
 
   _processDirectory: function TBMC__processDirectory(aDirectory, aResult,
                                                      aTags, aJobFinished) {
     if (!(aDirectory instanceof Ci.nsIAbDirectory)) {
-      aJobFinished();
+      let e = new Error("_processDirectory was passed something that wasn't "
+                        + "an nsIAbDirectory.");
+      aJobFinished(e);
       return;
     }
 
@@ -100,7 +108,7 @@ TBMorkConnector.prototype = {
     // Same with the OSX address book.
     if (aDirectory instanceof Ci.nsIAbLDAPDirectory ||
         aDirectory.URI.indexOf("moz-abosxdirectory") != -1) {
-      aJobFinished();
+      aJobFinished(Cr.NS_OK);
       return;
     }
 
@@ -173,13 +181,13 @@ TBMorkConnector.prototype = {
             fields: aFields,
             meta: aMeta,
           });
-          aJobFinished();
+          aJobFinished(Cr.NS_OK);
         });
       });
     }
 
-    q.start(function() {
-      aJobFinished();
+    q.start(function(aResult) {
+      aJobFinished(aResult);
     });
 
   },
@@ -189,38 +197,6 @@ TBMorkConnector.prototype = {
     let tags = {};
     this._processDirectories(MailServices.ab.directories, result, tags,
                              aCallback);
-  },
-};
-
-function JobQueue() {
-  this._queue = [];
-};
-
-JobQueue.prototype = {
-  addJob: function JQ_addJob(aFunction) {
-    this._queue.push(aFunction);
-  },
-
-  start: function(aFinishedCallback) {
-    this._finishedCallback = aFinishedCallback;
-    this._tick();
-  },
-
-  _tick: function() {
-    if (this._queue.length == 0) {
-      this._finishedCallback();
-      return;
-    }
-
-    let currentFunction = this._queue.shift();
-
-    let timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
-    let timerEvent = {
-      notify: function(aTimer) {
-        currentFunction(this._tick.bind(this));
-      }.bind(this),
-    };
-    timer.initWithCallback(timerEvent, 10, Ci.nsITimer.TYPE_ONE_SHOT);
   },
 };
 
