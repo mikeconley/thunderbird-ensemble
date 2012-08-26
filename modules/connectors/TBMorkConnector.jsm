@@ -2,6 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+// TODO: There are some fields from various address book add-ons that we
+// might want to look for and do something smart with. Down the line, it
+// might be advantageous to do a survey of the more popular address book
+// add-ons, and see what fields they add and what if anything we can do
+// with them.
+
 let EXPORTED_SYMBOLS = ['TBMorkConnector'];
 
 const Cc = Components.classes;
