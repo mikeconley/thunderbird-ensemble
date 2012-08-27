@@ -23,11 +23,9 @@ let DebugTab = {
     document.getElementById('importOldTB')
             .addEventListener('click', this._importOldTB.bind(this));
 
-    dump("\n\nInitting Ensemble.\n\n");
     Ensemble.init(SQLiteContactStore, function(aResult) {
       alert("aResult is: " + aResult);
     });
-
   },
 
   uninit: function DebugTab_uninit() {

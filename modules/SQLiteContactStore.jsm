@@ -28,7 +28,7 @@ let SQLiteContactStore = {
   _initting: false,
   _db: null,
 
-  init: function(aCallback) {
+  init: function SQLiteCS_init(aCallback) {
     // First thing's first - let's make sure we're not re-entering.
     if (this._initted || this._initting) {
       Log.warn("Initialize called on SQLiteContactStore that was already"
@@ -73,41 +73,45 @@ let SQLiteContactStore = {
       aCallback(aError);
     }.bind(this);
 
-    // Handy function to be executed once we're done migrations, if any.
-    let finished = function(aResult) {
-      // We got one of two things back - an Error, or Cr.NS_OK.
-      if (Components.isSuccessCode(aResult)) {
-        // Hooray! We're set up.
-        Log.info("SQLiteContactStore initialized.");
-        this._initting = false;
-        this._initted = true;
-        aCallback(aResult);
-      } else {
-        Log.error("Initialization failed with status: " + aResult);
-        this.uninit(function(aStatus) {
-          failed(aResult)
-        });
-        return;
-      }
-    }.bind(this);
 
     try {
       // Ok, hold a reference to the db now. Even if we don't complete our
       // migrations, we still need to hold on to tear down.
       this._db = db;
 
+      let q = new JobQueue();
+
       // Do we need to bump the db schema?
       if (this._needsMigration(db.schemaVersion)) {
         // Yep! Migrate, then run the finished function.
         Log.info(kDbFile + ' is at outdated schema version '
                  + db.schemaVersion + '. Migrating...');
-        this._migrate(db, finished);
+        q.addJob(function(aJobFinished) {
+          this._migrate(db, aJobFinished);
+        }.bind(this));
       }
       else {
         Log.info(kDbFile + ' is up to date and requires no migration. Nice!');
-        // Nope! We're done here. Run finished function immediately.
-        finished(Cr.NS_OK);
       }
+
+      // If migrations went well, we need to get the next insert IDs for each
+      // table where we manage that...
+      q.addJob(this._updateNextInsertIDs.bind(this));
+
+      q.start(function(aResult) {
+        if (Components.isSuccessCode(aResult)) {
+          // Hooray! We're set up.
+          Log.info("SQLiteContactStore initialized.");
+          this._initting = false;
+          this._initted = true;
+          aCallback(aResult);
+        } else {
+          Log.error("Initialization failed with status: " + aResult);
+          this.uninit(function(aStatus) {
+            failed(aResult)
+          });
+        }
+      }.bind(this));
 
     } catch(aError) {
       // Something went really wrong. Uninit and return an error.
@@ -117,8 +121,8 @@ let SQLiteContactStore = {
     }
   },
 
-  uninit: function(aCallback) {
-    // Uninitng - we're either fully initted, or we failed during the initting
+  uninit: function SQLiteCS_uninit(aCallback) {
+    // Uninit'ing - we're either fully initted, or we failed during the initting
     // stage and are trying to clean up.
     if (!this._initted && !this._initting) {
       Log.warn("Uninitialize called on SQLiteContactStore that was not yet"
@@ -144,11 +148,16 @@ let SQLiteContactStore = {
     }
   },
 
-  _needsMigration: function(aDbVersion) {
+  _updateNextInsertIDs: function SQLiteCS__updateNextInsertIDs(aJobFinished) {
+    // TODO
+    aJobFinished(Cr.NS_OK);
+  },
+
+  _needsMigration: function SQLiteCS__needsMigration(aDbVersion) {
     return (aDbVersion < kDbCurrentVersion);
   },
 
-  _migrate: function(aDb, aCallback) {
+  _migrate: function SQLiteCS__migrate(aDb, aCallback) {
     let dbVersion = aDb.schemaVersion;
 
     // Preliminaries - make sure we were passed a database in a sane state.
@@ -251,7 +260,7 @@ let SQLiteContactStore = {
     });
   },
 
-  save: function(aContactRecord, aCallback) {
+  save: function SQLiteCS_save(aContactRecord, aCallback) {
   },
 
 };
