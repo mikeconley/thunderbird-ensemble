@@ -151,6 +151,16 @@ let SQLiteContactStore = {
 
   _nextInsertId: {},
 
+  /**
+   * According to MDN, we cannot trust lastInsertRowID on this._db if we're
+   * using multiple threads or asynchronous statements. We're aggressively
+   * using asynchronous statements, so lastInsertRowID is out.
+   *
+   * Instead, during initialization, we calculate what the next insert IDs
+   * are for each table that uses IDs, and store those in a dictionary.
+   * SQLiteContactStore will manage all insertions to the database, so I think
+   * it can safely manage the next insert IDs as well.
+   */
   _updateNextInsertIDs: function SQLiteCS__updateNextInsertIDs(aJobFinished) {
     let kIDManagedTables = ["contacts", "contact_records", "contact_data",
                             "categories"];
@@ -159,6 +169,9 @@ let SQLiteContactStore = {
     let outerJobFinished = aJobFinished;
 
     for (let [, tableName] in Iterator(kIDManagedTables)) {
+      // For each table that uses IDs, schedule a job to calculate the next
+      // inserted ID value.
+
       q.addJob(function(aInnerJobFinished) {
         // I'm not dealing with user input, so I'm not worried about
         // SQL injection here - plus, it doesn't appear as if mozStorage
@@ -171,8 +184,9 @@ let SQLiteContactStore = {
             let row, id = 0;
 
             while ((row = aResultSet.getNextRow())) {
+              // If the table is empty, we get null.
               if (!row.getIsNull(0))
-                id = row.getInt32(0);
+                id = row.getInt64(0);
             }
 
             this._nextInsertId[tableName] = id + 1;
@@ -193,14 +207,13 @@ let SQLiteContactStore = {
           },
         });
 
+        // We're not using this again, so go ahead and finalize.
         statement.finalize();
 
       }.bind(this));
     }
 
-    q.start(function(aResult) {
-      outerJobFinished(aResult);
-    });
+    q.start(outerJobFinished);
   },
 
   _needsMigration: function SQLiteCS__needsMigration(aDbVersion) {
