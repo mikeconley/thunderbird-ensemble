@@ -99,7 +99,7 @@ let SQLiteContactStore = {
       q.addJob(this._updateNextInsertIDs.bind(this));
 
       q.start(function(aResult) {
-        if (Components.isSuccessCode(aResult)) {
+        if (aResult === Cr.NS_OK) {
           // Hooray! We're set up.
           Log.info("SQLiteContactStore initialized.");
           this._initting = false;
@@ -250,7 +250,7 @@ let SQLiteContactStore = {
     }
 
     trans.run(function(aResult) {
-      if (Components.isSuccessCode(aResult)) {
+      if (aResult === Cr.NS_OK) {
         // Bump the dbVersion to current
         aDb.schemaVersion = kDbCurrentVersion;
         Log.info("Successfully migrated to schema version "

@@ -24,7 +24,7 @@ let Ensemble = {
 
     this._datastore = aDatastore;
     this._datastore.init(function(aResult) {
-      if (Components.isSuccessCode(aResult)) {
+      if (aResult === Cr.NS_OK) {
         this._initting = false;
         this._initted = true;
         Log.info("Startup complete.");
@@ -43,7 +43,7 @@ let Ensemble = {
 
     Log.info("Shutting down.");
     this._datastore.uninit(function(aResult) {
-      if (Components.isSuccessCode(aResult)) {
+      if (aResult === Cr.NS_OK) {
         this._initted = false;
         Log.info("Shutdown complete.");
       } else {
