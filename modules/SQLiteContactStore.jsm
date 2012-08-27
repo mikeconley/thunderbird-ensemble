@@ -14,8 +14,9 @@ const kDbFileDir = 'ProfD';
 
 const kDbCurrentVersion = 1;
 
-Cu.import('resource:///modules/gloda/log4moz.js');
-Cu.import('resource://gre/modules/Services.jsm');
+Cu.import("resource:///modules/gloda/log4moz.js");
+Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://ensemble/JobQueue.jsm");
 
 let Common = {};
 Cu.import('resource://ensemble/ContactStoreCommon.jsm', Common);
@@ -35,34 +36,34 @@ let SQLiteContactStore = {
       return;
     }
 
-      Log.info("Initializing SQLiteContactStore.");
+    Log.info("Initializing SQLiteContactStore.");
 
-      // We're in a half-way "initting" state as opposed to fully initialized.
-      this._initting = true;
+    // We're in a half-way "initting" state as opposed to fully initialized.
+    this._initting = true;
 
-      // Grab a hold of the DB file we're going to be dealing with.
-      let dbFile = Services.dirsvc.get(kDbFileDir, Ci.nsIFile);
-      dbFile.append(kDbFile);
+    // Grab a hold of the DB file we're going to be dealing with.
+    let dbFile = Services.dirsvc.get(kDbFileDir, Ci.nsIFile);
+    dbFile.append(kDbFile);
 
-      let db = Cc["@mozilla.org/storage/service;1"]
-                 .getService(Ci.mozIStorageService)
-                 .openDatabase(dbFile);
+    let db = Cc["@mozilla.org/storage/service;1"]
+               .getService(Ci.mozIStorageService)
+               .openDatabase(dbFile);
 
-      if (!db.connectionReady) {
-        let err = new Error("Could not establish connection to contacts.sqlite");
-        err.code = Common.Errors.NO_CONNECTION;
-        throw err;
-      }
+    if (!db.connectionReady) {
+      let err = new Error("Could not establish connection to contacts.sqlite");
+      err.code = Common.Errors.NO_CONNECTION;
+      throw err;
+    }
 
-      // Not sure if these are smart numbers or not. Copied from the Thunderbird
-      // instant messaging DB code (which I believe is shared with InstantBird
-      // as well).
-      try {
-        db.setGrowthIncrement(512 * 1024, "");
-      } catch (e if e.result == Cr.NS_ERROR_FILE_TOO_BIG) {
-        Log.warn('Not setting growth increment on contacts.sqlite because the'
-                 + ' available disk space is limited.');
-      }
+    // Not sure if these are smart numbers or not. Copied from the Thunderbird
+    // instant messaging DB code (which I believe is shared with InstantBird
+    // as well).
+    try {
+      db.setGrowthIncrement(512 * 1024, "");
+    } catch (e if e.result == Cr.NS_ERROR_FILE_TOO_BIG) {
+      Log.warn('Not setting growth increment on contacts.sqlite because the'
+               + ' available disk space is limited.');
+    }
 
     let failed = function(aError) {
       // We'll ignore the uninit's status right now - we just want to tell

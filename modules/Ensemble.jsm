@@ -22,8 +22,6 @@ let Ensemble = {
     Log.info("Starting up.");
     this._initting = true;
 
-    dump("\n\nDATASTORE: " + aDatastore + "\n");
-
     this._datastore = aDatastore;
     this._datastore.init(function(aResult) {
       if (Components.isSuccessCode(aResult)) {
