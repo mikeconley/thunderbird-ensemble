@@ -85,7 +85,7 @@ TBMorkConnector.prototype = {
 
     let outerResult = aResult;
     q.start(function(aInnerResult) {
-      if (Components.isSuccessCode(aInnerResult)) {
+      if (aInnerResult === Cr.NS_OK) {
         aCallback(outerResult, aTags);
       } else {
         aCallback(aInnerResult);

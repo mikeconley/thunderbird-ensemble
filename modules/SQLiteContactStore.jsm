@@ -9,6 +9,7 @@ const Ci = Components.interfaces;
 const Cu = Components.utils;
 const Cr = Components.results;
 
+const kSQLCallbacks = Ci.mozIStorageStatementCallback;
 const kDbFile = 'contacts.sqlite';
 const kDbFileDir = 'ProfD';
 
@@ -148,9 +149,58 @@ let SQLiteContactStore = {
     }
   },
 
+  _nextInsertId: {},
+
   _updateNextInsertIDs: function SQLiteCS__updateNextInsertIDs(aJobFinished) {
-    // TODO
-    aJobFinished(Cr.NS_OK);
+    let kIDManagedTables = ["contacts", "contact_records", "contact_data",
+                            "categories"];
+    // Let's create the async queries needed to get those nextInsertIds.
+    let q = new JobQueue();
+    let outerJobFinished = aJobFinished;
+
+    for (let [, tableName] in Iterator(kIDManagedTables)) {
+      q.addJob(function(aInnerJobFinished) {
+        // I'm not dealing with user input, so I'm not worried about
+        // SQL injection here - plus, it doesn't appear as if mozStorage
+        // will let me bind a table name as a parameter anyway.
+        let statement = this._db.createStatement(
+          "SELECT MAX(id) from " + tableName);
+
+        statement.executeAsync({
+          handleResult: function(aResultSet) {
+            let row, id = 0;
+
+            while ((row = aResultSet.getNextRow())) {
+              if (!row.getIsNull(0))
+                id = row.getInt32(0);
+            }
+
+            this._nextInsertId[tableName] = id + 1;
+          }.bind(this),
+
+          handleError: function(aError) {
+            let e = new Error("Could get MAX(id)! error #: " + aError);
+            aInnerJobFinished(e);
+          },
+
+          handleCompletion: function(aReason) {
+            if (aReason === kSQLCallbacks.REASON_FINISHED)
+              aInnerJobFinished(Cr.NS_OK);
+            else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
+              aInnerJobFinished(new Error("Getting MAX(id) was cancelled!"));
+            }
+            // We don't handle errors on completion, only in handleError.
+          },
+        });
+
+        statement.finalize();
+
+      }.bind(this));
+    }
+
+    q.start(function(aResult) {
+      outerJobFinished(aResult);
+    });
   },
 
   _needsMigration: function SQLiteCS__needsMigration(aDbVersion) {
@@ -265,7 +315,6 @@ let SQLiteContactStore = {
 
 };
 
-const kSQLCallbacks = Ci.mozIStorageStatementCallback;
 
 /**
  * SQLiteMultistepTransaction

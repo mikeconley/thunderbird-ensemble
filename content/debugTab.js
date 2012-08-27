@@ -118,11 +118,14 @@ let DebugTab = {
     let mork = new TBMorkConnector();
     let result = mork.getAllRecords(function(aRecords, aTags) {
 
+      dump("\n\nDONE!\n\n");
+
       for each (let [, record] in Iterator(aRecords)) {
         let contact = new Contact(record.fields, record.meta);
+/*
         Ensemble.saveContact(contact, function(aSaved) {
           dump("\n\nContact saved!\n\n");
-        });
+        });*/
       }
 
     });
