@@ -20,7 +20,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 
 let Common = {};
-Cu.import('resource://ensemble/ContactStoreCommon.jsm', Common);
+Cu.import('resource://ensemble/Common.jsm', Common);
 
 let Log = Log4Moz.getConfiguredLogger('contacts.db');
 
@@ -133,6 +133,10 @@ let SQLiteContactStore = {
 
     Log.info("Uninitializing SQLiteContactStore.");
 
+    // Finalize any of our built-in statements
+    this._getAllTagsStatement.finalize();
+    this._insertTagStatement.finalize();
+
     if (this._db) {
       // Close the db connection.
       this._db.asyncClose({
@@ -149,7 +153,7 @@ let SQLiteContactStore = {
     }
   },
 
-  _nextInsertId: {},
+  _nextInsertID: {},
 
   /**
    * According to MDN, we cannot trust lastInsertRowID on this._db if we're
@@ -164,7 +168,7 @@ let SQLiteContactStore = {
   _updateNextInsertIDs: function SQLiteCS__updateNextInsertIDs(aJobFinished) {
     let kIDManagedTables = ["contacts", "contact_records", "contact_data",
                             "categories"];
-    // Let's create the async queries needed to get those nextInsertIds.
+    // Let's create the async queries needed to get those nextInsertIDs.
     let q = new JobQueue();
     let outerJobFinished = aJobFinished;
 
@@ -189,7 +193,7 @@ let SQLiteContactStore = {
                 id = row.getInt64(0);
             }
 
-            this._nextInsertId[tableName] = id + 1;
+            this._nextInsertID[tableName] = id + 1;
           }.bind(this),
 
           handleError: function(aError) {
@@ -324,6 +328,76 @@ let SQLiteContactStore = {
   },
 
   save: function SQLiteCS_save(aContactRecord, aCallback) {
+
+  },
+
+  get _getAllTagsStatement() {
+    // A little trick I learned from gloda/modules/datastore.js.
+    let statement = this._db.createAsyncStatement(
+      "SELECT export_name, display_name FROM categories");
+    this.__defineGetter__("_getAllTagsStatement", function () statement);
+    return this._getAllTagsStatement;
+  },
+
+  getAllTags: function SQLiteCS_getAllTags(aCallback) {
+    let allTags = {};
+
+    this._getAllTagsStatement.executeAsync({
+      handleResult: function(aResultSet) {
+        while ((row = aResultSet.getNextRow())) {
+          let tagID = row.getString(0);
+          let tagPrettyName = row.getString(1);
+          allTags[tagID] = tagPrettyName;
+        }
+      },
+
+      handleError: function(aError) {
+        aCallback(new Error("Could not get tags - got error: " + aError));
+      },
+
+      handleCompletion: function(aReason) {
+        if (aReason === kSQLCallbacks.REASON_FINISHED)
+          aCallback(Cr.NS_OK, {tags: allTags});
+        else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
+          aCallback(new Error("Getting all tags was cancelled!"));
+        }
+      },
+    });
+  },
+
+  get _insertTagStatement() {
+    let statement = this._db.createAsyncStatement(
+      "INSERT INTO categories (id, export_name, display_name, originator) " +
+        "VALUES (?1, ?2, ?3, ?4)");
+    this.__defineGetter__("_insertTagStatement", function () statement);
+    return this._insertTagStatement;
+  },
+
+  insertTag: function SQLiteCS_insertTag(aTagID, aTagName, aOriginator,
+                                         aCallback) {
+    let statement = this._insertTagStatement;
+    statement.bindInt64Parameter(0, this._nextInsertID['categories']);
+    statement.bindStringParameter(1, aTagID);
+    statement.bindStringParameter(2, aTagName);
+    statement.bindStringParameter(3, aOriginator);
+
+    statement.executeAsync({
+      handleResult: function(aResultSet) {},
+      handleError: function(aError) {
+        aCallback(new Error("Could not insert tag with ID " + aTagID +
+                            " received error: " + aError));
+      },
+      handleCompletion: function(aReason) {
+        if (aReason === kSQLCallbacks.REASON_FINISHED) {
+          this._nextInsertID['categories']++;
+          aCallback(Cr.NS_OK);
+        }
+        else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
+          aCallback(new Error("Inserting tag with ID " + aTagID +
+                              " was cancelled!"));
+        }
+      }.bind(this),
+    });
   },
 
 };

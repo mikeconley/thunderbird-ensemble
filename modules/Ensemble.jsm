@@ -9,11 +9,14 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://ensemble/Logging.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
+let Common = {};
+Cu.import("resource://ensemble/Common.jsm", Common);
 
 let Ensemble = {
   _initted: false,
   _initting: false,
   _datastore: null,
+  _tagsCache: {},
 
   init: function Ensemble_init(aDatastore, aCallback) {
     if (this._initted || this._initting)
@@ -23,7 +26,12 @@ let Ensemble = {
     this._initting = true;
 
     this._datastore = aDatastore;
-    this._datastore.init(function(aResult) {
+
+    let q = new JobQueue();
+    q.addJob(this._datastore.init.bind(this._datastore));
+    q.addJob(this._fillCaches.bind(this));
+
+    q.start(function(aResult) {
       if (aResult === Cr.NS_OK) {
         this._initting = false;
         this._initted = true;
@@ -33,7 +41,6 @@ let Ensemble = {
       }
 
       aCallback(aResult);
-
     }.bind(this));
   },
 
@@ -77,4 +84,23 @@ let Ensemble = {
 
     Log.info("Debug tab should be open now.");
   },
+
+  hasTag: function Ensemble_hasTag(aTagID) {
+    return (aTagID in this._tagsCache);
+  },
+
+  addTag: function Ensemble_addTag(aTagID, aTagPrettyName,
+                                   aOriginator, aCallback) {
+    this._datastore.insertTag(aTagID, aTagPrettyName, aOriginator, aCallback);
+  },
+
+  _fillCaches: function Ensemble_fillCaches(aJobFinished) {
+    this._datastore.getAllTags(function(aResult, aPayload) {
+      if (aResult === Cr.NS_OK)
+        this._tagsCache = aPayload.tags;
+
+      aJobFinished(aResult);
+    }.bind(this));
+  },
+
 }

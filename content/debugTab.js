@@ -12,6 +12,7 @@ Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
 Cu.import("resource://ensemble/SQLiteContactStore.jsm");
+Cu.import("resource://ensemble/JobQueue.jsm");
 
 let DebugTab = {
 
@@ -24,7 +25,7 @@ let DebugTab = {
             .addEventListener('click', this._importOldTB.bind(this));
 
     Ensemble.init(SQLiteContactStore, function(aResult) {
-      alert("aResult is: " + aResult);
+      dump("aResult is: " + aResult);
     });
   },
 
@@ -118,15 +119,21 @@ let DebugTab = {
     let mork = new TBMorkConnector();
     let result = mork.getAllRecords(function(aRecords, aTags) {
 
-      dump("\n\nDONE!\n\n");
+      let q = new JobQueue();
 
-      for each (let [, record] in Iterator(aRecords)) {
-        let contact = new Contact(record.fields, record.meta);
-/*
-        Ensemble.saveContact(contact, function(aSaved) {
-          dump("\n\nContact saved!\n\n");
-        });*/
+      for each (let [tagID, tagPrettyName] in Iterator(aTags)) {
+        if (!Ensemble.hasTag(tagID)) {
+          q.addJob(function(aJobFinished) {
+            Ensemble.addTag(tagID, tagPrettyName, "user", aJobFinished);
+          });
+        }
       }
+
+      q.start(function(aResult) {
+        dump("\n\nInsertion result: " + aResult + "\n\n");
+      });
+
+      let contact = new Contact(record[0].fields, record[0].meta);
 
     });
   },
