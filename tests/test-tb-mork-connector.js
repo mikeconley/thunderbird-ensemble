@@ -274,6 +274,15 @@ function assert_suffix(aTarget, aSuffix) {
   assert_true(string_has_suffix(aTarget, aSuffix));
 }
 
+function assert_contacts_exist_and_match(aCollection, aContacts) {
+  for each (let [name, properties] in Iterator(aContacts)) {
+    let contact = query_collection_fields(aCollection, properties.queryBy,
+                                          properties.queryFor);
+    assert_not_null(contact, "Should have found " + name);
+    assert_contact_matches_map(contact, properties.map);
+  }
+}
+
 function assert_contact_matches_map(aContact, aMap) {
   const kStringsMap = {
     "FirstName": "givenName",
@@ -402,14 +411,16 @@ function assert_contact_matches_map(aContact, aMap) {
       let someDate = new Date(aContact.fields[mapping]);
       if (string_has_suffix(property, "Day"))
         assert_equals(String(someDate.getDate()), value);
-      else if (string_has_suffix(property, "Month"))
-        assert_equals(String(someDate.getMonth()), value);
+      else if (string_has_suffix(property, "Month")) {
+        // Remember that Date's month is 0 indexed...
+        assert_equals(String(someDate.getMonth() + 1), value);
+      }
       else if (string_has_suffix(property, "Year"))
         assert_equals(String(someDate.getFullYear()), value);
       continue;
     }
 
-    throw new Error("Uh..." + property);
+    throw new Error("Not prepared to handle property " + property);
   }
 }
 
@@ -447,15 +458,110 @@ function test_process_single_directory() {
   assert_equals(results.length, 3, "Should have 3 contacts");
 
   // We should have Fone Bone...
-  let fone = query_collection_fields(results, "name", "Fone Bone");
-  assert_not_null(fone, "Should have found Fone Bone.");
-  assert_contact_matches_map(fone, kFoneBoneMap);
+  const kContacts = {
+    "Fone Bone": {
+      queryBy: "name",
+      queryFor: "Fone Bone",
+      map: kFoneBoneMap,
+    },
 
-  let phoney = query_collection_fields(results, "givenName", "Phoney");
-  assert_not_null(phoney, "Should have found Phoney Bone.");
-  assert_contact_matches_map(phoney, kPhoneyBoneMap);
+    "Phoney Bone": {
+      queryBy: "givenName",
+      queryFor: "Phoney",
+      map: kPhoneyBoneMap,
+    },
 
-  let phoney = query_collection_fields(results, "name", "Smiley Bone");
-  assert_not_null(phoney, "Should have found Phoney Bone.");
-  assert_contact_matches_map(phoney, kSmileyBoneMap);
+    "Smiley Bone": {
+      queryBy: "name",
+      queryFor: "Smiley Bone",
+      map: kSmileyBoneMap,
+    },
+  };
+
+  assert_contacts_exist_and_match(results, kContacts);
+}
+
+/**
+ * Test processing a single address book with some contacts and populated
+ * mailing lists in it. Calls the _processDirectory private method of a
+ * TBMorkConnector instance.
+ */
+function test_process_mailing_list_directory() {
+  let results = [];
+  let tags = {};
+
+  let done = false;
+
+  let onFinished = function(aResult) {
+    done = true;
+  };
+
+  let connector = new TBMorkConnector();
+  connector._processDirectory(gValleyAB, results, tags, onFinished);
+
+  mc.waitFor(function() done);
+
+  assert_equals(Object.keys(tags).length, 3, "Should return 3 tags");
+  assert_true(kValleyABName in tags);
+  assert_equals(tags[kValleyABName], kValleyABName);
+
+  assert_true(kBarrelhavenMLName in tags);
+  assert_equals(tags[kBarrelhavenMLName], kBarrelhavenMLName);
+
+  assert_true(kHarvestarsMLName in tags);
+  assert_equals(tags[kHarvestarsMLName], kHarvestarsMLName);
+
+  assert_equals(results.length, 8, "Should have 8 contacts");
+
+  const kContacts = {
+    "Thorn Harvestar": {
+      queryBy: "name",
+      queryFor: "Thorn",
+      map: kThornMap,
+    },
+
+    "Gran'ma Ben": {
+      queryBy: "name",
+      queryFor: "Gran'ma",
+      map: kGranmaMap,
+    },
+
+    "Briar Harvestar": {
+      queryBy: "name",
+      queryFor: "Briar Harvestar",
+      map: kBriarMap,
+    },
+
+    "Lucious Down": {
+      queryBy: "givenName",
+      queryFor: "Lucious",
+      map: kLuciousMap,
+    },
+
+    "Jonathan Oaks": {
+      queryBy: "givenName",
+      queryFor: "Jonathan",
+      map: kJonathanMap,
+    },
+
+    "Wendell": {
+      queryBy: "name",
+      queryFor: "Wendell",
+      map: kWendellMap,
+    },
+
+    "Euclid": {
+      queryBy: "name",
+      queryFor: "Euclid",
+      map: kEuclidMap,
+    },
+
+    "Rory": {
+      queryBy: "name",
+      queryFor: "Rory",
+      map: kRoryMap,
+    },
+  };
+
+  assert_contacts_exist_and_match(results, kContacts);
 }
