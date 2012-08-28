@@ -131,7 +131,7 @@ TBMorkConnector.prototype = {
           continue;
         }
 
-        let mapping = new CardMapping(card.localId);
+        let mapping = new CardMapping();
         for (let property in fixIterator(card.properties,
                                          Ci.nsIProperty)) {
           mapping.handle(property.name, property.value);
@@ -174,7 +174,10 @@ TBMorkConnector.prototype = {
     let q = new JobQueue();
 
     // Ok, extract to results.
-    for each (let [, mapping] in Iterator(cache)) {
+    for each (let [, mappingItem] in Iterator(cache)) {
+      // Ugh - we have to create a new binding, since JS doesn't
+      // do fresh let bindings per iteration.
+      let mapping = mappingItem;
       q.addJob(function(aJobFinished) {
         mapping.deriveRecord(function(aFields, aMeta) {
           aResult.push({
@@ -331,7 +334,7 @@ CardMapping.prototype = {
 
     if (!this._fields.adr[index])
       this._fields.adr[index] = {
-        type: '',
+        type: type,
         streetAddress: '',
         locality: '',
         region: '',
@@ -371,7 +374,7 @@ CardMapping.prototype = {
       throw new Error("Couldn't find mapping for property named " + aName);
 
     if (!this._fields.tel[index])
-      this._fields.tel[index] = {type: '', value: ''};
+      this._fields.tel[index] = {type: telPrefix, value: ''};
 
     let suffix = aName.substring(aName.length, aName.length - 4);
     if (suffix == "Type")
