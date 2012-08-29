@@ -212,7 +212,10 @@ ContactRecord.prototype = {
 
     let added = {};
     let removed = {};
-    let changed = {};
+    let changed = {
+      defaults: {},
+      fields: {},
+    };
 
     for each (let [, fieldName] in Iterator(kArrayFields)) {
       let addedComp = arrayComplement(this.fields[fieldName],
@@ -229,7 +232,7 @@ ContactRecord.prototype = {
 
     for each (let [, fieldName] in Iterator(kStringFields)) {
       if (this.fields[fieldName] != aRecord.fields[fieldName])
-        changed[fieldName] = this.fields[fieldName];
+        changed.fields[fieldName] = this.fields[fieldName];
     }
 
     return {
@@ -296,9 +299,17 @@ ContactRecord.prototype = {
    *     photo: ['somedata'],
    *   },
    *   changed: {
-   *     bday: '2012-07-13T20:44:16.028Z',
-   *     sex: 'Male',
-   *     genderIdentity: 'Male',
+   *     fields: {
+   *       bday: '2012-07-13T20:44:16.028Z',
+   *       sex: 'Male',
+   *       genderIdentity: 'Male',
+   *     }
+   *     defaults: {
+   *       email: {
+   *         type: 'Work',
+   *         address: 'house@example.com',
+   *       },
+   *     }
    *   }
    * }
    *
@@ -307,16 +318,19 @@ ContactRecord.prototype = {
   applyDiff: function ContactRecord_applyDiff(aDiff) {
     if (typeof(aDiff) !== 'object')
       throw new Error("Expected a diff object");
-    if (!('added' in aDiff))
+    if (!(aDiff.hasOwnProperty('added')))
       throw new Error("The diff being applied is missing 'added'");
-    if (!('removed' in aDiff))
+    if (!(aDiff.hasOwnProperty('removed')))
       throw new Error("The diff being applied is missing 'removed'");
-    if (!('changed' in aDiff))
+    if (!(aDiff.hasOwnProperty('changed')))
       throw new Error("The diff being applied is missing 'changed'");
-
-    // The changed items are easy, so let's take care of those first.
-    for (let field in aDiff.changed)
-      this.fields[field] = aDiff.changed[field];
+    if (!(aDiff.changed.hasOwnProperty('fields')))
+      throw new Error("The diff being applied is missing 'changed.fields'");
+    if (!(aDiff.changed.hasOwnProperty('defaults')))
+      throw new Error("The diff being applied is missing 'changed.defaults");
+    // The changed fields are easy, so let's take care of those first.
+    for (let field in aDiff.changed.fields)
+      this.fields[field] = aDiff.changed.fields[field];
 
     // Now what was removed?
     for (let field in aDiff.removed)
@@ -352,10 +366,10 @@ ContactRecord.prototype = {
     // Clear the removals.
     diff.removed = {};
     // Remove any of the changes that result in nulls
-    let changed = diff.changed;
-    for (let changedField in diff.changed) {
-      if (changed[changedField] == null)
-        delete diff.changed[changedField];
+    let changedFields = diff.changed.fields;
+    for (let changedField in changedFields) {
+      if (changedFields[changedField] === null)
+        delete diff.changed.fields[changedField];
     }
 
     this.applyDiff(diff);

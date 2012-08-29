@@ -228,9 +228,12 @@ const kResultingDiff = {
     photo: ['somedata'],
   },
   changed: {
-    bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
-    sex: 'Male',
-    genderIdentity: 'Male',
+    fields: {
+      bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
+      sex: 'Male',
+      genderIdentity: 'Male',
+    },
+    defaults: {}
   }
 };
 
@@ -328,7 +331,10 @@ function test_can_produce_simple_diff_with_adds() {
       }],
     },
     removed: {},
-    changed: {},
+    changed: {
+      fields: {},
+      defaults: {},
+    },
   };
 
   let diff = a.diff(b);
@@ -372,7 +378,10 @@ function test_can_produce_simple_diff_with_removes() {
         value: '15215125'
       }],
     },
-    changed: {},
+    changed: {
+      fields: {},
+      defaults: {},
+    },
   };
 
   let diff = b.diff(a);
@@ -398,10 +407,13 @@ function test_can_produce_simple_diff_with_changes() {
     added: {},
     removed: {},
     changed: {
-      sex: 'Female',
-      genderIdentity: 'Male',
-      bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
-      anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
+      fields: {
+        sex: 'Female',
+        genderIdentity: 'Male',
+        bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
+        anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
+      },
+      defaults: {}
     },
   };
 
