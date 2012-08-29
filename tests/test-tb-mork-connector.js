@@ -128,6 +128,7 @@ const kThorn = {
     LastName: "Harvestar",
     HomePhone: "515-215-2121",
     PrimaryEmail: "thorn@harvestar.com",
+    SomeCustomValue: "This is a custom value.",
   },
 
   nameForError: "Thorn Harvestar",
@@ -712,7 +713,9 @@ function assert_contact_matches_map(aContact, aMap) {
       continue;
     }
 
-    throw new Error("Not prepared to handle property " + property);
+    // Ok, try a custom value...
+    assert_any_field_has_type_and_value(aContact.fields.other,
+                                        property, value);
   }
 }
 
@@ -735,6 +738,14 @@ function test_process_entire_ab() {
   assert_has_n_tags(tags, 4);
   assert_tags_contain(tags, [kBonevilleABName, kValleyABName,
                              kHarvestarsMLName, kBarrelhavenMLName]);
+
+  // For some reason, doing it like this:
+  //
+  // const kTagMap = {
+  //   kBoneVilleABName: kBones
+  // }
+  //
+  // causes kTagMap to interpret "kBoneVilleABName" as a property name. Hrm.
   const kTagMap = {};
   kTagMap[kBonevilleABName] = kBones;
   kTagMap[kValleyABName] = kValley;
