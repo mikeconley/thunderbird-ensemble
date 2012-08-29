@@ -13,109 +13,174 @@ Cu.import('resource://ensemble/connectors/TBMorkConnector.jsm');
 
 let gBonevilleAB, gValleyAB, gHarvestarsML, gBarrelhavenML;
 
-const kFoneBoneMap = {
-  DisplayName: "Fone Bone",
-  FirstName: "Fone",
-  LastName: "Bone",
-  NickName: "The Fonz",
-  PrimaryEmail: "fone.bone@boneville.com",
+const kFoneBone = {
+  map: {
+    DisplayName: "Fone Bone",
+    FirstName: "Fone",
+    LastName: "Bone",
+    NickName: "The Fonz",
+    PrimaryEmail: "fone.bone@boneville.com",
+  },
+
+  nameForError: "Fone Bone",
+  queryBy: "name",
+  queryFor: "Fone Bone",
 };
 
-const kPhoneyBoneMap = {
-  FirstName: "Phoney",
-  LastName: "Bone",
-  PrimaryEmail: "phoney.bone@boneville.com",
-  Notes: "This guy looooooves money.",
-  _GoogleTalk: "moneylover101@gmail.com",
+const kPhoneyBone = {
+  map: {
+    FirstName: "Phoney",
+    LastName: "Bone",
+    PrimaryEmail: "phoney.bone@boneville.com",
+    Notes: "This guy looooooves money.",
+    _GoogleTalk: "moneylover101@gmail.com",
+  },
+
+  nameForError: "Phoney Bone",
+  queryBy: "givenName",
+  queryFor: "Phoney",
 };
 
-const kSmileyBoneMap = {
-  DisplayName: "Smiley Bone",
-  FirstName: "Smiley",
-  LastName: "Bone",
-  PrimaryEmail: "smiley.bone@boneville.com",
-  SecondEmail: "sandwich.man@boneville.com",
-  HomeAddress: "106 Rock Rd.",
-  HomeAddress2: "Apartment #3",
-  HomeCity: "Boneville",
-  HomeState: "Carton",
-  HomeCountry: "Jeffsmith",
-  HomePhone: "0152-233-1312",
-  HomePhoneType: "Home",
-  WorkPhone: "0691-125-1511",
-  WebPage1: "http://www.example.com/sandwich-man",
-  BirthYear: "1980",
-  BirthMonth: "1",
-  BirthDay: "23",
+const kSmileyBone = {
+  map: {
+    DisplayName: "Smiley Bone",
+    FirstName: "Smiley",
+    LastName: "Bone",
+    PrimaryEmail: "smiley.bone@boneville.com",
+    SecondEmail: "sandwich.man@boneville.com",
+    HomeAddress: "106 Rock Rd.",
+    HomeAddress2: "Apartment #3",
+    HomeCity: "Boneville",
+    HomeState: "Carton",
+    HomeCountry: "Jeffsmith",
+    HomePhone: "0152-233-1312",
+    HomePhoneType: "Home",
+    WorkPhone: "0691-125-1511",
+    WebPage1: "http://www.example.com/sandwich-man",
+    BirthYear: "1980",
+    BirthMonth: "1",
+    BirthDay: "23",
+  },
+
+  nameForError: "Smiley Bone",
+  queryBy: "name",
+  queryFor: "Smiley Bone",
 };
 
-const kBones = [kFoneBoneMap, kPhoneyBoneMap, kSmileyBoneMap];
+const kBones = [kFoneBone, kPhoneyBone, kSmileyBone];
 const kBonevilleABName = "Boneville";
 
-const kThornMap = {
-  DisplayName: "Thorn",
-  FirstName: "Thorn",
-  LastName: "Harvestar",
-  HomePhone: "515-215-2121",
-  PrimaryEmail: "thorn@harvestar.com",
+const kThorn = {
+  map: {
+    DisplayName: "Thorn",
+    FirstName: "Thorn",
+    LastName: "Harvestar",
+    HomePhone: "515-215-2121",
+    PrimaryEmail: "thorn@harvestar.com",
+  },
+
+  nameForError: "Thorn Harvestar",
+  queryBy: "name",
+  queryFor: "Thorn",
 };
 
-const kGranmaMap = {
-  DisplayName: "Gran'ma",
-  FirstName: "Rose",
-  LastName: "Harvestar",
-  NickName: "Gran'ma Ben",
-  PrimaryEmail: "rose@harvestar.com",
+const kGranma = {
+  map: {
+    DisplayName: "Gran'ma",
+    FirstName: "Rose",
+    LastName: "Harvestar",
+    NickName: "Gran'ma Ben",
+    PrimaryEmail: "rose@harvestar.com",
+  },
+
+  nameForError: "Gran'ma Ben",
+  queryBy: "name",
+  queryFor: "Gran'ma",
 };
 
-const kBriarMap = {
-  DisplayName: "Briar Harvestar",
-  FirstName: "Briar",
-  LastName: "Harvestar",
-  PrimaryEmail: "briar@harvestar.com"
+const kBriar = {
+  map: {
+    DisplayName: "Briar Harvestar",
+    FirstName: "Briar",
+    LastName: "Harvestar",
+    PrimaryEmail: "briar@harvestar.com"
+  },
+
+  nameForError: "Briar Harvestar",
+  queryBy: "name",
+  queryFor: "Briar Harvestar",
 };
 
-const kHarvestars = [kThornMap, kGranmaMap, kBriarMap];
+const kHarvestars = [kThorn, kGranma, kBriar];
 const kHarvestarsMLName = "Harvestars";
 
-const kLuciousMap = {
-  FirstName: "Lucious",
-  LastName: "Down",
-  PrimaryEmail: "lucious@barrelhaven.com",
-  WebPage1: "http://www.example.com/barrelhaven-tavern",
+const kLucious = {
+  map: {
+    FirstName: "Lucious",
+    LastName: "Down",
+    PrimaryEmail: "lucious@barrelhaven.com",
+    WebPage1: "http://www.example.com/barrelhaven-tavern",
+  },
+
+  nameForError: "Lucious Down",
+  queryBy: "givenName",
+  queryFor: "Lucious",
 };
 
-const kJonathanMap = {
-  FirstName: "Jonathan",
-  LastName: "Oaks",
-  NickName: "Jon",
-  PrimaryEmail: "jonathan@barrelhaven.com",
+const kJonathan = {
+  map: {
+    FirstName: "Jonathan",
+    LastName: "Oaks",
+    NickName: "Jon",
+    PrimaryEmail: "jonathan@barrelhaven.com",
+  },
+
+  nameForError: "Jonathan Oaks",
+  queryBy: "givenName",
+  queryFor: "Jonathan",
 };
 
-const kWendellMap = {
-  DisplayName: "Wendell",
-  FirstName: "Wendell",
-  NickName: "Wendell",
-  PrimaryEmail: "wendell@barrelhaven.com",
-  JobTitle: "Tin Smith",
+const kWendell = {
+  map: {
+    DisplayName: "Wendell",
+    FirstName: "Wendell",
+    NickName: "Wendell",
+    PrimaryEmail: "wendell@barrelhaven.com",
+    JobTitle: "Tin Smith",
+  },
+
+  nameForError: "Wendell",
+  queryBy: "name",
+  queryFor: "Wendell",
 };
 
-const kEuclidMap = {
-  DisplayName: "Euclid",
-  FirstName: "Euclid",
-  PrimaryEmail: "euclid@barrelhaven.com",
+const kEuclid = {
+  map: {
+    DisplayName: "Euclid",
+    FirstName: "Euclid",
+    PrimaryEmail: "euclid@barrelhaven.com",
+  },
+
+  nameForError: "Euclid",
+  queryBy: "name",
+  queryFor: "Euclid",
 };
 
-const kRoryMap = {
-  DisplayName: "Rory",
-  PrimaryEmail: "rory@barrelhaven.com",
-  SecondEmail: "roryman105@gmail.com",
-  _GoogleTalk: "roryman105@gmail.com",
-  _ICQ: "1502512"
+const kRory = {
+  map: {
+    DisplayName: "Rory",
+    PrimaryEmail: "rory@barrelhaven.com",
+    SecondEmail: "roryman105@gmail.com",
+    _GoogleTalk: "roryman105@gmail.com",
+    _ICQ: "1502512"
+  },
+
+  nameForError: "Rory",
+  queryBy: "name",
+  queryFor: "Rory",
 };
 
-const kBarrelhaven = [kLuciousMap, kJonathanMap, kWendellMap, kEuclidMap,
-                      kRoryMap];
+const kBarrelhaven = [kLucious, kJonathan, kWendell, kEuclid, kRory];
 const kBarrelhavenMLName = "Barrelhaven";
 
 const kValley = kHarvestars.concat(kBarrelhaven);
@@ -127,9 +192,9 @@ function setupModule(module) {
 
   gBonevilleAB = create_mork_address_book(kBonevilleABName);
 
-  for each (let [i, map] in Iterator(kBones)) {
+  for each (let [i, person] in Iterator(kBones)) {
     let card = create_contact("", "", "");
-    card = inject_map_values(card, map);
+    card = inject_map_values(card, person.map);
     gBonevilleAB.addCard(card);
   }
 
@@ -139,9 +204,9 @@ function setupModule(module) {
 
   gBarrelhavenML = create_mailing_list(kBarrelhavenMLName);
 
-  for each (let [i, map] in Iterator(kBarrelhaven)) {
+  for each (let [i, person] in Iterator(kBarrelhaven)) {
     let card = create_contact("", "", "");
-    card = inject_map_values(card, map);
+    card = inject_map_values(card, person.map);
     gValleyAB.addCard(card);
     gBarrelhavenML.addressLists.appendElement(card, false);
   }
@@ -151,9 +216,9 @@ function setupModule(module) {
   // Add the Harvestars...
   gHarvestarsML = create_mailing_list(kHarvestarsMLName);
 
-  for each (let [i, map] in Iterator(kHarvestars)) {
+  for each (let [i, person] in Iterator(kHarvestars)) {
     let card = create_contact("", "", "");
-    card = inject_map_values(card, map);
+    card = inject_map_values(card, person.map);
     gValleyAB.addCard(card);
     gHarvestarsML.addressLists.appendElement(card, false);
   }
@@ -278,7 +343,7 @@ function assert_contacts_exist_and_match(aCollection, aContacts) {
   for each (let [name, properties] in Iterator(aContacts)) {
     let contact = query_collection_fields(aCollection, properties.queryBy,
                                           properties.queryFor);
-    assert_not_null(contact, "Should have found " + name);
+    assert_not_null(contact, "Should have found " + properties.nameForError);
     assert_contact_matches_map(contact, properties.map);
   }
 }
@@ -457,27 +522,7 @@ function test_process_single_directory() {
 
   assert_equals(results.length, 3, "Should have 3 contacts");
 
-  // We should have Fone Bone...
-  const kContacts = {
-    "Fone Bone": {
-      queryBy: "name",
-      queryFor: "Fone Bone",
-      map: kFoneBoneMap,
-    },
-
-    "Phoney Bone": {
-      queryBy: "givenName",
-      queryFor: "Phoney",
-      map: kPhoneyBoneMap,
-    },
-
-    "Smiley Bone": {
-      queryBy: "name",
-      queryFor: "Smiley Bone",
-      map: kSmileyBoneMap,
-    },
-  };
-
+  const kContacts = [kFoneBone, kPhoneyBone, kSmileyBone];
   assert_contacts_exist_and_match(results, kContacts);
 }
 
@@ -513,55 +558,8 @@ function test_process_mailing_list_directory() {
 
   assert_equals(results.length, 8, "Should have 8 contacts");
 
-  const kContacts = {
-    "Thorn Harvestar": {
-      queryBy: "name",
-      queryFor: "Thorn",
-      map: kThornMap,
-    },
-
-    "Gran'ma Ben": {
-      queryBy: "name",
-      queryFor: "Gran'ma",
-      map: kGranmaMap,
-    },
-
-    "Briar Harvestar": {
-      queryBy: "name",
-      queryFor: "Briar Harvestar",
-      map: kBriarMap,
-    },
-
-    "Lucious Down": {
-      queryBy: "givenName",
-      queryFor: "Lucious",
-      map: kLuciousMap,
-    },
-
-    "Jonathan Oaks": {
-      queryBy: "givenName",
-      queryFor: "Jonathan",
-      map: kJonathanMap,
-    },
-
-    "Wendell": {
-      queryBy: "name",
-      queryFor: "Wendell",
-      map: kWendellMap,
-    },
-
-    "Euclid": {
-      queryBy: "name",
-      queryFor: "Euclid",
-      map: kEuclidMap,
-    },
-
-    "Rory": {
-      queryBy: "name",
-      queryFor: "Rory",
-      map: kRoryMap,
-    },
-  };
+  const kContacts = [kThorn, kGranma, kBriar, kLucious, kJonathan,
+                     kWendell, kEuclid, kRory];
 
   assert_contacts_exist_and_match(results, kContacts);
 }
