@@ -270,15 +270,15 @@ function setupModule(module) {
 
   gValleyAB = create_mork_address_book(kValleyABName);
 
-  // And now Barrelhaven...
-  gBarrelhavenML = create_mailing_list(kBarrelhavenMLName);
-  inject_contacts(gValleyAB, kBarrelhaven, gBarrelhavenML);
-  gBarrelhavenML = gValleyAB.addMailList(gBarrelhavenML);
-
   // Add the Harvestars...
   gHarvestarsML = create_mailing_list(kHarvestarsMLName);
   inject_contacts(gValleyAB, kHarvestars, gHarvestarsML);
   gHarvestarsML = gValleyAB.addMailList(gHarvestarsML);
+
+  // And now Barrelhaven...
+  gBarrelhavenML = create_mailing_list(kBarrelhavenMLName);
+  inject_contacts(gValleyAB, kBarrelhaven, gBarrelhavenML);
+  gBarrelhavenML = gValleyAB.addMailList(gBarrelhavenML);
 }
 
 // -- Helper functions --
@@ -418,12 +418,15 @@ function assert_suffix(aTarget, aSuffix) {
 }
 
 function assert_contacts_exist_and_match(aCollection, aContacts) {
+  let matches = [];
   for each (let [name, properties] in Iterator(aContacts)) {
     let contact = query_collection_fields(aCollection, properties.queryBy,
                                           properties.queryFor);
     assert_not_null(contact, "Should have found " + properties.nameForError);
     assert_contact_matches_map(contact, properties.map);
+    matches.push(contact);
   }
+  return matches;
 }
 
 function assert_all_contacts_have_tags(aResults, aTags) {
@@ -433,6 +436,24 @@ function assert_all_contacts_have_tags(aResults, aTags) {
         throw new Error("Expected contact to have tag " + tag);
     }
   }
+}
+
+function assert_has_n_tags(aTags, aNum) {
+  assert_equals(Object.keys(aTags).length, aNum,
+                "Should have " + aNum + " tags");
+
+}
+
+function assert_tags_contain(aTags, aTagIDs) {
+  for each (let [, tagID] in Iterator(aTagIDs)) {
+    if (!(tagID in aTags))
+      throw new Error("Expected tags to contain tag with ID " + tagID);
+  }
+}
+
+function assert_has_n_contacts(aResults, aNum) {
+  assert_equals(aResults.length, aNum,
+                "Should have " + aNum + " contacts.");
 }
 
 function call_process_directory_and_wait(aAddressBook) {
@@ -450,6 +471,25 @@ function call_process_directory_and_wait(aAddressBook) {
   mc.waitFor(function() done);
   return [results, tags];
 }
+
+function call_getAllRecords_and_wait(aAddressBook) {
+  let results = [];
+  let tags = {};
+  let done = false;
+
+  let onFinished = function(aResults, aTags) {
+    results = aResults;
+    tags = aTags;
+    done = true;
+  };
+
+  let connector = new TBMorkConnector();
+  connector.getAllRecords(onFinished);
+
+  mc.waitFor(function() done);
+  return [results, tags];
+}
+
 
 function assert_contact_matches_map(aContact, aMap) {
   const kStringsMap = {
@@ -592,6 +632,37 @@ function assert_contact_matches_map(aContact, aMap) {
   }
 }
 
+// -- Here's where the actual testing begins --
+
+/**
+ * Test processing the entire address book.
+ */
+function test_process_entire_ab() {
+  let [results, tags] = call_getAllRecords_and_wait();
+
+  const kEverybody = kBones.concat(kHarvestars)
+                           .concat(kBarrelhaven)
+                           .concat(kBeings)
+                           .concat(kOthers);
+
+  assert_contacts_exist_and_match(results, kEverybody);
+  // There should be 4 tags - Boneville, The Valley, Barrelhaven,
+  // and Harvestars.
+  assert_has_n_tags(tags, 4);
+  assert_tags_contain(tags, [kBonevilleABName, kValleyABName,
+                             kHarvestarsMLName, kBarrelhavenMLName]);
+  const kTagMap = {};
+  kTagMap[kBonevilleABName] = kBones;
+  kTagMap[kValleyABName] = kValley;
+  kTagMap[kHarvestarsMLName] = kHarvestars;
+  kTagMap[kBarrelhavenMLName] = kBarrelhaven;
+
+  for each (let [tagID, contactsToQuery] in Iterator(kTagMap)) {
+    let contacts = assert_contacts_exist_and_match(results, contactsToQuery);
+    assert_all_contacts_have_tags(contacts, [tagID]);
+  }
+}
+
 // -- Private Function Tests --
 //
 // I know it's not very OOP to poke at an object's private methods
@@ -606,13 +677,10 @@ function assert_contact_matches_map(aContact, aMap) {
  */
 function test_process_single_directory() {
   let [results, tags] = call_process_directory_and_wait(gBonevilleAB);
-  assert_equals(Object.keys(tags).length, 1, "Should only return 1 tag");
-  assert_true(kBonevilleABName in tags);
+  assert_has_n_tags(tags, 1);
+  assert_tags_contain(tags, [kBonevilleABName]);
   assert_equals(tags[kBonevilleABName], kBonevilleABName);
-
-  assert_equals(results.length, kBones.length,
-                "Should have " + kBones.length + " contacts");
-
+  assert_has_n_contacts(results, kBones.length);
   assert_contacts_exist_and_match(results, kBones);
   assert_all_contacts_have_tags(results, [kBonevilleABName]);
 }
@@ -624,17 +692,14 @@ function test_process_single_directory() {
  */
 function test_process_mailing_list_directory() {
   let [results, tags] = call_process_directory_and_wait(gValleyAB);
-  assert_equals(Object.keys(tags).length, 3, "Should return 3 tags");
-  assert_true(kValleyABName in tags);
+  assert_has_n_tags(tags, 3);
+  assert_tags_contain(tags, [kValleyABName, kBarrelhavenMLName,
+                             kHarvestarsMLName]);
   assert_equals(tags[kValleyABName], kValleyABName);
-
-  assert_true(kBarrelhavenMLName in tags);
   assert_equals(tags[kBarrelhavenMLName], kBarrelhavenMLName);
-
-  assert_true(kHarvestarsMLName in tags);
   assert_equals(tags[kHarvestarsMLName], kHarvestarsMLName);
 
-  assert_equals(results.length, 8, "Should have 8 contacts");
+  assert_has_n_contacts(results, kValley.length);
 
   const kContacts = [kThorn, kGranma, kBriar, kLucious, kJonathan,
                      kWendell, kEuclid, kRory];
@@ -647,11 +712,8 @@ function test_process_mailing_list_directory() {
  */
 function test_process_pab() {
   let [results, tags] = call_process_directory_and_wait(gPAB);
-  assert_equals(Object.keys(tags).length, 0, "Should return no tags");
-
-  assert_equals(results.length, kBeings.length,
-                "Should have " + kBeings.length + " contacts");
-
+  assert_has_n_tags(tags, 0);
+  assert_has_n_contacts(results, kBeings.length);
   assert_contacts_exist_and_match(results, kBeings);
   assert_all_contacts_have_tags(results, [kPersonalTagID]);
 }
@@ -660,12 +722,9 @@ function test_process_pab() {
  * Test processing the Collected Address Book.
  */
 function test_process_cab() {
-  // Collected address book
   let [results, tags] = call_process_directory_and_wait(gCAB);
-  assert_equals(Object.keys(tags).length, 0, "Should return no tags");
-  assert_equals(results.length, kOthers.length,
-                "Should have " + kOthers.length + " contacts");
-
+  assert_has_n_tags(tags, 0);
+  assert_has_n_contacts(results, kOthers.length);
   assert_contacts_exist_and_match(results, kOthers);
   assert_all_contacts_have_tags(results, [kCollectedTagID]);
 }
