@@ -23,6 +23,8 @@ const kArrayFields = kBasicFields.concat(kTypedFields)
 
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 
+const kHasDefaults = ['email', 'impp', 'tel'];
+
 function ContactRecord(aServiceID, aFields, aMeta) {
   if (!aServiceID)
     throw new Error("Expected a service ID when constructing ContactRecord");
@@ -182,6 +184,16 @@ function ContactRecord(aServiceID, aFields, aMeta) {
   this.fields['genderIdentity'] = (aFields.genderIdentity !== undefined)
                                   ? aFields.genderIdentity : null;
 
+  let defaults = {};
+  for each (let [, defaultType] in Iterator(kHasDefaults)) {
+    if (aFields.defaults && aFields.defaults[defaultType])
+      defaults[defaultType] = aFields.defaults[defaultType];
+    else
+      defaults[defaultType] = {};
+  }
+
+  this.fields['defaults'] = defaults;
+
   this._serviceID = aServiceID;
   this.meta = aMeta || {};
 };
@@ -233,6 +245,14 @@ ContactRecord.prototype = {
     for each (let [, fieldName] in Iterator(kStringFields)) {
       if (this.fields[fieldName] != aRecord.fields[fieldName])
         changed.fields[fieldName] = this.fields[fieldName];
+    }
+
+    for each (let [, defaultField] in Iterator(kHasDefaults)) {
+      if (!itemsEqual(this.fields.defaults[defaultField],
+                      aRecord.fields.defaults[defaultField]))
+        changed.defaults[defaultField] = this.fields.defaults[defaultField];
+      else
+        changed.defaults[defaultField] = {};
     }
 
     return {
@@ -331,6 +351,10 @@ ContactRecord.prototype = {
     // The changed fields are easy, so let's take care of those first.
     for (let field in aDiff.changed.fields)
       this.fields[field] = aDiff.changed.fields[field];
+
+    for (let field in aDiff.changed.defaults) {
+      this.fields.defaults[field] = aDiff.changed.defaults[field];
+    }
 
     // Now what was removed?
     for (let field in aDiff.removed)

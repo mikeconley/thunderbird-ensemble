@@ -63,6 +63,17 @@ let kTestFields = {
   anniversary: '',
   sex: 'Male',
   genderIdentity: 'Male',
+  defaults: {
+    email: {
+      type: 'Work',
+      value: 'house@example.com',
+    },
+    impp: {
+      type: 'ICQ',
+      value: '15215125',
+    },
+    tel: {},
+  }
 };
 
 let kResultingFields = {
@@ -119,6 +130,18 @@ let kResultingFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
+
+  defaults: {
+    email: {
+      type: 'Work',
+      value: 'house@example.com',
+    },
+    impp: {
+      type: 'ICQ',
+      value: '15215125',
+    },
+    tel: {}
+  },
 };
 
 const kTestFields2 = {
@@ -233,7 +256,17 @@ const kResultingDiff = {
       sex: 'Male',
       genderIdentity: 'Male',
     },
-    defaults: {}
+    defaults: {
+      email: {
+        type: 'Work',
+        value: 'house@example.com',
+      },
+      impp: {
+        type: 'ICQ',
+        value: '15215125',
+      },
+      tel: {},
+    },
   }
 };
 
@@ -287,9 +320,9 @@ function test_can_access_fields_object() {
 
   for (let fieldName in kResultingFields) {
     assert_items_equal(r.fields[fieldName], kResultingFields[fieldName],
-                "Field " + fieldName + " not equal: " + r.fields[fieldName]
+                "Field " + fieldName + " not equal: " + JSON.stringify(r.fields[fieldName])
                 + " -- "
-                + kResultingFields[fieldName]);
+                + JSON.stringify(kResultingFields[fieldName]));
   }
 }
 
@@ -333,7 +366,11 @@ function test_can_produce_simple_diff_with_adds() {
     removed: {},
     changed: {
       fields: {},
-      defaults: {},
+      defaults: {
+        email: {},
+        impp: {},
+        tel: {}
+      },
     },
   };
 
@@ -380,7 +417,11 @@ function test_can_produce_simple_diff_with_removes() {
     },
     changed: {
       fields: {},
-      defaults: {},
+      defaults: {
+        email: {},
+        impp: {},
+        tel: {},
+      },
     },
   };
 
@@ -413,7 +454,11 @@ function test_can_produce_simple_diff_with_changes() {
         bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
         anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
       },
-      defaults: {}
+      defaults: {
+        email: {},
+        impp: {},
+        tel: {},
+      }
     },
   };
 
@@ -493,7 +538,12 @@ function test_can_do_simple_merge() {
     note: [],
     anniversary: null,
     sex: null,
-    genderIdentity: null
+    genderIdentity: null,
+    defaults: {
+      email: {},
+      impp: {},
+      tel: {},
+    },
   }
 
   let haddock = new ContactRecord('foo', kTestFields2);
