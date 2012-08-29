@@ -19,6 +19,10 @@ const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 
 const kPersonalTagID = "system:personal";
 const kCollectedTagID = "system:collected";
+const kReceiveInPlaintextTagID = "system:receive-in-plaintext";
+const kReceiveInHTMLTagID = "system:receive-in-html";
+const kPrefersDisplayNameTagID = "system:prefers-display-name";
+const kAllowRemoteContentTagID = "system:allow-remote-content";
 
 // We need some fake contacts. What better universe than Jeff Smith's
 // Bone comics?
@@ -56,6 +60,7 @@ const kSmileyBone = {
     DisplayName: "Smiley Bone",
     FirstName: "Smiley",
     LastName: "Bone",
+    NickName: "Ol' Smiley",
     PrimaryEmail: "smiley.bone@boneville.com",
     SecondEmail: "sandwich.man@boneville.com",
     HomeAddress: "106 Rock Rd.",
@@ -66,10 +71,46 @@ const kSmileyBone = {
     HomePhone: "0152-233-1312",
     HomePhoneType: "Home",
     WorkPhone: "0691-125-1511",
+    WorkPhoneType: "Work",
+    FaxNumber: "5215-121525",
+    PagerNumber: "51512512",
+    CellularNumber: "123124125",
     WebPage1: "http://www.example.com/sandwich-man",
+    WebPage2: "http://www.example.com/bartleby",
     BirthYear: "1980",
     BirthMonth: "1",
     BirthDay: "23",
+    PreferMailFormat: "0",
+    PopularityIndex: "13",
+    AllowRemoteContent: "1",
+    PhoneticFirstName: "SMY-lee",
+    PhoneticLastName: "BO-ne",
+    SpouseName: "Betty",
+    FamilyName: "Bone",
+    WorkAddress: "555 Stone St.",
+    WorkAddress2: "Suite 333",
+    WorkCity: "Quarry",
+    WorkState: "Carton",
+    WorkCountry: "Jeffsmith",
+    JobTitle: "Bartender",
+    Department: "Drink Management",
+    Company: "Phoney's Drink Emporium",
+    Custom1: "Hi",
+    Custom2: "There",
+    Custom3: "Phoney",
+    Custom4: "Bone",
+    Notes: "He looooves sandwiches",
+    _GoogleTalk: "smiley.bone@gmail.com",
+    _AimScreenName: "SmileyBone",
+    _Yahoo: "Smiler123",
+    _Skype: "SmileyBone",
+    _QQ: "Smiley!",
+    _MSN: "Smiley105@hotmail.com",
+    _ICQ: "123312",
+    _JabberId: "Smiles1000",
+    AnniversaryYear: "2001",
+    AnniversaryMonth: "12",
+    AnniversaryDay: "3"
   },
 
   nameForError: "Smiley Bone",
@@ -250,7 +291,7 @@ const kTarsil = {
   queryFor: "Tarsil",
 };
 
-const kOthers = [kTarsil];
+const kOtherBeings = [kTarsil];
 
 const kValley = kHarvestars.concat(kBarrelhaven);
 const kValleyABName = "The Valley";
@@ -263,7 +304,7 @@ function setupModule(module) {
   inject_contacts(gPAB, kBeings);
 
   gCAB = MailServices.ab.getDirectory(kCollectedAddressbookURI);
-  inject_contacts(gCAB, kOthers);
+  inject_contacts(gCAB, kOtherBeings);
 
   gBonevilleAB = create_mork_address_book(kBonevilleABName);
   inject_contacts(gBonevilleAB, kBones);
@@ -279,6 +320,11 @@ function setupModule(module) {
   gBarrelhavenML = create_mailing_list(kBarrelhavenMLName);
   inject_contacts(gValleyAB, kBarrelhaven, gBarrelhavenML);
   gBarrelhavenML = gValleyAB.addMailList(gBarrelhavenML);
+
+  // Create a few LDAP directories that should be ignored by this
+  // connector.
+  create_ldap_address_book("Some Company A");
+  create_ldap_address_book("Some Company B");
 }
 
 // -- Helper functions --
@@ -553,6 +599,15 @@ function assert_contact_matches_map(aContact, aMap) {
     "AnniversaryYear": "anniversary",
   };
 
+  const kOtherFields = ["PhoneticFirstName", "PhoneticLastName", "SpouseName",
+                        "FamilyName", "Custom1", "Custom2", "Custom3",
+                        "Custom4"];
+
+  const kTagMap = {
+    "AllowRemoteContent": kAllowRemoteContentTagID,
+    "PreferDisplayName": kPrefersDisplayNameTagID,
+  };
+
   for each (let [property, value] in Iterator(aMap)) {
 
     // Basic strings
@@ -628,6 +683,35 @@ function assert_contact_matches_map(aContact, aMap) {
       continue;
     }
 
+    if (property == "PopularityIndex") {
+      assert_equals(String(aContact.meta.popularityIndex), value);
+      continue;
+    }
+
+    // Others
+    if (kOtherFields.indexOf(property) != -1) {
+      assert_any_field_has_type_and_value(aContact.fields.other,
+                                          property, value);
+      continue;
+    }
+
+    // Leftover tags
+    if (property == "PreferMailFormat") {
+      if (value == "1") // Plaintext
+        assert_all_contacts_have_tags([aContact], [kRecieveInPlaintextTagID]);
+      else if (value == "2") // HTML
+        assert_all_contacts_have_tags([aContact], [kReceiveInHTMLTagID]);
+      continue;
+    }
+
+    if (property in kTagMap) {
+      if (value) {
+        let tagID = kTagMap[property];
+        assert_all_contacts_have_tags([aContact], [tagID]);
+      }
+      continue;
+    }
+
     throw new Error("Not prepared to handle property " + property);
   }
 }
@@ -643,7 +727,7 @@ function test_process_entire_ab() {
   const kEverybody = kBones.concat(kHarvestars)
                            .concat(kBarrelhaven)
                            .concat(kBeings)
-                           .concat(kOthers);
+                           .concat(kOtherBeings);
 
   assert_contacts_exist_and_match(results, kEverybody);
   // There should be 4 tags - Boneville, The Valley, Barrelhaven,
@@ -724,7 +808,7 @@ function test_process_pab() {
 function test_process_cab() {
   let [results, tags] = call_process_directory_and_wait(gCAB);
   assert_has_n_tags(tags, 0);
-  assert_has_n_contacts(results, kOthers.length);
-  assert_contacts_exist_and_match(results, kOthers);
+  assert_has_n_contacts(results, kOtherBeings.length);
+  assert_contacts_exist_and_match(results, kOtherBeings);
   assert_all_contacts_have_tags(results, [kCollectedTagID]);
 }
