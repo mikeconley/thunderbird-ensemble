@@ -9,9 +9,19 @@ const MODULE_REQUIRES = ['folder-display-helpers',
 
 const Cr = Components.results;
 
-Cu.import('resource://ensemble/connectors/TBMorkConnector.jsm');
+Cu.import("resource:///modules/mailServices.js");
+Cu.import("resource://ensemble/connectors/TBMorkConnector.jsm");
 
-let gBonevilleAB, gValleyAB, gHarvestarsML, gBarrelhavenML;
+let gPAB, gCAB, gBonevilleAB, gValleyAB, gHarvestarsML, gBarrelhavenML;
+
+const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
+const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
+
+const kPersonalTagID = "system:personal";
+const kCollectedTagID = "system:collected";
+
+// We need some fake contacts. What better universe than Jeff Smith's
+// Bone comics?
 
 const kFoneBone = {
   map: {
@@ -183,6 +193,65 @@ const kRory = {
 const kBarrelhaven = [kLucious, kJonathan, kWendell, kEuclid, kRory];
 const kBarrelhavenMLName = "Barrelhaven";
 
+// Other beings that I'll put in the Personal Address Book and the
+// Collected Address Book
+
+const kDragon = {
+  map: {
+    DisplayName: "Great Red Dragon",
+    PrimaryEmail: "red@dragons.com",
+    _GoogleTalk: "red.dragon@gmail.com",
+    HomeAddress: "Daren Gard",
+  },
+
+  nameForError: "Great Red Dragon",
+  queryBy: "name",
+  queryFor: "Great Red Dragon",
+};
+
+const kKingdok = {
+  map: {
+    FirstName: "Kingdok",
+    SecondEmail: "kingdok@ratpeople.com",
+  },
+
+  nameForError: "Kingdok",
+  queryBy: "givenName",
+  queryFor: "Kingdok",
+};
+
+const kRoqueJa = {
+  map: {
+    FirstName: "Roque",
+    LastName: "Ja",
+  },
+  nameForError: "Roque Ja",
+  queryBy: "givenName",
+  queryFor: "Roque"
+};
+
+const kBeings = [kDragon, kKingdok, kRoqueJa];
+
+const kTarsil = {
+  map: {
+    FirstName: "Tarsil",
+    LastName: "Usurper",
+    HomeAddress: "Main Castle",
+    HomeAddress2: "Master Wing",
+    HomeCity: "Atheia",
+    HomeState: "The Valley",
+    HomeCountry: "Jeffsmith",
+    JobTitle: "Leader",
+    Department: "Royal Guard"
+  },
+
+  nameForError: "Tarsil",
+  queryBy: "givenName",
+  queryFor: "Tarsil",
+};
+
+const kOthers = [kTarsil];
+
 const kValley = kHarvestars.concat(kBarrelhaven);
 const kValleyABName = "The Valley";
 
@@ -190,43 +259,50 @@ function setupModule(module) {
   collector.getModule("folder-display-helpers").installInto(module);
   collector.getModule("address-book-helpers").installInto(module);
 
-  gBonevilleAB = create_mork_address_book(kBonevilleABName);
+  gPAB = MailServices.ab.getDirectory(kPersonalAddressbookURI);
+  inject_contacts(gPAB, kBeings);
 
-  for each (let [i, person] in Iterator(kBones)) {
-    let card = create_contact("", "", "");
-    card = inject_map_values(card, person.map);
-    gBonevilleAB.addCard(card);
-  }
+  gCAB = MailServices.ab.getDirectory(kCollectedAddressbookURI);
+  inject_contacts(gCAB, kOthers);
+
+  gBonevilleAB = create_mork_address_book(kBonevilleABName);
+  inject_contacts(gBonevilleAB, kBones);
 
   gValleyAB = create_mork_address_book(kValleyABName);
 
   // And now Barrelhaven...
-
   gBarrelhavenML = create_mailing_list(kBarrelhavenMLName);
-
-  for each (let [i, person] in Iterator(kBarrelhaven)) {
-    let card = create_contact("", "", "");
-    card = inject_map_values(card, person.map);
-    gValleyAB.addCard(card);
-    gBarrelhavenML.addressLists.appendElement(card, false);
-  }
-
+  inject_contacts(gValleyAB, kBarrelhaven, gBarrelhavenML);
   gBarrelhavenML = gValleyAB.addMailList(gBarrelhavenML);
 
   // Add the Harvestars...
   gHarvestarsML = create_mailing_list(kHarvestarsMLName);
-
-  for each (let [i, person] in Iterator(kHarvestars)) {
-    let card = create_contact("", "", "");
-    card = inject_map_values(card, person.map);
-    gValleyAB.addCard(card);
-    gHarvestarsML.addressLists.appendElement(card, false);
-  }
-
+  inject_contacts(gValleyAB, kHarvestars, gHarvestarsML);
   gHarvestarsML = gValleyAB.addMailList(gHarvestarsML);
 }
 
 // -- Helper functions --
+
+/**
+ * Given some address book, and a collection of objects representing
+ * contacts, inject those contacts into the address book. You can optionally
+ * pass a mailing list to add these contacts to as well.
+ *
+ * @param aAB the nsIAbDirectory to populate
+ * @param aContacts an array of objects with a .map property that can be
+ *                  used by inject_map_values.
+ * @param aMailList the (optional) mailing list to also populate.
+ */
+function inject_contacts(aAB, aContacts, aMailList) {
+  for each (let [i, person] in Iterator(aContacts)) {
+    let card = create_contact("", "", "");
+    card = inject_map_values(card, person.map);
+    aAB.addCard(card);
+
+    if (aMailList)
+      aMailList.addressLists.appendElement(card, false);
+  }
+}
 
 /**
  * Given some nsIAbCard, and a map of properties to values, iterate
@@ -323,6 +399,7 @@ function assert_any_field_has_type_and_value(aCollection, aType, aValue) {
                   " with value: " + aValue);
 }
 
+// TODO: Use Harmony's startsWith instead
 function string_has_prefix(aTarget, aPrefix) {
   return (aTarget.substring(0, aPrefix.length) == aPrefix);
 }
@@ -331,6 +408,7 @@ function assert_prefix(aTarget, aPrefix) {
   assert_true(string_has_prefix(aTarget, aPrefix));
 }
 
+// TODO: Use Harmony's endsWith instead
 function string_has_suffix(aTarget, aSuffix) {
   return (aTarget.substring(aTarget.length - aSuffix.length) == aSuffix);
 }
@@ -346,6 +424,31 @@ function assert_contacts_exist_and_match(aCollection, aContacts) {
     assert_not_null(contact, "Should have found " + properties.nameForError);
     assert_contact_matches_map(contact, properties.map);
   }
+}
+
+function assert_all_contacts_have_tags(aResults, aTags) {
+  for each (let [, result] in Iterator(aResults)) {
+    for each (let [, tag] in Iterator(aTags)) {
+      if (result.fields.category.indexOf(tag) == -1)
+        throw new Error("Expected contact to have tag " + tag);
+    }
+  }
+}
+
+function call_process_directory_and_wait(aAddressBook) {
+  let results = [];
+  let tags = {};
+  let done = false;
+
+  let onFinished = function(aResult) {
+    done = true;
+  };
+
+  let connector = new TBMorkConnector();
+  connector._processDirectory(aAddressBook, results, tags, onFinished);
+
+  mc.waitFor(function() done);
+  return [results, tags];
 }
 
 function assert_contact_matches_map(aContact, aMap) {
@@ -502,28 +605,16 @@ function assert_contact_matches_map(aContact, aMap) {
  * instance.
  */
 function test_process_single_directory() {
-  let results = [];
-  let tags = {};
-
-  let done = false;
-
-  let onFinished = function(aResult) {
-    done = true;
-  };
-
-  let connector = new TBMorkConnector();
-  connector._processDirectory(gBonevilleAB, results, tags, onFinished);
-
-  mc.waitFor(function() done);
-
+  let [results, tags] = call_process_directory_and_wait(gBonevilleAB);
   assert_equals(Object.keys(tags).length, 1, "Should only return 1 tag");
   assert_true(kBonevilleABName in tags);
   assert_equals(tags[kBonevilleABName], kBonevilleABName);
 
-  assert_equals(results.length, 3, "Should have 3 contacts");
+  assert_equals(results.length, kBones.length,
+                "Should have " + kBones.length + " contacts");
 
-  const kContacts = [kFoneBone, kPhoneyBone, kSmileyBone];
-  assert_contacts_exist_and_match(results, kContacts);
+  assert_contacts_exist_and_match(results, kBones);
+  assert_all_contacts_have_tags(results, [kBonevilleABName]);
 }
 
 /**
@@ -532,20 +623,7 @@ function test_process_single_directory() {
  * TBMorkConnector instance.
  */
 function test_process_mailing_list_directory() {
-  let results = [];
-  let tags = {};
-
-  let done = false;
-
-  let onFinished = function(aResult) {
-    done = true;
-  };
-
-  let connector = new TBMorkConnector();
-  connector._processDirectory(gValleyAB, results, tags, onFinished);
-
-  mc.waitFor(function() done);
-
+  let [results, tags] = call_process_directory_and_wait(gValleyAB);
   assert_equals(Object.keys(tags).length, 3, "Should return 3 tags");
   assert_true(kValleyABName in tags);
   assert_equals(tags[kValleyABName], kValleyABName);
@@ -562,4 +640,32 @@ function test_process_mailing_list_directory() {
                      kWendell, kEuclid, kRory];
 
   assert_contacts_exist_and_match(results, kContacts);
+}
+
+/**
+ * Test processing the Personal Address Book.
+ */
+function test_process_pab() {
+  let [results, tags] = call_process_directory_and_wait(gPAB);
+  assert_equals(Object.keys(tags).length, 0, "Should return no tags");
+
+  assert_equals(results.length, kBeings.length,
+                "Should have " + kBeings.length + " contacts");
+
+  assert_contacts_exist_and_match(results, kBeings);
+  assert_all_contacts_have_tags(results, [kPersonalTagID]);
+}
+
+/**
+ * Test processing the Collected Address Book.
+ */
+function test_process_cab() {
+  // Collected address book
+  let [results, tags] = call_process_directory_and_wait(gCAB);
+  assert_equals(Object.keys(tags).length, 0, "Should return no tags");
+  assert_equals(results.length, kOthers.length,
+                "Should have " + kOthers.length + " contacts");
+
+  assert_contacts_exist_and_match(results, kOthers);
+  assert_all_contacts_have_tags(results, [kCollectedTagID]);
 }
