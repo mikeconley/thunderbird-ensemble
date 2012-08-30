@@ -548,9 +548,9 @@ function test_can_do_simple_merge() {
 
   let haddock = new ContactRecord('foo', kTestFields2);
   let wilson = new ContactRecord('foo', kFieldsForDiff);
-  wilson.merge(haddock);
+  haddock.merge(wilson);
 
-  assert_items_equal(wilson.fields, kExpectedMerge);
+  assert_items_equal(haddock.fields, kExpectedMerge);
 }
 
 // Equivalence tests

@@ -16,8 +16,8 @@ function test_items_equal_strings() {
 
   assert_true(itemsEqual(["This", "is", "A", "test"],
                          ["This", "is", "A", "test"]));
-  assert_true(itemsEqual(["This", "is", "a", "test"],
-                         ["test", "is", "a", "This"]));
+  assert_false(itemsEqual(["This", "is", "a", "test"],
+                          ["test", "is", "a", "This"]));
 
 
   assert_false(itemsEqual(["This", "is", "a", "test"],
@@ -228,4 +228,16 @@ function test_array_union() {
   let union = arrayUnion(kArrayA, kArrayB);
 
   assert_true(itemsEqual(union, kExpected));
+}
+
+function test_array_difference() {
+  const kArrayA = ["This", "is", "some", "text"];
+  const kArrayB = ["This", "is", "some", "more"];
+  const kExpected = {
+    added: ["more"],
+    removed: ["text"],
+  }
+
+  let diff = arrayDifference(kArrayA, kArrayB);
+  assert_true(itemsEqual(diff, kExpected));
 }

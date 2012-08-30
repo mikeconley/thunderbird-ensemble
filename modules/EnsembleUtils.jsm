@@ -1,12 +1,12 @@
 let EXPORTED_SYMBOLS = ["itemsEqual", "arrayComplement", "arrayContains",
-                        "arrayUnion"];
+                        "arrayUnion", "arrayDifference"];
 
 function itemsEqual(obj, reference) {
   if (obj === reference) return true;
   if (Array.isArray(obj)) {
     if (obj.length !== reference.length) return false;
     for (let i = 0, len = obj.length; i < len; i++){
-      if (!arrayContains(reference, obj[i])) {
+      if (!itemsEqual(reference[i], obj[i])) {
         return false;
       }
     }
@@ -75,3 +75,30 @@ function arrayContains(aArray, aItem) {
   });
 }
 
+function arrayDifference(aArray, aOther) {
+  // We'll iterate over the smaller of the two arrays we were passed.
+  let aArray = aArray.concat();
+  let aOther = aOther.concat();
+  let addedItems = [];
+  let removedItems = [];
+  let diffPoint = -1;
+
+  for (let i = 0; i < aArray.length && i < aOther.length; ++i) {
+    if (!itemsEqual(aArray[i], aOther[i])) {
+      diffPoint = i;
+      break;
+    }
+  }
+
+  if (diffPoint != -1)
+    removedItems = aArray.splice(diffPoint, aArray.length - diffPoint);
+
+  if (aArray.length != aOther.length) {
+    if (diffPoint == -1)
+      diffPoint = aArray.length - 1;
+
+    addedItems = aOther.splice(diffPoint, aOther.length - diffPoint);
+  }
+
+  return {added: addedItems, removed: removedItems};
+}
