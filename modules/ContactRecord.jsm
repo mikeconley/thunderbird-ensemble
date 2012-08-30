@@ -230,11 +230,10 @@ ContactRecord.prototype = {
     };
 
     for each (let [, fieldName] in Iterator(kArrayFields)) {
-      let addedComp = arrayComplement(this.fields[fieldName],
-                                      aRecord.fields[fieldName]);
-
-      let removedComp = arrayComplement(aRecord.fields[fieldName],
-                                        this.fields[fieldName]);
+      let {
+        added: addedComp,
+        removed: removedComp
+      } = arrayDifference(this.fields[fieldName], aRecord.fields[fieldName]);
 
       if (addedComp.length)
         added[fieldName] = addedComp;
