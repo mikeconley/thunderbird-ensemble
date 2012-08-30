@@ -329,6 +329,8 @@ ContactRecord.prototype = {
    *         type: 'Work',
    *         address: 'house@example.com',
    *       },
+   *       impp: {},
+   *       tel: {},
    *     }
    *   }
    * }
