@@ -230,15 +230,12 @@ ContactRecord.prototype = {
     };
 
     for each (let [, fieldName] in Iterator(kArrayFields)) {
-      let {
-        added: addedComp,
-        removed: removedComp
-      } = arrayDifference(this.fields[fieldName], aRecord.fields[fieldName]);
-
-      if (addedComp.length)
-        added[fieldName] = addedComp;
-      if (removedComp.length)
-        removed[fieldName] = removedComp;
+      let result = arrayDifference(aRecord.fields[fieldName],
+                                   this.fields[fieldName]);
+      if (result.added.length > 0)
+        added[fieldName] = result.added;
+      if (result.removed.length > 0)
+        removed[fieldName] = result.removed;
     }
 
     for each (let [, fieldName] in Iterator(kStringFields)) {
@@ -390,6 +387,7 @@ ContactRecord.prototype = {
 
     // Clear the removals.
     diff.removed = {};
+
     // Remove any of the changes that result in nulls
     let changedFields = diff.changed.fields;
     for (let changedField in changedFields) {

@@ -202,13 +202,16 @@ const kResultingDiff = {
   added: {
     name: ['House'],
     givenName: ['Gregory'],
-    additionalName: ['Berton'],
+    additionalName: ['Berton', 'Ryan'],
     familyName: ['House'],
     honorificSuffix: ['Junior'],
     nickname: ['Hugh'],
     email: [{
       type: 'Work',
       value: 'house@example.com',
+    }, {
+      type: 'Home',
+      value: 'houseOther@example.com',
     }],
     url: [{
       type: 'Homepage',
@@ -238,7 +241,7 @@ const kResultingDiff = {
   removed: {
     name: ['Wilson'],
     givenName: ['James'],
-    additionalName: ['Coleman'],
+    additionalName: ['Coleman', 'Ryan'],
     familyName: ['Wilson'],
     nickname: ['Robert'],
     email: [{
@@ -247,6 +250,9 @@ const kResultingDiff = {
     }, {
       type: 'Copy',
       value: 'house@example.com',
+    }, {
+      type: 'Home',
+      value: 'houseOther@example.com',
     }],
     photo: ['somedata'],
   },
@@ -492,7 +498,7 @@ function test_can_do_simple_merge() {
     honorificPrefix: ['Dr.'],
     givenName: ['Archibald', 'James'],
     additionalName: ['Coleman', 'Ryan'],
-    familyName: ['Wilson', 'Haddock'],
+    familyName: ['Haddock', 'Wilson'],
     honorificSuffix: [],
     nickname: ['Robert'],
     email: [{
