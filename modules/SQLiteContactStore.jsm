@@ -254,12 +254,18 @@ let SQLiteContactStore = {
           "CREATE TABLE IF NOT EXISTS contacts (" +
             "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "popularity INTEGER NOT NULL DEFAULT (0), " +
-            "default_email INTEGER NOT NULL, " +
+            "default_email INTEGER, " +
+            "default_impp INTEGER, " +
+            "default_tel INTEGER, " +
+            "default_photo BLOB, " +
             "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
             "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
             "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
             "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
-            "FOREIGN KEY (default_email) REFERENCES contact_data(id))",
+            "FOREIGN KEY (default_email) REFERENCES contact_data(id), " +
+            "FOREIGN KEY (default_impp) REFERENCES contact_data(id), " +
+            "FOREIGN KEY (default_tel) REFERENCES contact_data(id), " +
+            "FOREIGN KEY (default_photo) REFERENCES contact_data(id))",
 
           "CREATE TABLE IF NOT EXISTS contact_records (" +
             "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
@@ -327,8 +333,16 @@ let SQLiteContactStore = {
     });
   },
 
-  save: function SQLiteCS_save(aContactRecord, aCallback) {
+  saveContact: function SQLiteCS_save(aContact, aCallback) {
+    if (aContact.id !== null) {
+      // Looks like we're updating a contact
+    } else {
+      // Looks like we're creating a brand new contact.
+    }
+  },
 
+  saveSubrecord: function SQLiteCS_saveSubrecord(aContact, aServiceID,
+                                                 aCallback) {
   },
 
   get _getAllTagsStatement() {

@@ -44,7 +44,7 @@ let Ensemble = {
     }.bind(this));
   },
 
-  uninit: function Ensemble_uninit() {
+  uninit: function Ensemble_uninit(aCallback) {
     if (!this._initted)
       return;
 
@@ -103,4 +103,22 @@ let Ensemble = {
     }.bind(this));
   },
 
+  saveContact: function(aContact, aServiceIDs, aCallback) {
+    // First thing's first - we need to save what we have to our datastore,
+    // locally - that includes the subrecords cache.
+    //
+    // If the contact does not already exist in the database, it will be
+    // created, and the resulting contact will be assigned an ID.
+    let q = new JobQueue();
+    q.addJob(function(aJobFinished) {
+      this._datastore.saveContact(aContact, aJobFinished);
+    }.bind(this));
+
+
+    // TODO: And then we need to try to save the changes to the services
+    // associated with the IDs passed in aServiceIDs.
+
+    // Ok, fire it off.
+    q.start(aCallback);
+  },
 }
