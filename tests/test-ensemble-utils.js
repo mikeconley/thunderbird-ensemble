@@ -34,11 +34,14 @@ function test_items_equal_strings() {
 
   assert_false(itemsEqual(["This", "is", "a", "test"],
                           ["this", "is", "a", "test"]));
-  assert_false(itemsEqual(["this", "is"],
-                          ["this"]));
+  assert_false(itemsEqual(["this", "is"], ["this"]));
+  assert_false(itemsEqual(["this"], [null]));
+  assert_false(itemsEqual([null], ["something", "else"]));
 }
 
 function test_items_equal_objects() {
+  assert_true(itemsEqual(null, null));
+  assert_true(itemsEqual([null], [null]));
 
   assert_true(itemsEqual({
     single: 'member'
