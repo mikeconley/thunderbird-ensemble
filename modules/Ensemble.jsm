@@ -95,6 +95,8 @@ let Ensemble = {
       if (!this.hasTag(tagID))
         tagsToInsert[tagID] = tag;
     }
+    if (Object.keys(tagsToInsert).length == 0)
+      return aCallback(Cr.NS_OK);
     this._datastore.insertTags(tagsToInsert, aOriginator, aCallback);
   },
 
