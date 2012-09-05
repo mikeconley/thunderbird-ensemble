@@ -34,8 +34,8 @@ function ContactRecord(aServiceID, aFields, aMeta) {
   this.fields = {};
 
   for each (field in kAllFields) {
-    d.__defineGetter__(field, function() { return this.fields[field]; });
-    d.__defineSetter__(field, function(aNewValue) { this.fields[field] = aNewValue; });
+    this.__defineGetter__(field, function() { return this.fields[field]; });
+    this.__defineSetter__(field, function(aNewValue) { this.fields[field] = aNewValue; });
   }
 
 
