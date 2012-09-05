@@ -73,6 +73,7 @@ const kTestFields = {
       value: '15215125',
     },
     tel: null,
+    photo: null,
   }
 };
 
@@ -141,6 +142,7 @@ const kResultingFields = {
       value: '15215125',
     },
     tel: null,
+    photo: null,
   },
 };
 
@@ -272,6 +274,7 @@ const kResultingDiff = {
         value: '15215125',
       },
       tel: null,
+      photo: null,
     },
   }
 };
@@ -375,7 +378,8 @@ function test_can_produce_simple_diff_with_adds() {
       defaults: {
         email: null,
         impp: null,
-        tel: null
+        tel: null,
+        photo: null,
       },
     },
   };
@@ -427,6 +431,7 @@ function test_can_produce_simple_diff_with_removes() {
         email: null,
         impp: null,
         tel: null,
+        photo: null,
       },
     },
   };
@@ -464,6 +469,7 @@ function test_can_produce_simple_diff_with_changes() {
         email: null,
         impp: null,
         tel: null,
+        photo: null,
       }
     },
   };
@@ -549,6 +555,7 @@ function test_can_do_simple_merge() {
       email: null,
       impp: null,
       tel: null,
+      photo: null,
     },
   }
 

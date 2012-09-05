@@ -23,7 +23,7 @@ const kArrayFields = kBasicFields.concat(kTypedFields)
 
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 
-const kHasDefaults = ['email', 'impp', 'tel'];
+const kHasDefaults = ['email', 'impp', 'tel', 'photo'];
 
 function ContactRecord(aServiceID, aFields, aMeta) {
   if (!aServiceID)
