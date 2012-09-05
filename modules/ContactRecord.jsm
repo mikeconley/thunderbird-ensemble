@@ -25,11 +25,19 @@ const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 
 const kHasDefaults = ['email', 'impp', 'tel'];
 
+const kAllFields = kArrayFields.concat(kStringFields);
+
 function ContactRecord(aServiceID, aFields, aMeta) {
   if (!aServiceID)
     throw new Error("Expected a service ID when constructing ContactRecord");
 
   this.fields = {};
+
+  for each (field in kAllFields) {
+    this.__defineGetter__(field, function() { return this.fields[field]; });
+    this.__defineSetter__(field, function(aNewValue) { this.fields[field] = aNewValue; });
+  }
+
 
   /**
    * Helper function that allows us to accept both a string, or an array
