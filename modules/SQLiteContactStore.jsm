@@ -254,9 +254,9 @@ let SQLiteContactStore = {
           "CREATE TABLE IF NOT EXISTS contacts (" +
             "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "popularity INTEGER NOT NULL DEFAULT (0), " +
-            "default_email INTEGER, " +
-            "default_impp INTEGER, " +
-            "default_tel INTEGER, " +
+            "default_email TEXT, " +
+            "default_impp TEXT, " +
+            "default_tel TEXT, " +
             "default_photo BLOB, " +
             "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
             "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
@@ -338,6 +338,62 @@ let SQLiteContactStore = {
       // Looks like we're updating a contact
     } else {
       // Looks like we're creating a brand new contact.
+
+      // This is, in theory, pretty simple. First, we need to create the
+      // main row in the contacts table...
+      let q = new JobQueue();
+
+      let statement = this._createMainContactStatement;
+
+      q.addJob(function(aJobFinished) {
+        // Do any prep work here - example, shrinking photos, etc.
+        statement.bindInt64Parameter(0, aContact.popularity);
+
+        let f = aContact.fields;
+
+        const kStringDefaults = ['email', 'impp', 'tel'];
+        // The indexes of kStringDefaults are mapped to the order with
+        // which we bind them in the createMainContactStatement. 'email'
+        // is the first, and is at index 2 of the statement.
+        const kStartPoint = 2;
+
+        for each (let [i, defaultKey] in Iterator(kStringDefaults)) {
+          let index = kStartPoint + i;
+          if (f.defaults[defaultKey])
+            statement.bindStringParameter(index, f.defaults[defaultKey]);
+          else
+            statement.bindNullParameter(index);
+        }
+/*
+        // Now the photo, if we have one.
+        if (f.defaults.photo)
+          statement.bindBlob
+*/
+      }.bind(this));
+
+      q.addJob(function(aJobFinished) {
+        // Now bind based on the data in this contact record...
+/*    statement.bindInt64Parameter(0, this._nextInsertID['categories']);
+    statement.bindStringParameter(1, aTagID);
+    statement.bindStringParameter(2, aTagName);
+    statement.bindStringParameter(3, aOriginator);
+
+*/
+        statement.executeAsync({
+          handleResult: function(aResultSet) {}, // Not expecting a result.
+          handleError: function(aError) {
+            aJobFinished(new Error("Could not create main contact row - " +
+                                   "got error: " + aError));
+          },
+          handleCompletion: function(aReason) {
+            if (aReason === kSQLCallbacks.REASON_FINISHED)
+              aJobFinished(Cr.NS_OK);
+            else if (aReason === kSQLCallbacks.REASON_CANCELLED)
+              aJobFinished(new Error("Could not create main contact row - " +
+                                     "operation was cancelled!"));
+          },
+        });
+      }.bind(this));
     }
   },
 
@@ -382,34 +438,48 @@ let SQLiteContactStore = {
   get _insertTagStatement() {
     let statement = this._db.createAsyncStatement(
       "INSERT INTO categories (id, export_name, display_name, originator) " +
-        "VALUES (?1, ?2, ?3, ?4)");
+        "VALUES (:id, :export_name, :display_name, :originator)");
     this.__defineGetter__("_insertTagStatement", function () statement);
     return this._insertTagStatement;
   },
 
-  insertTag: function SQLiteCS_insertTag(aTagID, aTagName, aOriginator,
-                                         aCallback) {
+  insertTags: function SQLiteCS_insertTag(aTags, aOriginator,
+                                          aCallback) {
     let statement = this._insertTagStatement;
-    statement.bindInt64Parameter(0, this._nextInsertID['categories']);
-    statement.bindStringParameter(1, aTagID);
-    statement.bindStringParameter(2, aTagName);
-    statement.bindStringParameter(3, aOriginator);
+    let array = statement.newBindingParamsArray();
+    let index = 0;
+    for each (let [tagID, tagName] in Iterator(aTags)) {
+      let bp = array.newBindingParams();
+      bp.bindByName("id", this._nextInsertID['categories']
+                    + index);
+      bp.bindByName("export_name", tagID);
+      bp.bindByName("display_name", tagName);
+      bp.bindByName("originator", aOriginator);
+      array.addParams(bp);
+      index++;
+    }
+
+    statement.bindParameters(array);
+
+    this._db.beginTransaction();
 
     statement.executeAsync({
       handleResult: function(aResultSet) {},
       handleError: function(aError) {
-        aCallback(new Error("Could not insert tag with ID " + aTagID +
-                            " received error: " + aError));
+        aCallback(new Error("Could not insert tags - received error: " + aError));
       },
       handleCompletion: function(aReason) {
         if (aReason === kSQLCallbacks.REASON_FINISHED) {
-          this._nextInsertID['categories']++;
+          this._nextInsertID['categories'] = this._nextInsertID['categories'] +
+                                             aTags.length;
+          this._db.commitTransaction();
           aCallback(Cr.NS_OK);
+          return;
         }
         else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-          aCallback(new Error("Inserting tag with ID " + aTagID +
-                              " was cancelled!"));
+          aCallback(new Error("Inserting tags was cancelled!"));
         }
+        this._db.rollbackTransaction();
       }.bind(this),
     });
   },

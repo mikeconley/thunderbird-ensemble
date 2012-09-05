@@ -3,6 +3,9 @@ let EXPORTED_SYMBOLS = ["itemsEqual", "arrayComplement", "arrayContains",
 
 function itemsEqual(obj, reference) {
   if (obj === reference) return true;
+  if ((obj === null && reference !== null) ||
+      (reference === null && obj !== null))
+    return false;
   if (Array.isArray(obj)) {
     if (obj.length !== reference.length) return false;
     for (let i = 0, len = obj.length; i < len; i++){

@@ -89,9 +89,13 @@ let Ensemble = {
     return (aTagID in this._tagsCache);
   },
 
-  addTag: function Ensemble_addTag(aTagID, aTagPrettyName,
-                                   aOriginator, aCallback) {
-    this._datastore.insertTag(aTagID, aTagPrettyName, aOriginator, aCallback);
+  addTags: function Ensemble_addTag(aTags, aOriginator, aCallback) {
+    let tagsToInsert = {};
+    for each (let [tagID, tag] in Iterator(aTags)) {
+      if (!this.hasTag(tagID))
+        tagsToInsert[tagID] = tag;
+    }
+    this._datastore.insertTags(tagsToInsert, aOriginator, aCallback);
   },
 
   _fillCaches: function Ensemble_fillCaches(aJobFinished) {

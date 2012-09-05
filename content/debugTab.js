@@ -118,23 +118,9 @@ let DebugTab = {
     Cu.import("resource://ensemble/connectors/TBMorkConnector.jsm");
     let mork = new TBMorkConnector();
     let result = mork.getAllRecords(function(aRecords, aTags) {
-
-      let q = new JobQueue();
-
-      for each (let [tagID, tagPrettyName] in Iterator(aTags)) {
-        if (!Ensemble.hasTag(tagID)) {
-          q.addJob(function(aJobFinished) {
-            Ensemble.addTag(tagID, tagPrettyName, "user", aJobFinished);
-          });
-        }
-      }
-
-      q.start(function(aResult) {
-        dump("\n\nInsertion result: " + aResult + "\n\n");
+      Ensemble.addTags(aTags, "user", function(aResult) {
+        dump("\n\nTag insertion result: " + aResult + "\n\n");
       });
-
-      let contact = new Contact(record[0].fields, record[0].meta);
-
     });
   },
 

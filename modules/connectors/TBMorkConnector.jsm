@@ -85,6 +85,7 @@ TBMorkConnector.prototype = {
 
     let outerResult = aResult;
     q.start(function(aInnerResult) {
+      dump("\n\nCalled! Result: " + aInnerResult + "\n\n");
       if (aInnerResult === Cr.NS_OK) {
         aCallback(outerResult, aTags);
       } else {

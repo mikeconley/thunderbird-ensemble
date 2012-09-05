@@ -189,7 +189,7 @@ function ContactRecord(aServiceID, aFields, aMeta) {
     if (aFields.defaults && aFields.defaults[defaultType])
       defaults[defaultType] = aFields.defaults[defaultType];
     else
-      defaults[defaultType] = {};
+      defaults[defaultType] = null;
   }
 
   this.fields['defaults'] = defaults;
@@ -248,7 +248,7 @@ ContactRecord.prototype = {
                       aRecord.fields.defaults[defaultField]))
         changed.defaults[defaultField] = this.fields.defaults[defaultField];
       else
-        changed.defaults[defaultField] = {};
+        changed.defaults[defaultField] = null;
     }
 
     return {

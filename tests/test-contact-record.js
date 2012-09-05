@@ -9,7 +9,7 @@ const MODULE_REQUIRES = ['folder-display-helpers'];
 Cu.import('resource://ensemble/EnsembleUtils.jsm');
 Cu.import('resource://ensemble/ContactRecord.jsm');
 
-let kTestFields = {
+const kTestFields = {
   name: 'House',
   honorificPrefix: 'Dr.',
   givenName: 'Gregory',
@@ -72,11 +72,11 @@ let kTestFields = {
       type: 'ICQ',
       value: '15215125',
     },
-    tel: {},
+    tel: null,
   }
 };
 
-let kResultingFields = {
+const kResultingFields = {
   name: ['House'],
   honorificPrefix: ['Dr.'],
   givenName: ['Gregory'],
@@ -140,7 +140,7 @@ let kResultingFields = {
       type: 'ICQ',
       value: '15215125',
     },
-    tel: {}
+    tel: null,
   },
 };
 
@@ -271,7 +271,7 @@ const kResultingDiff = {
         type: 'ICQ',
         value: '15215125',
       },
-      tel: {},
+      tel: null,
     },
   }
 };
@@ -373,9 +373,9 @@ function test_can_produce_simple_diff_with_adds() {
     changed: {
       fields: {},
       defaults: {
-        email: {},
-        impp: {},
-        tel: {}
+        email: null,
+        impp: null,
+        tel: null
       },
     },
   };
@@ -424,9 +424,9 @@ function test_can_produce_simple_diff_with_removes() {
     changed: {
       fields: {},
       defaults: {
-        email: {},
-        impp: {},
-        tel: {},
+        email: null,
+        impp: null,
+        tel: null,
       },
     },
   };
@@ -461,9 +461,9 @@ function test_can_produce_simple_diff_with_changes() {
         anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
       },
       defaults: {
-        email: {},
-        impp: {},
-        tel: {},
+        email: null,
+        impp: null,
+        tel: null,
       }
     },
   };
@@ -546,9 +546,9 @@ function test_can_do_simple_merge() {
     sex: null,
     genderIdentity: null,
     defaults: {
-      email: {},
-      impp: {},
-      tel: {},
+      email: null,
+      impp: null,
+      tel: null,
     },
   }
 
