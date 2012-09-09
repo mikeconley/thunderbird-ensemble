@@ -333,7 +333,21 @@ let SQLiteContactStore = {
     });
   },
 
-  saveContact: function SQLiteCS_save(aContact, aCallback) {
+  importContacts: function SQLiteCS_importContacts(aContacts,
+                                                   aCallback) {
+    if (aContacts.length == 0) {
+      aCallback(Cr.NS_OK);
+      return;
+    }
+
+    let createStmt = this._createMainContactStatement;
+    let createParamArray = createStmt.newBindingParamsArray();
+
+    for each (let [, contact] in Iterator(aContacts)) {
+      if (contact.id !== null)
+        continue;
+    }
+
     if (aContact.id !== null) {
       // Looks like we're updating a contact
     } else {
