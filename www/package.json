@@ -1,0 +1,7 @@
+{
+  "volo": {
+    "dependencies": {
+      "bootstrap": "github:twitter/bootstrap/v2.1.1"
+    }
+  }
+}

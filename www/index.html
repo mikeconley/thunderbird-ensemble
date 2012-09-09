@@ -1,9 +1,39 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <script data-main="js/app" src="js/lib/require.js"></script>
-    </head>
-    <body>
-        <h1>Hello World</h1>
-    </body>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script data-main="js/app" src="js/lib/require.js"></script>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="hero-unit">
+      <h1>Hello World</h1>
+    </div>
+    <div id="content" class="container-fluid">
+      <div class="row-fluid">
+        <div id="list" class="span3 well well-small"></div>
+        <div id="details" class="span9"></div>
+      </div>
+    </div>
+  </body>
+
+  <script id="contact-list-tmpl" type="text/template">
+    <div class="list-contact">
+      <strong><span class="name"><%= name %></span></strong>
+      <span class="email" class="text-muted"><% _.each(email, function(address, i) { %>
+        <span class="address"><%= address %></span><% if (i < email.length - 1) { %>,<% } %>
+      <% }); %></span>
+    </div>
+  </script>
+
+  <script id="contact-detail-tmpl" type="text/template">
+    <dl class="list-contact dl-horizontal">
+      <dt>Name</dt> <dd><strong><span class="name"><%= name %></span></strong></dd>
+      <dt>Email addresses</dt> <dd><span class="email"><% _.each(email, function(address, i) { %>
+        <span class="address"><%= address %></span><% if (i < email.length - 1) { %>,<% } %>
+      <% }); %></span></dd>
+    </dl>
+  </script>
+
+  <script src="js/bootstrap.min.js"></script>
 </html>
