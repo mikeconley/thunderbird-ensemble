@@ -11,6 +11,7 @@ Cu.import("resource://ensemble/Logging.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 let Common = {};
 Cu.import("resource://ensemble/Common.jsm", Common);
+Cu.import("resource://ensemble/Backbone.jsm");
 
 let Ensemble = {
   _initted: false,
@@ -44,7 +45,7 @@ let Ensemble = {
     }.bind(this));
   },
 
-  uninit: function Ensemble_uninit() {
+  uninit: function Ensemble_uninit(aCallback) {
     if (!this._initted)
       return;
 

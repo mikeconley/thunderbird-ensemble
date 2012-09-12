@@ -145,8 +145,9 @@ let SQLiteContactStore = {
           this._initting = false;
           this._initted = false;
           // If we were passed a callback, fire back the all green.
-          if (aCallback)
+          if (aCallback) {
             aCallback(Cr.NS_OK);
+          }
         }.bind(this)
       });
       this._db = null;
@@ -341,7 +342,6 @@ let SQLiteContactStore = {
 
   getAllTags: function SQLiteCS_getAllTags(aCallback) {
     let allTags = {};
-
     this._getAllTagsStatement.executeAsync({
       handleResult: function(aResultSet) {
         while ((row = aResultSet.getNextRow())) {

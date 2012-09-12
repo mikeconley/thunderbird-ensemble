@@ -1,0 +1,17 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+let EXPORTED_SYMBOLS = ["_"];
+
+const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
+
+let loader = Cc["@mozilla.org/moz/jssubscript-loader;1"]
+               .getService(Ci.mozIJSSubScriptLoader);
+loader.loadSubScript("resource://ensemble/lib/underscore-1.3.3.js");
+
+_.mixin({
+  test: function(aString) {
+    return aString + " is awesome!";
+  }
+});
