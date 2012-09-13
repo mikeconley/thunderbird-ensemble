@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 let Cu = Components.utils;
 
 const MODULE_NAME = 'test-underscore-mixins';
@@ -12,42 +16,42 @@ function setupModule(module) {
 
 /**
  * Helper function for testing the equality of two items. Not used
- * for testing if _.isEqual works.
+ * for testing if _.safeIsEqual works.
  */
 function assert_items_equal(aItemA, aItemB, aMsg) {
   if (!aMsg) {
     aMsg = JSON.stringify(aItemA, null, "\t") + "\n != \n " +
            JSON.stringify(aItemB, null, "\t");
   }
-  assert_true(_.isEqual(aItemA, aItemB), aMsg);
+  assert_true(_.safeIsEqual(aItemA, aItemB), aMsg);
 }
 
 function test_items_equal_strings() {
-  assert_true(_.isEqual(["this", "is", "a", "test"],
+  assert_true(_.safeIsEqual(["this", "is", "a", "test"],
                          ["this", "is", "a", "test"]));
 
-  assert_true(_.isEqual(["This", "is", "A", "test"],
+  assert_true(_.safeIsEqual(["This", "is", "A", "test"],
                          ["This", "is", "A", "test"]));
-  assert_false(_.isEqual(["This", "is", "a", "test"],
+  assert_false(_.safeIsEqual(["This", "is", "a", "test"],
                           ["test", "is", "a", "This"]));
 
 
-  assert_false(_.isEqual(["This", "is", "a", "test"],
+  assert_false(_.safeIsEqual(["This", "is", "a", "test"],
                           ["this", "is", "a", "test"]));
-  assert_false(_.isEqual(["this", "is"],
+  assert_false(_.safeIsEqual(["this", "is"],
                           ["this"]));
 }
 
-/*
+
 function test_items_equal_objects() {
 
-  assert_true(_.isEqual({
+  assert_true(_.safeIsEqual({
     single: 'member'
   }, {
     single: 'member'
   }));
 
-  assert_true(_.isEqual({
+  assert_true(_.safeIsEqual({
     multiple: 'member',
     object: 'instance'
   }, {
@@ -55,7 +59,7 @@ function test_items_equal_objects() {
     object: 'instance'
   }));
 
-  assert_true(_.isEqual({
+  assert_true(_.safeIsEqual({
     multiple: 'member',
     object: 'instance',
     somedate: new Date("Fri Jul 13 2012 12:53:17 GMT-0400 (EDT)").toJSON()
@@ -65,7 +69,7 @@ function test_items_equal_objects() {
     somedate: new Date("Fri Jul 13 2012 12:53:17 GMT-0400 (EDT)").toJSON()
   }));
 
-  assert_true(_.isEqual([{
+  assert_true(_.safeIsEqual([{
     nested: {
       some: 'value',
       inside: {
@@ -81,19 +85,19 @@ function test_items_equal_objects() {
     }
   }, "Another string"]));
 
-  assert_false(_.isEqual({
+  assert_false(_.safeIsEqual({
     single: 'member'
   }, {
     changed: 'member'
   }));
 
-  assert_false(_.isEqual({
+  assert_false(_.safeIsEqual({
     single: 'member'
   }, {
     single: 'changed'
   }));
 
-  assert_false(_.isEqual({
+  assert_false(_.safeIsEqual({
     multiple: 'member',
     object: 'instance'
   }, {
@@ -101,7 +105,7 @@ function test_items_equal_objects() {
     object: 'changed'
   }));
 
-  assert_false(_.isEqual({
+  assert_false(_.safeIsEqual({
     multiple: 'member',
     object: 'instance'
   }, {
@@ -109,7 +113,7 @@ function test_items_equal_objects() {
     changed: 'instance'
   }));
 
-  assert_false(_.isEqual({
+  assert_false(_.safeIsEqual({
     multiple: 'member',
     object: 'instance',
     somedate: new Date("Fri Jul 13 2012 12:53:17 GMT-0400 (EDT)").toJSON()
@@ -119,7 +123,7 @@ function test_items_equal_objects() {
     somedate: new Date("Fri Jul 10 2012 12:53:18 GMT-0400 (EDT)").toJSON()
   }));
 
-  assert_false(_.isEqual([{
+  assert_false(_.safeIsEqual([{
     nested: {
       some: 'value',
       inside: {
@@ -137,7 +141,7 @@ function test_items_equal_objects() {
 
 }
 
-// The following tests make use of _.isEqual, and assume that it's working
+// The following tests make use of _.safeIsEqual, and assume that it's working
 // properly to check the equivalence of various things.
 
 function test_array_complement_with_strings() {
@@ -146,10 +150,10 @@ function test_array_complement_with_strings() {
   const kExpectedA = ["This", "my", "test"];
   const kExpectedB = ["My", "awesome", "folks"];
 
-  let complement = arrayComplement(kArrayA, kArrayB);
+  let complement = _.objDifference(kArrayA, kArrayB);
   assert_items_equal(complement, kExpectedA);
 
-  complement = arrayComplement(kArrayB, kArrayA);
+  complement = _.objDifference(kArrayB, kArrayA);
   assert_items_equal(complement, kExpectedB);
 }
 
@@ -157,11 +161,11 @@ function test_array_complement_with_empty_arrays() {
   const kArrayA = [];
   const kArrayB = ['Stuff', 'to', 'remove'];
 
-  let complement = arrayComplement(kArrayA, kArrayB);
+  let complement = _.objDifference(kArrayA, kArrayB);
   assert_equals(0, complement.length,
                 "Should have returned an empty array.");
 
-  complement = arrayComplement(kArrayB, kArrayA);
+  complement = _.objDifference(kArrayB, kArrayA);
   assert_items_equal(complement, kArrayB);
 }
 
@@ -222,13 +226,13 @@ function test_array_complement_with_objects() {
     }
   ];
 
-  let complement = arrayComplement(kArrayA, kArrayB);
+  let complement = _.objDifference(kArrayA, kArrayB);
   assert_items_equal(complement, kExpectedA);
 
-  complement = arrayComplement(kArrayB, kArrayA);
+  complement = _.objDifference(kArrayB, kArrayA);
   assert_items_equal(complement, kExpectedB);
 
-  complement = arrayComplement([{empty: {}}], [{empty: {}}]);
+  complement = _.objDifference([{empty: {}}], [{empty: {}}]);
   assert_items_equal(complement, []);
 }
 
@@ -238,7 +242,7 @@ function test_array_union() {
   const kExpected = ["This", "is", "some", "text", "And", "here",
                      "more"];
 
-  let union = arrayUnion(kArrayA, kArrayB);
+  let union = _.objUnion(kArrayA, kArrayB);
 
   assert_items_equal(union, kExpected);
 }
@@ -251,8 +255,7 @@ function test_array_difference_same_length() {
     removed: ["text"],
   };
 
-  let diff = arrayDifference(kArrayA, kArrayB);
-  assert_true(_.isEqual(diff, kExpectedStrings));
+  let diff = _.arrayDifference(kArrayA, kArrayB);
   assert_items_equal(diff, kExpectedStrings);
 
   const kArrayC = [
@@ -296,7 +299,7 @@ function test_array_difference_same_length() {
     ]
   };
 
-  diff = arrayDifference(kArrayC, kArrayD);
+  diff = _.arrayDifference(kArrayC, kArrayD);
   assert_items_equal(diff, kExpectedObjects);
 }
 
@@ -309,7 +312,7 @@ function test_array_difference_different_lengths() {
     removed: ["more", "text"]
   };
 
-  let diff = arrayDifference(kArrayA, kArrayB);
+  let diff = _.arrayDifference(kArrayA, kArrayB);
   assert_items_equal(diff, kExpectedFirst);
 
   const kExpectedSecond = {
@@ -317,7 +320,7 @@ function test_array_difference_different_lengths() {
     removed: ["some", "more", "stuff", "to", "test"],
   };
 
-  diff = arrayDifference(kArrayB, kArrayA);
+  diff = _.arrayDifference(kArrayB, kArrayA);
   assert_items_equal(diff, kExpectedSecond);
 }
 
@@ -327,7 +330,7 @@ function test_array_difference_one_empty() {
     added: kArray,
     removed: [],
   };
-  let diff = arrayDifference([], kArray);
+  let diff = _.arrayDifference([], kArray);
   assert_items_equal(diff, kExpectedFirst);
 
   const kExpectedSecond = {
@@ -335,7 +338,7 @@ function test_array_difference_one_empty() {
     removed: kArray,
   };
 
-  diff = arrayDifference(kArray, []);
+  diff = _.arrayDifference(kArray, []);
   assert_items_equal(diff, kExpectedSecond);
 }
 
@@ -346,6 +349,6 @@ function test_array_difference_single_equal() {
     removed: [],
   };
 
-  let diff = arrayDifference(kArray, kArray);
+  let diff = _.arrayDifference(kArray, kArray);
   assert_items_equal(diff, kExpected);
-}*/
+}
