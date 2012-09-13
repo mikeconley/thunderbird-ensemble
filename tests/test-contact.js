@@ -295,7 +295,7 @@ function setupModule(module) {
  * Test that we can access fields object correctly after passing in an
  * appropriately formed fields object on construction.
  */
-function xtest_can_access_fields_object() {
+function test_can_access_fields_object() {
   let r = new Contact(kTestFields);
   assert_not_equals(r.attributes, null);
 
@@ -309,7 +309,7 @@ function xtest_can_access_fields_object() {
 
 
 // Diff tests
-function xtest_can_produce_simple_diff_with_adds() {
+function test_can_produce_simple_diff_with_adds() {
   let a = new Contact(kTestFields2);
 
   let b = new Contact({
@@ -360,7 +360,7 @@ function xtest_can_produce_simple_diff_with_adds() {
   assert_items_equal(diff, kExpectedDiff);
 }
 
-function xtest_can_produce_simple_diff_with_removes() {
+function test_can_produce_simple_diff_with_removes() {
   let a = new Contact(kTestFields2);
 
   let b = new Contact({
@@ -411,7 +411,7 @@ function xtest_can_produce_simple_diff_with_removes() {
   assert_items_equal(diff, kExpectedDiff);
 }
 
-function xtest_can_produce_simple_diff_with_changes() {
+function test_can_produce_simple_diff_with_changes() {
   let a = new Contact({
     genderIdentity: 'Male',
     sex: 'Female',
@@ -448,7 +448,7 @@ function xtest_can_produce_simple_diff_with_changes() {
   assert_items_equal(diff, kExpectedDiff);
 }
 
-function xtest_can_produce_diff_mixed() {
+function test_can_produce_diff_mixed() {
   let a = new Contact(kTestFields);
   let b = new Contact(kFieldsForDiff);
 
@@ -457,7 +457,7 @@ function xtest_can_produce_diff_mixed() {
   assert_items_equal(diff, kResultingDiff);
 }
 
-function xtest_can_apply_diff() {
+function test_can_apply_diff() {
   let house = new Contact(kTestFields);
   let wilson = new Contact(kFieldsForDiff);
 
@@ -531,7 +531,7 @@ function test_can_do_simple_merge() {
   let wilson = new Contact(kFieldsForDiff);
   haddock.merge(wilson);
 
-  assert_items_equal(haddock.attributes, kExpectedMerge);
+  assert_items_equal(JSON.parse(JSON.stringify(haddock)), kExpectedMerge);
 }
 
 // Equivalence tests

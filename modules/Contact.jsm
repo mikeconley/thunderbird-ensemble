@@ -28,35 +28,37 @@ let Contact = Backbone.Model.extend({
   initialize: function() {
   },
 
-  defaults: {
-    name: [],
-    honorificPrefix: [],
-    givenName: [],
-    additionalName: [],
-    familyName: [],
-    honorificSuffix: [],
-    nickname: [],
-    email: [],
-    photo: [],
-    url: [],
-    category: [],
-    adr: [],
-    tel: [],
-    impp: [],
-    org: [],
-    other: [],
-    jobTitle: [],
-    department: [],
-    bday: null,
-    note: [],
-    anniversary: null,
-    sex: null,
-    genderIdentity: null,
-    defaults: {
-      email: {},
-      impp: {},
-      tel: {},
-    }
+  defaults: function Contact_defaults() {
+    return {
+      name: [],
+      honorificPrefix: [],
+      givenName: [],
+      additionalName: [],
+      familyName: [],
+      honorificSuffix: [],
+      nickname: [],
+      email: [],
+      photo: [],
+      url: [],
+      category: [],
+      adr: [],
+      tel: [],
+      impp: [],
+      org: [],
+      other: [],
+      jobTitle: [],
+      department: [],
+      bday: null,
+      note: [],
+      anniversary: null,
+      sex: null,
+      genderIdentity: null,
+      defaults: {
+        email: {},
+        impp: {},
+        tel: {},
+      }
+    };
   },
 
   _prepareField: function(aKey, aValue) {
