@@ -6,9 +6,28 @@ const Cu = Components.utils;
 
 let EXPORTED_SYMBOLS = ["Contact"];
 
+Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
 
+const kBasicFields = ['name', 'honorificPrefix', 'givenName',
+                      'additionalName', 'familyName', 'honorificSuffix',
+                      'nickname', 'photo', 'category', 'org',
+                      'jobTitle', 'department', 'note'];
+
+const kTypedFields = ['tel', 'email', 'impp', 'url', 'other'];
+const kAddressFields = ['adr'];
+const kDateFields = ['bday', 'anniversary'];
+
+const kArrayFields = kBasicFields.concat(kTypedFields)
+                                 .concat(kAddressFields);
+
+const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
+const kHasDefaults = ['email', 'impp', 'tel'];
+
 let Contact = Backbone.Model.extend({
+  initialize: function() {
+  },
+
   defaults: {
     name: [],
     honorificPrefix: [],
@@ -40,7 +59,33 @@ let Contact = Backbone.Model.extend({
     }
   },
 
-  initialize: function() {
+  _prepareField: function(aKey, aValue) {
+    if (kArrayFields.indexOf(aKey) != -1 && !Array.isArray(aValue))
+      return [aValue];
+    else if (kDateFields.indexOf(aKey) != -1) {
+      return (aValue !== null && aValue !== undefined)
+             ? new Date(aValue).toJSON()
+             : null;
+    }
+    else
+      return aValue;
+  },
+
+
+  set: function(aAttributes, aOptions) {
+    let wrapped = {};
+
+    if (_.isString(aAttributes)) {
+      let key = aAttributes;
+      let value = aOptions;
+      aAttributes = {};
+      aAttributes[key] = value;
+    }
+
+    for (let key in aAttributes)
+      wrapped[key] = this._prepareField(key, aAttributes[key]);
+
+    Backbone.Model.prototype.set.call(this, wrapped, aOptions);
   },
 
   /**
@@ -62,8 +107,8 @@ let Contact = Backbone.Model.extend({
     };
 
     for each (let fieldName in kArrayFields) {
-      let result = _.arrayDifference(aRecord.fields[fieldName],
-                                   this.fields[fieldName]);
+      let result = _.arrayDifference(aContact.get(fieldName),
+                                     this.get(fieldName));
       if (result.added.length > 0)
         added[fieldName] = result.added;
       if (result.removed.length > 0)
@@ -71,14 +116,14 @@ let Contact = Backbone.Model.extend({
     }
 
     for each (let fieldName in kStringFields) {
-      if (this.fields[fieldName] != aRecord.fields[fieldName])
-        changed.fields[fieldName] = this.fields[fieldName];
+      if (this.get(fieldName) != aContact.get(fieldName))
+        changed.fields[fieldName] = this.get(fieldName);
     }
 
     for each (let defaultField in kHasDefaults) {
-      if (!_.isEqual(this.fields.defaults[defaultField],
-                     aRecord.fields.defaults[defaultField]))
-        changed.defaults[defaultField] = this.fields.defaults[defaultField];
+      if (!_.safeIsEqual(this.get('defaults')[defaultField],
+                         aContact.get('defaults')[defaultField]))
+        changed.defaults[defaultField] = this.get('defaults')[defaultField];
       else
         changed.defaults[defaultField] = {};
     }
@@ -179,22 +224,23 @@ let Contact = Backbone.Model.extend({
     if (!(aDiff.changed.hasOwnProperty('defaults')))
       throw new Error("The diff being applied is missing 'changed.defaults");
     // The changed fields are easy, so let's take care of those first.
-    for (let field in aDiff.changed.fields)
-      this.fields[field] = aDiff.changed.fields[field];
+    for (let field in aDiff.changed.fields) {
+      this.set(field, aDiff.changed.fields[field]);
+    }
 
     for (let field in aDiff.changed.defaults) {
-      this.fields.defaults[field] = aDiff.changed.defaults[field];
+      this.get('defaults')[field] = aDiff.changed.defaults[field];
     }
 
     // Now what was removed?
     for (let field in aDiff.removed)
-      this.fields[field] = _.objDifference(this.fields[field],
-                                           aDiff.removed[field]);
+      this.set(field, _.objDifference(this.get(field),
+                                      aDiff.removed[field]));
 
     // Finally, what was added?
     for (let field in aDiff.added)
-      this.fields[field] = _.objUnion(this.fields[field],
-                                      aDiff.added[field]);
+      this.set(field, _.objUnion(this.get(field),
+                                 aDiff.added[field]));
   },
 
   /**
@@ -213,8 +259,8 @@ let Contact = Backbone.Model.extend({
    * @param aContact the Contact to merge in.
    */
   merge: function Contact_merge(aContact) {
-    // Calculate the diff between aRecord and this ContactRecord.
-    let diff = aRecord.diff(this);
+    // Calculate the diff between aContact and this Contact.
+    let diff = aContact.diff(this);
 
     // Clear the removals.
     diff.removed = {};
