@@ -21,7 +21,6 @@ const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/iteratorUtils.jsm");
 Cu.import("resource:///modules/mailServices.js");
-Cu.import("resource://ensemble/EnsembleUtils.jsm");
 Cu.import("resource://gre/modules/NetUtil.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 

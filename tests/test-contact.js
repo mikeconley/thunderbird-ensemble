@@ -531,7 +531,42 @@ function test_can_do_simple_merge() {
   let wilson = new Contact(kFieldsForDiff);
   haddock.merge(wilson);
 
+  // We have to to the JSON stringify / parse dance in order to strip
+  // the contact of some metadata that Backbone tosses in to mark changes
+  // when we do things like merge into an existing contact.
   assert_items_equal(JSON.parse(JSON.stringify(haddock)), kExpectedMerge);
 }
 
-// Equivalence tests
+// Database Abstraction tests
+
+/**
+ * Utility function that returns a Contact constructed with aFields where
+ * the DBA attribute has been swapped out for aMockDBA. This is useful for
+ * testing Contacts interaction with the database layer.
+ *
+ * @param aFields the fields to construct the Contact with.
+ * @param aMockDBA the DBA to swap in.
+ */
+function swapped_dba_contact(aFields, aMockDBA) {
+  let contact = new Contact(aFields);
+  contact.dba = aMockDBA;
+  return contact;
+}
+
+/**
+ * Test that when we save a contact, that the DBA receives the right
+ * method and model attributes in the handleSync function.
+ */
+function test_saving_contact() {
+  let done = false;
+  let contact = swapped_dba_contact(kTestFields, {
+    handleSync: function(aMethod, aModel, aOptions) {
+      assert_equals(aMethod, "create");
+      assert_items_equal(aModel.attributes, kResultingFields);
+      done = true;
+    }
+  });
+
+  contact.save();
+  mc.waitFor(function() done);
+}

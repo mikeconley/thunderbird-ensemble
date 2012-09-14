@@ -11,7 +11,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
-Cu.import("resource://ensemble/SQLiteContactStore.jsm");
+Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 
 let DebugTab = {

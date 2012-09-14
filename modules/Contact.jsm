@@ -8,6 +8,7 @@ let EXPORTED_SYMBOLS = ["Contact"];
 
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
+Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 
 const kBasicFields = ['name', 'honorificPrefix', 'givenName',
                       'additionalName', 'familyName', 'honorificSuffix',
@@ -25,6 +26,9 @@ const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 const kHasDefaults = ['email', 'impp', 'tel'];
 
 let Contact = Backbone.Model.extend({
+
+  dba: ContactDBA,
+
   initialize: function() {
   },
 
