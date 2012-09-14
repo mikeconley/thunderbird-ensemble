@@ -540,33 +540,36 @@ function test_can_do_simple_merge() {
 // Database Abstraction tests
 
 /**
- * Utility function that returns a Contact constructed with aFields where
- * the DBA attribute has been swapped out for aMockDBA. This is useful for
- * testing Contacts interaction with the database layer.
- *
- * @param aFields the fields to construct the Contact with.
- * @param aMockDBA the DBA to swap in.
- */
-function swapped_dba_contact(aFields, aMockDBA) {
-  let contact = new Contact(aFields);
-  contact.dba = aMockDBA;
-  return contact;
-}
-
-/**
  * Test that when we save a contact, that the DBA receives the right
  * method and model attributes in the handleSync function.
  */
 function test_saving_contact() {
   let done = false;
-  let contact = swapped_dba_contact(kTestFields, {
+  let contact = new Contact(kTestFields);
+  contact.dba = {
     handleSync: function(aMethod, aModel, aOptions) {
       assert_equals(aMethod, "create");
-      assert_items_equal(aModel.attributes, kResultingFields);
+      aModel.id = 1; // Simulating we inserted a contact at row 1.
       done = true;
+      assert_items_equal(aModel.attributes, kResultingFields);
+      aOptions.success(aModel);
     }
-  });
+  };
 
   contact.save();
+  mc.waitFor(function() done);
+
+  done = false;
+  // Ok, now let's try updating that contact.
+  contact.dba = {
+    handleSync: function(aMethod, aModel, aOptions) {
+      assert_equals(aMethod, "update");
+      assert_items_equal(aModel.get("name"), ["Something else"]);
+      done = true;
+      aOptions.success(aModel);
+    }
+  };
+
+  contact.save({name: ["Something else"]});
   mc.waitFor(function() done);
 }

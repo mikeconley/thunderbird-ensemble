@@ -88,7 +88,7 @@ let Contact = Backbone.Model.extend({
     for (let key in aAttributes)
       wrapped[key] = this._prepareField(key, aAttributes[key]);
 
-    Backbone.Model.prototype.set.call(this, wrapped, aOptions);
+    return Backbone.Model.prototype.set.call(this, wrapped, aOptions);
   },
 
   /**
