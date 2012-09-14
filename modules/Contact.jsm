@@ -29,9 +29,6 @@ let Contact = Backbone.Model.extend({
 
   dba: ContactDBA,
 
-  initialize: function() {
-  },
-
   defaults: function Contact_defaults() {
     return {
       name: [],
