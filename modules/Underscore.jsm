@@ -15,7 +15,7 @@ loader.loadSubScript("resource://ensemble/lib/underscore-1.3.3.js");
  * work. In other words, a Date in one compartment has a different 
  * constructor than a Date in another compartment.
  *
- * TODO - am I allowed to fork this, and slap the MPL on top?
+ * TODO - am I allowed to fork this function, and slap the MPL on top?
  */
 function eq(a, b, stack) {
   // Identical objects are equal. `0 === -0`, but they aren't identical.
