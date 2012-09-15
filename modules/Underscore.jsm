@@ -106,12 +106,6 @@ function eq(a, b, stack) {
   return result;
 }
 
-// Perform a deep comparison to check if two objects are equal.
-_.safeIsEqual = function(a, b) {
-  return eq(a, b, []);
-};
-
-
 _.mixin({
 
   /**
