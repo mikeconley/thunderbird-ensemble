@@ -548,11 +548,10 @@ function test_saving_contact() {
   let contact = new Contact(kTestFields);
   contact.dba = {
     handleSync: function(aMethod, aModel, aOptions) {
-      assert_equals(aMethod, "create");
       aModel.id = 1; // Simulating we inserted a contact at row 1.
-      done = true;
+      assert_equals(aMethod, "create");
       assert_items_equal(aModel.attributes, kResultingFields);
-      aOptions.success(aModel);
+      done = true;
     }
   };
 
@@ -561,15 +560,48 @@ function test_saving_contact() {
 
   done = false;
   // Ok, now let's try updating that contact.
+  const kUpdatedName = ["Something else"];
+  let updatedFields = _.extend({}, kResultingFields);
+  updatedFields.name = kUpdatedName;
+
   contact.dba = {
     handleSync: function(aMethod, aModel, aOptions) {
       assert_equals(aMethod, "update");
-      assert_items_equal(aModel.get("name"), ["Something else"]);
+      assert_items_equal(aModel.attributes, updatedFields);
       done = true;
-      aOptions.success(aModel);
     }
   };
 
-  contact.save({name: ["Something else"]});
+  contact.save({name: kUpdatedName});
   mc.waitFor(function() done);
+}
+
+/**
+ * Test that we can retrieve an individual contact.
+ */
+function test_read_contact() {
+  const kSomeID = 905;
+  let contact = new Contact();
+  contact.id = kSomeID;
+
+  let done = false;
+  contact.dba = {
+    handleSync: function(aMethod, aModel, aOptions) {
+      assert_equals(aMethod, "read");
+      assert_equals(aModel.id, kSomeID);
+
+      let retrieved = new Contact(kTestFields);
+      aOptions.success(retrieved);
+      done = true;
+    },
+  };
+
+  contact.fetch();
+
+  mc.waitFor(function() done);
+
+  // Because the contact has been updated, we have to stringify, parse
+  // and then grab the attributes like this. Lame, I know.
+  assert_items_equal(JSON.parse(JSON.stringify(contact)).attributes,
+                     kResultingFields);
 }
