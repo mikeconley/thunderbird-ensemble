@@ -14,6 +14,74 @@ Cu.import("resource://ensemble/Contact.jsm");
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 
+let kTestFields = {
+  name: 'House',
+  honorificPrefix: 'Dr.',
+  givenName: 'Gregory',
+  additionalName: ['Berton', 'Ryan'],
+  familyName: 'House',
+  honorificSuffix: 'Junior',
+  nickname: 'Hugh',
+  email: [{
+    type: 'Work',
+    value: 'house@example.com',
+  }, {
+    type: 'Home',
+    value: 'houseOther@example.com'
+  }],
+
+  photo: [],
+  url: [{
+    type: 'Homepage',
+    value: 'https://www.example.com'
+  }],
+  category: [],
+  adr: [{
+    type: 'Work',
+    streetAddress: '123 Fake St.',
+    locality: 'Toronto',
+    region: 'Ontario',
+    postalCode: 'L5T2R1',
+    countryName: 'Canada',
+  }],
+
+  tel: [{
+    type: 'Work',
+    value: '5553125123'
+  }, {
+    type: 'Cell',
+    value: '5124241521'
+  }],
+
+  impp: [{
+    type: 'ICQ',
+    value: '15215125'
+  }],
+
+  other: [],
+  org: ['Princeton-Plainsboro Teaching Hospital'],
+  jobTitle: 'Diagnostician',
+  department: 'Diagnostics',
+  bday: 'Sun Apr 13 1980 00:00:00 GMT-0500 (EST)',
+  note: ['Sharp as a tack', 'Not exactly the king of bedside manor.'],
+
+  anniversary: null,
+  sex: 'Male',
+  genderIdentity: 'Male',
+  defaultFields: {
+    email: {
+      type: 'Work',
+      value: 'house@example.com',
+    },
+    impp: {
+      type: 'ICQ',
+      value: '15215125',
+    },
+    tel: null,
+  }
+};
+
+
 let DebugTab = {
 
   init: function DebugTab_init() {
@@ -23,6 +91,8 @@ let DebugTab = {
             .addEventListener('click', this._createDb.bind(this));
     document.getElementById('importOldTB')
             .addEventListener('click', this._importOldTB.bind(this));
+    document.getElementById("insertHouse")
+            .addEventListener("click", this.insertHouse.bind(this));
 
     Ensemble.init(SQLiteContactStore, function(aResult) {
       dump("aResult is: " + aResult);
@@ -31,6 +101,18 @@ let DebugTab = {
 
   uninit: function DebugTab_uninit() {
     Ensemble.uninit(function(aResult) {});
+  },
+
+  insertHouse: function DebugTab_insertHouse() {
+    let house = new Contact(kTestFields);
+    house.save(null, {
+      success: function(aModel) {
+        alert("Success!");
+      },
+      error: function(aMessage) {
+        alert("Failure: " + aMessage);
+      }
+    });
   },
 
   insertFakeContacts: function DebugTab_insertFakeContacts() {
