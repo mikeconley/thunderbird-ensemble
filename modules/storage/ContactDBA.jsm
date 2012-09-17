@@ -145,10 +145,15 @@ let ContactDBA = {
       let bp = array.newBindingParams();
       bp.bindByName("id", contactID);
       bp.bindByName("attributes", JSON.stringify(aContact));
-      // TODO: Shouldn't popularity be a Contact field?
-      bp.bindByName("default_email", "");
-      bp.bindByName("default_impp", "");
-      bp.bindByName("default_tel", "");
+      bp.bindByName("popularity", aContact.get("popularity"));
+      bp.bindByName("default_email", aContact.getDefault("email"));
+      bp.bindByName("default_impp", aContact.getDefault("impp"));
+      bp.bindByName("default_tel", aContact.getDefault("tel"));
+      bp.bindByName("default_photo", aContact.getDefault("photo"));
+      bp.bindByName("display_name_family_given",
+                    aContact.getDisplayNameFamilyGiven());
+      bp.bindByName("display_name_given_family",
+                    aContact.getDisplayNameGivenFamily());
       array.addParams(bp);
       statement.bindParameters(array);
 
@@ -198,9 +203,12 @@ let ContactDBA = {
                                 "_createContactStatement",
                                 function(aItem) {
       return this._db.createAsyncStatement(
-        "INSERT INTO contacts (id, attributes, default_email, "
-        + "default_impp, default_tel) VALUES (:id, :attributes, "
-        +   ":default_email, :default_impp, :default_tel)");
+        "INSERT INTO contacts (id, attributes, popularity, default_email, "
+        + "default_impp, default_tel, default_photo, "
+        + "display_name_family_given, display_name_given_family) VALUES ("
+        +   ":id, :attributes, :popularity, :default_email, :default_impp, "
+        +   ":default_tel, :default_photo, :display_name_family_given, "
+        +   ":display_name_given_family)");
     }.bind(this));
   },
 };

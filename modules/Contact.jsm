@@ -25,6 +25,26 @@ const kArrayFields = kBasicFields.concat(kTypedFields)
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 const kHasDefaults = ['email', 'impp', 'tel', 'photo'];
 const kIntFields = ['popularity'];
+const kAllFields = kArrayFields.concat(kStringFields)
+                               .concat(kIntFields);
+
+const ContactsCommon = {
+  BasicFields: kBasicFields,
+  TypedFields: kTypedFields,
+  AddressFields: kAddressFields,
+  DateFields: kDateFields,
+  ArrayFields: kArrayFields,
+  StringFields: kStringFields,
+  IntFields: kIntFields,
+  DefaultFields: kHasDefaults,
+  AllFields: kAllFields,
+};
+
+const ContactFieldKinds = {
+  Email: "email",
+  Tel: "tel",
+  IMPP: "impp",
+};
 
 let Contact = Backbone.Model.extend({
 
@@ -63,6 +83,9 @@ let Contact = Backbone.Model.extend({
         photo: null,
       }
     };
+  },
+
+  initialize: function() {
   },
 
   _prepareField: function(aKey, aValue) {
@@ -287,11 +310,48 @@ let Contact = Backbone.Model.extend({
     this.applyDiff(diff);
   },
 
-  /**
-   * Determine if this Contact is equivalent to another Contact.
-   *
-   * @param aContact the other Contact to check equivalency with.
-   */
-  equals: function Contact_equals(aContact) {
+  getDefault: function(aField) {
+    let defaultFields = this.get("defaultFields");
+
+    if (aField in defaultFields && (defaultFields[aField] != null)) {
+      return defaultFields[aField].value;
+    }
+    return "";
   },
+
+  getDisplayNameFamilyGiven: function() {
+    return this._nameGetterHelper(true);
+  },
+
+  getDisplayNameGivenFamily: function() {
+    return this._nameGetterHelper(false);
+  },
+
+  /**
+   * A helper function for the displayNameGivenFamily and
+   * displayNameFamilyGiven getters. If we have a value in the name
+   * field, we simply return that, joined with a space. If not, we return
+   * the givenNames followed by the familyNames, joined with spaces. If
+   * aFamilyNameFirst is true, we return familyNames followed by givenNames.
+   *
+   * @param aFamilyNameFirst Set to true to return familyNames first.
+   * @returns a string representing the name of the contact.
+   */
+  _nameGetterHelper: function Contact__nameGetterHelper(aFamilyNameFirst) {
+    // Display name trumps all
+    let name = this.get("name");
+    if (name.length)
+      return name.join(" ");
+
+    let givenName = this.get("givenName");
+    let familyName = this.get("familyName");
+
+    let result;
+    if (aFamilyNameFirst)
+      result = familyName.concat(givenName)
+    else
+      result = givenName.concat(familyName);
+    return result.join(" ");
+  },
+
 });

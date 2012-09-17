@@ -78,6 +78,7 @@ let kTestFields = {
       value: '15215125',
     },
     tel: null,
+    photo: null,
   }
 };
 

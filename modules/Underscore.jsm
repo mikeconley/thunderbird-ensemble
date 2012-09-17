@@ -243,5 +243,15 @@ _.mixin({
     }
 
     return {added: addedItems, removed: removedItems};
-  }
+  },
+
+  /**
+   * Returns a string with the first letter capitalized.
+   *
+   * @param aString the string to capitalize.
+   * @returns the capitalized string.
+   */
+  capitalize: function capitalize(aString) {
+    return aString.charAt(0).toUpperCase() + aString.slice(1);
+  },
 });
