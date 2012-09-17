@@ -9,6 +9,7 @@ const kSQLCallbacks = Ci.mozIStorageStatementCallback;
 
 let EXPORTED_SYMBOLS = ["ContactDBA"];
 
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 
 /**
@@ -87,6 +88,11 @@ let ContactDBA = {
       }.bind(this));
     }
 
+    q.addJob(function(aJobFinished) {
+      this._defineStatements();
+      aJobFinished(Cr.NS_OK);
+    }.bind(this));
+
     q.start(aCallback);
   },
 
@@ -125,7 +131,27 @@ let ContactDBA = {
   },
 
   _create: function(aContact, aOptions) {
+    // Jam that Contact into the contact DB.
     aContact.id = 1;
-    return aContact;
+  },
+
+  // Statements
+  _finalizeStatements: function() {
+    const kStatements = [this._createContactStatement];
+    for (let statement of kStatements)
+      statement.finalize();
+  },
+
+  _defineStatements: function() {
+    XPCOMUtils.defineLazyGetter(this,
+                                "_createContactStatement",
+                                function(aItem) {
+      return this._db.createAsyncStatement(
+        "INSERT INTO contacts (id, popularity, default_email, "
+        + "default_impp, default_tel, default_name_family_given, "
+        + "default_name_given_family) VALUES (:id, :popularity, "
+        +   ":default_email, :default_impp, :default_tel, "
+        +   ":default_name_family_given, :default_name_given_family)");
+    }.bind(this));
   },
 };

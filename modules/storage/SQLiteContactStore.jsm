@@ -255,7 +255,9 @@ let SQLiteContactStore = {
           "CREATE TABLE IF NOT EXISTS contacts (" +
             "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "popularity INTEGER NOT NULL DEFAULT (0), " +
-            "default_email INTEGER NOT NULL, " +
+            "default_email TEXT, " +
+            "default_impp TEXT, " +
+            "default_tel TEXT, " +
             "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
             "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
             "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
