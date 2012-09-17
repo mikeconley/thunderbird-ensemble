@@ -24,6 +24,7 @@ const kArrayFields = kBasicFields.concat(kTypedFields)
 
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 const kHasDefaults = ['email', 'impp', 'tel', 'photo'];
+const kIntFields = ['popularity'];
 
 let Contact = Backbone.Model.extend({
 
@@ -54,6 +55,7 @@ let Contact = Backbone.Model.extend({
       anniversary: null,
       sex: null,
       genderIdentity: null,
+      popularity: 0,
       defaultFields: {
         email: null,
         impp: null,
@@ -120,6 +122,11 @@ let Contact = Backbone.Model.extend({
     }
 
     for each (let fieldName in kStringFields) {
+      if (this.get(fieldName) != aContact.get(fieldName))
+        changed.fields[fieldName] = this.get(fieldName);
+    }
+
+    for each (let fieldName in kIntFields) {
       if (this.get(fieldName) != aContact.get(fieldName))
         changed.fields[fieldName] = this.get(fieldName);
     }
@@ -200,6 +207,7 @@ let Contact = Backbone.Model.extend({
    *       bday: '2012-07-13T20:44:16.028Z',
    *       sex: 'Male',
    *       genderIdentity: 'Male',
+   *       popularity: 5,
    *     }
    *     defaultFields: {
    *       email: {

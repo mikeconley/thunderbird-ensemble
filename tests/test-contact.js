@@ -63,6 +63,7 @@ let kTestFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
+  popularity: 250,
   defaultFields: {
     email: {
       type: 'Work',
@@ -131,6 +132,7 @@ let kResultingFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
+  popularity: 250,
 
   defaultFields: {
     email: {
@@ -263,6 +265,7 @@ const kResultingDiff = {
       bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
       sex: 'Male',
       genderIdentity: 'Male',
+      popularity: 250,
     },
     defaultFields: {
       email: {
@@ -526,6 +529,7 @@ function test_can_do_simple_merge() {
     anniversary: null,
     sex: null,
     genderIdentity: null,
+    popularity: 0,
     defaultFields: {
       email: null,
       impp: null,
