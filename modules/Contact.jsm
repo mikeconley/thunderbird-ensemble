@@ -55,9 +55,9 @@ let Contact = Backbone.Model.extend({
       sex: null,
       genderIdentity: null,
       defaults: {
-        email: {},
-        impp: {},
-        tel: {},
+        email: null,
+        impp: null,
+        tel: null,
       }
     };
   },
@@ -128,7 +128,7 @@ let Contact = Backbone.Model.extend({
                          aContact.get('defaults')[defaultField]))
         changed.defaults[defaultField] = this.get('defaults')[defaultField];
       else
-        changed.defaults[defaultField] = {};
+        changed.defaults[defaultField] = null;
     }
 
     return {
@@ -205,8 +205,8 @@ let Contact = Backbone.Model.extend({
    *         type: 'Work',
    *         address: 'house@example.com',
    *       },
-   *       impp: {},
-   *       tel: {},
+   *       impp: null,
+   *       tel: null,
    *     }
    *   }
    * }
