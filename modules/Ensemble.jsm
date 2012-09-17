@@ -12,6 +12,7 @@ Cu.import("resource://ensemble/JobQueue.jsm");
 let Common = {};
 Cu.import("resource://ensemble/Common.jsm", Common);
 Cu.import("resource://ensemble/Backbone.jsm");
+Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 
 let Ensemble = {
   _initted: false,
@@ -30,7 +31,7 @@ let Ensemble = {
 
     let q = new JobQueue();
     q.addJob(this._datastore.init.bind(this._datastore));
-    q.addJob(this._fillCaches.bind(this));
+    q.addJob(this._initDBAs.bind(this));
 
     q.start(function(aResult) {
       if (aResult === Cr.NS_OK) {
@@ -39,6 +40,7 @@ let Ensemble = {
         Log.info("Startup complete.");
       } else {
         Log.error("Init failed with message: " + aResult.message);
+        this.uninit();
       }
 
       aCallback(aResult);
@@ -46,7 +48,7 @@ let Ensemble = {
   },
 
   uninit: function Ensemble_uninit(aCallback) {
-    if (!this._initted)
+    if (!this._initted && !this._initting)
       return;
 
     Log.info("Shutting down.");
@@ -58,7 +60,8 @@ let Ensemble = {
         Log.error("Uninit failed with message: " + aResult.message);
       }
 
-      aCallback(aResult);
+      if (aCallback)
+        aCallback(aResult);
     }.bind(this));
   },
 
@@ -95,13 +98,13 @@ let Ensemble = {
     this._datastore.insertTag(aTagID, aTagPrettyName, aOriginator, aCallback);
   },
 
-  _fillCaches: function Ensemble_fillCaches(aJobFinished) {
-    this._datastore.getAllTags(function(aResult, aPayload) {
-      if (aResult === Cr.NS_OK)
-        this._tagsCache = aPayload.tags;
-
-      aJobFinished(aResult);
+  _initDBAs: function Ensemble_fillCaches(aOuterFinished) {
+    let q = new JobQueue();
+    q.addJob(function(aJobFinished) {
+      ContactDBA.init(this._datastore, aJobFinished);
     }.bind(this));
+
+    q.start(aOuterFinished);
   },
 
 }

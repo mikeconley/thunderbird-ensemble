@@ -3,6 +3,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const Cu = Components.utils;
+const Ci = Components.interfaces;
+const Cr = Components.results;
+const kSQLCallbacks = Ci.mozIStorageStatementCallback;
 
 let EXPORTED_SYMBOLS = ["ContactDBA"];
 
@@ -25,14 +28,22 @@ let ContactDBA = {
    * @param aDB the initalized SQLiteContactStore to read from and write to
    * @param aCallback the callback to be fired upon completion.
    */
-  init: function(aDB, aCallback) {
-    this._db = aDB;
+  init: function(aDatastore, aCallback) {
+    // It's OK for the DBAs to reach into SQLiteContactStore like this -
+    // these are expected to be tightly coupled.
+    this._datastore = aDatastore;
+    this._db = this._datastore._db;
+
     // We need to get the nextInsertIDs for both the contacts
     // table and the contact_data table.
     const kIDManagedTables = ["contacts", "contact_data"];
     let q = new JobQueue();
 
-    for (let [, tableName] in Iterator(kIDManagedTables)) {
+    for (let managedTable of kIDManagedTables) {
+      // So this is kind of lame, but we have to do an extra let-binding
+      // here, or else the closure for the job gets contaminated with
+      // subsequent iterations. Grrr...
+      let tableName = managedTable;
       // For each table that uses IDs, schedule a job to calculate the next
       // inserted ID value.
 
@@ -52,7 +63,6 @@ let ContactDBA = {
               if (!row.getIsNull(0))
                 id = row.getInt64(0);
             }
-
             this._nextInsertID[tableName] = id + 1;
           }.bind(this),
 
