@@ -23,7 +23,7 @@ const kArrayFields = kBasicFields.concat(kTypedFields)
                                  .concat(kAddressFields);
 
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
-const kHasDefaults = ['email', 'impp', 'tel'];
+const kHasDefaults = ['email', 'impp', 'tel', 'photo'];
 
 let Contact = Backbone.Model.extend({
 
@@ -54,10 +54,11 @@ let Contact = Backbone.Model.extend({
       anniversary: null,
       sex: null,
       genderIdentity: null,
-      defaults: {
+      defaultFields: {
         email: null,
         impp: null,
         tel: null,
+        photo: null,
       }
     };
   },
@@ -105,7 +106,7 @@ let Contact = Backbone.Model.extend({
     let added = {};
     let removed = {};
     let changed = {
-      defaults: {},
+      defaultFields: {},
       fields: {},
     };
 
@@ -124,11 +125,11 @@ let Contact = Backbone.Model.extend({
     }
 
     for each (let defaultField in kHasDefaults) {
-      if (!_.safeIsEqual(this.get('defaults')[defaultField],
-                         aContact.get('defaults')[defaultField]))
-        changed.defaults[defaultField] = this.get('defaults')[defaultField];
+      if (!_.safeIsEqual(this.get('defaultFields')[defaultField],
+                         aContact.get('defaultFields')[defaultField]))
+        changed.defaultFields[defaultField] = this.get('defaultFields')[defaultField];
       else
-        changed.defaults[defaultField] = null;
+        changed.defaultFields[defaultField] = null;
     }
 
     return {
@@ -200,7 +201,7 @@ let Contact = Backbone.Model.extend({
    *       sex: 'Male',
    *       genderIdentity: 'Male',
    *     }
-   *     defaults: {
+   *     defaultFields: {
    *       email: {
    *         type: 'Work',
    *         address: 'house@example.com',
@@ -224,15 +225,15 @@ let Contact = Backbone.Model.extend({
       throw new Error("The diff being applied is missing 'changed'");
     if (!(aDiff.changed.hasOwnProperty('fields')))
       throw new Error("The diff being applied is missing 'changed.fields'");
-    if (!(aDiff.changed.hasOwnProperty('defaults')))
-      throw new Error("The diff being applied is missing 'changed.defaults");
+    if (!(aDiff.changed.hasOwnProperty('defaultFields')))
+      throw new Error("The diff being applied is missing 'changed.defaultFields");
     // The changed fields are easy, so let's take care of those first.
     for (let field in aDiff.changed.fields) {
       this.set(field, aDiff.changed.fields[field]);
     }
 
-    for (let field in aDiff.changed.defaults) {
-      this.get('defaults')[field] = aDiff.changed.defaults[field];
+    for (let field in aDiff.changed.defaultFields) {
+      this.get('defaultFields')[field] = aDiff.changed.defaultFields[field];
     }
 
     // Now what was removed?

@@ -63,7 +63,7 @@ let kTestFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
-  defaults: {
+  defaultFields: {
     email: {
       type: 'Work',
       value: 'house@example.com',
@@ -73,6 +73,7 @@ let kTestFields = {
       value: '15215125',
     },
     tel: null,
+    photo: null,
   }
 };
 
@@ -131,7 +132,7 @@ let kResultingFields = {
   sex: 'Male',
   genderIdentity: 'Male',
 
-  defaults: {
+  defaultFields: {
     email: {
       type: 'Work',
       value: 'house@example.com',
@@ -140,7 +141,8 @@ let kResultingFields = {
       type: 'ICQ',
       value: '15215125',
     },
-    tel: null
+    tel: null,
+    photo: null,
   },
 };
 
@@ -262,7 +264,7 @@ const kResultingDiff = {
       sex: 'Male',
       genderIdentity: 'Male',
     },
-    defaults: {
+    defaultFields: {
       email: {
         type: 'Work',
         value: 'house@example.com',
@@ -272,6 +274,7 @@ const kResultingDiff = {
         value: '15215125',
       },
       tel: null,
+      photo: null,
     },
   }
 };
@@ -347,10 +350,11 @@ function test_can_produce_simple_diff_with_adds() {
     removed: {},
     changed: {
       fields: {},
-      defaults: {
+      defaultFields: {
         email: null,
         impp: null,
-        tel: null
+        tel: null,
+        photo: null,
       },
     },
   };
@@ -398,10 +402,11 @@ function test_can_produce_simple_diff_with_removes() {
     },
     changed: {
       fields: {},
-      defaults: {
+      defaultFields: {
         email: null,
         impp: null,
         tel: null,
+        photo: null,
       },
     },
   };
@@ -435,10 +440,11 @@ function test_can_produce_simple_diff_with_changes() {
         bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
         anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
       },
-      defaults: {
+      defaultFields: {
         email: null,
         impp: null,
         tel: null,
+        photo: null,
       }
     },
   };
@@ -520,10 +526,11 @@ function test_can_do_simple_merge() {
     anniversary: null,
     sex: null,
     genderIdentity: null,
-    defaults: {
+    defaultFields: {
       email: null,
       impp: null,
       tel: null,
+      photo: null,
     },
   }
 
