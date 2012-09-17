@@ -132,7 +132,58 @@ let ContactDBA = {
 
   _create: function(aContact, aOptions) {
     // Jam that Contact into the contact DB.
-    aContact.id = 1;
+    let q = new JobQueue();
+    // The new row will have the ID we're storing in _nextInsertID.contacts.
+    // Then we'll increment that value on success.
+    let contactID = this._nextInsertID.contacts;
+
+    // First, jam the JSON blob into the contacts table
+    q.addJob(function(aJobFinished) {
+
+      let statement = this._createContactStatement;
+      let array = statement.newBindingParamsArray();
+      let bp = array.newBindingParams();
+      bp.bindByName("id", contactID);
+      bp.bindByName("attributes", JSON.stringify(aContact));
+      // TODO: Shouldn't popularity be a Contact field?
+      bp.bindByName("default_email", "");
+      bp.bindByName("default_impp", "");
+      bp.bindByName("default_tel", "");
+      array.addParams(bp);
+      statement.bindParameters(array);
+
+      statement.executeAsync({
+        handleResult: function(aResultSet) {},
+        handleError: function(aError) {
+          aJobFinished(new Error("Could not insert contact into contacts "
+                                 + "database. Error: " + aError.message));
+        },
+        handleCompletion: function(aReason) {
+          if (aReason === kSQLCallbacks.REASON_FINISHED) {
+            aJobFinished(Cr.NS_OK);
+            return;
+          } else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
+            aJobFinished(new Error("Inserting contact was cancelled."));
+          }
+        },
+      });
+    }.bind(this));
+
+    // Next, convert each field into something indexable / searchable
+    // for the contacts_data table.
+
+    this._db.beginTransaction();
+    q.start(function(aResult) {
+      if (aResult === Cr.NS_OK) {
+        this._db.commitTransaction();
+        this._nextInsertID.contacts++;
+        aContact.id = contactID;
+        aOptions.success(aContact);
+      } else {
+        this._db.rollbackTransaction();
+        aOptions.error(aResult);
+      }
+    }.bind(this));
   },
 
   // Statements
@@ -147,11 +198,9 @@ let ContactDBA = {
                                 "_createContactStatement",
                                 function(aItem) {
       return this._db.createAsyncStatement(
-        "INSERT INTO contacts (id, popularity, default_email, "
-        + "default_impp, default_tel, default_name_family_given, "
-        + "default_name_given_family) VALUES (:id, :popularity, "
-        +   ":default_email, :default_impp, :default_tel, "
-        +   ":default_name_family_given, :default_name_given_family)");
+        "INSERT INTO contacts (id, attributes, default_email, "
+        + "default_impp, default_tel) VALUES (:id, :attributes, "
+        +   ":default_email, :default_impp, :default_tel)");
     }.bind(this));
   },
 };
