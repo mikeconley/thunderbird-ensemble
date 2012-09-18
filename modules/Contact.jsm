@@ -112,8 +112,15 @@ let Contact = Backbone.Model.extend({
       let fieldName = field;
       this.__defineGetter__("default" + _.capitalize(fieldName), function() {
         let defaultFields = this.get("defaultFields");
-        if (fieldName in defaultFields && (defaultFields[fieldName] != null))
-          return defaultFields[fieldName].value;
+        if (fieldName in defaultFields && (defaultFields[fieldName] != null)) {
+          if (kTypedFields.indexOf(fieldName) != -1)
+            return defaultFields[fieldName].value;
+          else {
+            // So the only non-typed field is photo... we might need more
+            // handlers here in the future if more defaults get added.
+            return defaultFields[fieldName];
+          }
+        }
         return "";
       });
     }
@@ -368,12 +375,11 @@ let Contact = Backbone.Model.extend({
     let givenName = this.get("givenName");
     let familyName = this.get("familyName");
 
-    let result;
+    // TODO: Does this need l10n?
     if (aFamilyNameFirst)
-      result = familyName.concat(givenName)
+      return [familyName.join(" "), givenName.join(" ")].join(", ");
     else
-      result = givenName.concat(familyName);
-    return result.join(" ");
+      return givenName.concat(familyName).join(" ");
   },
 
 });

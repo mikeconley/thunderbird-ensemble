@@ -616,3 +616,46 @@ function test_read_contact() {
   assert_items_equal(JSON.parse(JSON.stringify(contact)).attributes,
                      kResultingFields);
 }
+
+/**
+ * Test that our getters for default fields work.
+ */
+function test_default_name_getters() {
+  let contact = new Contact(kTestFields);
+
+  // name field overrides givenName and familyName.
+  assert_equals(contact.displayNameFamilyGiven, "House");
+  assert_equals(contact.displayNameGivenFamily, "House");
+  // Now blank the name field.
+  contact.set("name", []);
+  assert_equals(contact.displayNameFamilyGiven, "House, Gregory");
+  assert_equals(contact.displayNameGivenFamily, "Gregory House");
+
+  // What about the weird ones, with double names?
+  contact.set("familyName", ["House", "Jones"]);
+  contact.set("givenName", ["Gregory", "Neil"]);
+  assert_equals(contact.displayNameFamilyGiven, "House Jones, Gregory Neil");
+  assert_equals(contact.displayNameGivenFamily, "Gregory Neil House Jones");
+}
+
+/**
+ * Test that our getters for default email, impp, tel and photos work.
+ */
+function test_default_field_getters() {
+  let contact = new Contact(kTestFields);
+  assert_equals(contact.defaultEmail, "house@example.com");
+  assert_equals(contact.defaultImpp, "15215125");
+  assert_equals(contact.defaultTel, "");
+  assert_equals(contact.defaultPhoto, "");
+
+  let defaults = contact.get("defaultFields");
+  defaults.tel = {
+    type: "Home",
+    value: "123456789",
+  }
+  defaults.photo = "some data URL";
+
+  contact.set("defaultFields", defaults);
+  assert_equals(contact.defaultTel, "123456789");
+  assert_equals(contact.defaultPhoto, "some data URL");
+}

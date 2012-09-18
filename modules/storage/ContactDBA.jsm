@@ -103,6 +103,8 @@ let ContactDBA = {
    * @param aCallback the callback to be fired upon completion.
    */
   uninit: function(aCallback) {
+    this._finalizeStatements();
+    aCallback(Cr.NS_OK);
   },
 
   /**
