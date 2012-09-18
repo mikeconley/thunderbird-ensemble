@@ -352,3 +352,11 @@ function test_array_difference_single_equal() {
   let diff = _.arrayDifference(kArray, kArray);
   assert_items_equal(diff, kExpected);
 }
+
+function test_capitalize() {
+  assert_equals(_.capitalize("word"), "Word");
+  assert_equals(_.capitalize("a set of words"), "A set of words");
+  assert_equals(_.capitalize("ALLCAPS"), "ALLCAPS");
+  assert_equals(_.capitalize("sOMECAPS"), "SOMECAPS");
+  assert_equals(_.capitalize("12345abc"), "12345abc");
+}
