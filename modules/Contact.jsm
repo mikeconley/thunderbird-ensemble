@@ -106,6 +106,25 @@ let Contact = Backbone.Model.extend({
   },
 
   initialize: function() {
+    for (let field of kHasDefaults) {
+      // The stuff in the for-loop conditions doesn't get bound to this closure,
+      // so, welp, bind manually.
+      let fieldName = field;
+      this.__defineGetter__("default" + _.capitalize(fieldName), function() {
+        let defaultFields = this.get("defaultFields");
+        if (fieldName in defaultFields && (defaultFields[fieldName] != null))
+          return defaultFields[fieldName].value;
+        return "";
+      });
+    }
+
+    this.__defineGetter__("displayNameFamilyGiven", function() {
+      return this._nameGetterHelper(true);
+    });
+
+    this.__defineGetter__("displayNameGivenFamily", function() {
+      return this._nameGetterHelper(false);
+    });
   },
 
   _prepareField: function(aKey, aValue) {
@@ -328,23 +347,6 @@ let Contact = Backbone.Model.extend({
     }
 
     this.applyDiff(diff);
-  },
-
-  getDefault: function(aField) {
-    let defaultFields = this.get("defaultFields");
-
-    if (aField in defaultFields && (defaultFields[aField] != null)) {
-      return defaultFields[aField].value;
-    }
-    return "";
-  },
-
-  getDisplayNameFamilyGiven: function() {
-    return this._nameGetterHelper(true);
-  },
-
-  getDisplayNameGivenFamily: function() {
-    return this._nameGetterHelper(false);
   },
 
   /**

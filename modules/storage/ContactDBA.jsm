@@ -147,14 +147,14 @@ let ContactDBA = {
       bp.bindByName("id", contactID);
       bp.bindByName("attributes", JSON.stringify(aContact));
       bp.bindByName("popularity", aContact.get("popularity"));
-      bp.bindByName("default_email", aContact.getDefault("email"));
-      bp.bindByName("default_impp", aContact.getDefault("impp"));
-      bp.bindByName("default_tel", aContact.getDefault("tel"));
-      bp.bindByName("default_photo", aContact.getDefault("photo"));
+      bp.bindByName("default_email", aContact.defaultEmail);
+      bp.bindByName("default_impp", aContact.defaultImpp);
+      bp.bindByName("default_tel", aContact.defaultTel);
+      bp.bindByName("default_photo", aContact.defaultPhoto);
       bp.bindByName("display_name_family_given",
-                    aContact.getDisplayNameFamilyGiven());
+                    aContact.displayNameFamilyGiven);
       bp.bindByName("display_name_given_family",
-                    aContact.getDisplayNameGivenFamily());
+                    aContact.displayNameGivenFamily);
       array.addParams(bp);
       statement.bindParameters(array);
 
