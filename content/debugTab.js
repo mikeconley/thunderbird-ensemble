@@ -110,8 +110,8 @@ let DebugTab = {
       success: function(aModel) {
         alert("Success!");
       },
-      error: function(aMessage) {
-        alert("Failure: " + aMessage);
+      error: function(aModel, aError) {
+        alert("Failure: " + aError + " -- " + aError.fileName + ":" + aError.lineNumber);
       }
     });
   },

@@ -4,7 +4,7 @@
 
 const Cu = Components.utils;
 
-let EXPORTED_SYMBOLS = ["Contact"];
+let EXPORTED_SYMBOLS = ["Contact", "ContactsCommon", "ContactsSearchFields"];
 
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
@@ -40,10 +40,30 @@ const ContactsCommon = {
   AllFields: kAllFields,
 };
 
-const ContactFieldKinds = {
-  Email: "email",
-  Tel: "tel",
-  IMPP: "impp",
+const ContactsSearchFields = {
+  name: "name",
+  honorificPrefix: "honorificPrefix",
+  givenName: "givenName",
+  additionalName: "additionalName",
+  familyName: "familyName",
+  honorificSuffix: "honorificSuffix",
+  nickname: "nickname",
+  photo: "photo",
+  category: "category",
+  email: "email",
+  tel: "tel",
+  impp: "impp",
+  url: "url",
+  org: "org",
+  jobTitle: "jobTitle",
+  department: "department",
+  note: "note",
+  other: "other",
+//  adr: "adr",
+//  bday: "bday",
+//  anniversary: "anniversary",
+//  sex: "sex",
+//  genderIdentity: "genderIdentity",
 };
 
 let Contact = Backbone.Model.extend({

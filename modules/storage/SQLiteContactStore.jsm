@@ -279,7 +279,6 @@ let SQLiteContactStore = {
             "data1 TEXT NOT NULL DEFAULT (''), " +
             "data2 TEXT NOT NULL DEFAULT (''), " +
             "data3 TEXT NOT NULL DEFAULT (''), " +
-            "mime_type TEXT NOT NULL DEFAULT ('text/plain'), " +
             "field_type TEXT NOT NULL, " +
             "FOREIGN KEY(contact_id) REFERENCES contacts(id)) ",
 

@@ -131,6 +131,7 @@ let ContactDBA = {
   },
 
   _create: function(aContact, aOptions) {
+    Cu.import("resource://ensemble/Contact.jsm");
     // Jam that Contact into the contact DB.
     let q = new JobQueue();
     // The new row will have the ID we're storing in _nextInsertID.contacts.
@@ -174,14 +175,68 @@ let ContactDBA = {
       });
     }.bind(this));
 
+    let contactDataID = this._nextInsertID.contact_data;
     // Next, convert each field into something indexable / searchable
     // for the contacts_data table.
+    q.addJob(function(aJobFinished) {
+      // Go through each field we want to be able to search on this contact
+      // and jam it into the contacts_data table.
+      let statement = this._createContactDataStatement;
+      let array = statement.newBindingParamsArray();
+      for (let [, fieldType] in Iterator(ContactsSearchFields)) {
+        let field = aContact.get(fieldType);
+        if (!Array.isArray(field)) {
+          field = [field];
+        }
+
+        for (let [, fieldValue] in Iterator(field)) {
+          let bp = array.newBindingParams();
+          bp.bindByName("id", contactDataID++);
+          bp.bindByName("contact_id", contactID);
+          bp.bindByName("field_type", fieldType);
+
+          if (ContactsCommon.BasicFields.indexOf(fieldType) != -1) {
+            // We're dealing with a simple string here.
+            bp.bindByName("data1", fieldValue);
+            bp.bindByName("data2", "");
+            bp.bindByName("data3", "");
+          } else if (ContactsCommon.TypedFields.indexOf(fieldType) != -1) {
+            // We're dealing with an object that has type / value properties.
+            bp.bindByName("data1", fieldValue.value);
+            bp.bindByName("data2", fieldValue.type);
+            bp.bindByName("data3", "");
+          } else {
+            // TODO: What do we do in this case?
+          }
+          array.addParams(bp);
+        }
+
+      }
+      statement.bindParameters(array);
+      statement.executeAsync({
+        handleResult: function(aResultSet) {},
+        handleError: function(aError) {
+          aJobFinished(new Error("Could not insert row into contacts_data "
+                                 + "database. Error: " + aError.message));
+        },
+        handleCompletion: function(aReason) {
+          if (aReason === kSQLCallbacks.REASON_FINISHED) {
+            aJobFinished(Cr.NS_OK);
+            return;
+          } else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
+            aJobFinished(new Error("Inserting contact_data was cancelled."));
+          }
+        },
+      });
+    }.bind(this));
 
     this._db.beginTransaction();
+
     q.start(function(aResult) {
       if (aResult === Cr.NS_OK) {
         this._db.commitTransaction();
         this._nextInsertID.contacts++;
+        this._nextInsertID.contact_data = contactDataID;
         aContact.id = contactID;
         aOptions.success(aContact);
       } else {
@@ -193,7 +248,8 @@ let ContactDBA = {
 
   // Statements
   _finalizeStatements: function() {
-    const kStatements = [this._createContactStatement];
+    const kStatements = [this._createContactStatement,
+                         this._createContactDataStatement];
     for (let statement of kStatements)
       statement.finalize();
   },
@@ -209,6 +265,15 @@ let ContactDBA = {
         +   ":id, :attributes, :popularity, :default_email, :default_impp, "
         +   ":default_tel, :default_photo, :display_name_family_given, "
         +   ":display_name_given_family)");
+    }.bind(this));
+
+    XPCOMUtils.defineLazyGetter(this,
+                                "_createContactDataStatement",
+                                function(aItem) {
+      return this._db.createAsyncStatement(
+        "INSERT INTO contact_data (id, contact_id, data1, data2, data3, "
+        + "field_type) VALUES("
+        +   ":id, :contact_id, :data1, :data2, :data3, :field_type)");
     }.bind(this));
   },
 };
