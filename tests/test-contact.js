@@ -290,10 +290,7 @@ function assert_serializations_equal(aObjA, aObjB, aMsg) {
 }
 
 function is_typed_default(aFieldName) {
-  if (!_.startsWith(aFieldName, "default"))
-    return false;
-  let suffix = aFieldName.substring("default".length).toLowerCase();
-  return (ContactsCommon.TypedFields.indexOf(suffix) != -1);
+  return (ContactsCommon.TypedDefaultFields.indexOf(aFieldName) != -1);
 }
 
 function setupModule(module) {

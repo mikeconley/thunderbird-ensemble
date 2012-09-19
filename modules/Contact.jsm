@@ -15,19 +15,23 @@ const kBasicFields = ['name', 'honorificPrefix', 'givenName',
                       'nickname', 'photo', 'category', 'org',
                       'jobTitle', 'department', 'note'];
 
-const kTypedFields = ['tel', 'email', 'impp', 'url', 'other'];
+const kTypedArrayFields = ['tel', 'email', 'impp', 'url', 'other'];
+const kTypedFields = kTypedArrayFields.concat(['defaultEmail', 'defaultTel', 'defaultImpp']);
 const kAddressFields = ['adr'];
 const kDateFields = ['bday', 'anniversary'];
 
-const kArrayFields = kBasicFields.concat(kTypedFields)
+const kArrayFields = kBasicFields.concat(kTypedArrayFields)
                                  .concat(kAddressFields);
 
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 const kDefaultPrefix = "default";
-const kHasDefaults = ['email', 'impp', 'tel', 'photo'];
+const kTypedDefaultFields = ['defaultEmail', 'defaultImpp', 'defaultTel'];
+const kUntypedDefaultFields = ['defaultPhoto'];
+const kDefaultFields = kTypedDefaultFields.concat(kUntypedDefaultFields);
 const kIntFields = ['popularity'];
 const kAllFields = kArrayFields.concat(kStringFields)
-                               .concat(kIntFields);
+                               .concat(kIntFields)
+                               .concat(kDefaultFields);
 
 const ContactsCommon = {
   BasicFields: kBasicFields,
@@ -37,7 +41,9 @@ const ContactsCommon = {
   ArrayFields: kArrayFields,
   StringFields: kStringFields,
   IntFields: kIntFields,
-  DefaultFields: kHasDefaults,
+  DefaultFields: kDefaultFields,
+  TypedDefaultFields: kTypedDefaultFields,
+  UntypedDefaultFields: kUntypedDefaultFields,
   AllFields: kAllFields,
 };
 
@@ -133,21 +139,19 @@ let Contact = Backbone.Model.extend({
              ? new Date(aValue).toJSON()
              : null;
     }
-    else if (_.startsWith(aKey, kDefaultPrefix)) {
+    else if (kDefaultFields.indexOf(aKey) != -1) {
       // We're dealing with a default. In the event that the default is
       // one of our typed values, we need to return our special
       // TypedDefault object, or else we get strange behaviour from
       // Backbone.js, because it doesn't expect plain ol' Objects as
       // model attributes.
       // From: http://stackoverflow.com/questions/6351271/backbone-js-get-and-set-nested-object-attribute
-      let suffix = aKey.substring(kDefaultPrefix.length).toLowerCase();
-      if (aValue && kTypedFields.indexOf(suffix) != -1) {
+      if (aValue && kTypedDefaultFields.indexOf(aKey) != -1) {
         return new TypedDefault({type: aValue.type, value: aValue.value});
       }
-      return aValue;
     }
-    else
-      return aValue;
+
+    return aValue;
   },
 
   set: function(aAttributes, aOptions) {
@@ -200,10 +204,9 @@ let Contact = Backbone.Model.extend({
         changed[fieldName] = this.get(fieldName);
     }
 
-    for each (let defaultField in kHasDefaults) {
-      let defaultName = "default" + _.capitalize(defaultField);
-      if (!_.safeIsEqual(this.get(defaultName), aContact.get(defaultName)))
-        changed[defaultName] = this.get(defaultName);
+    for each (let defaultField in kDefaultFields) {
+      if (!_.safeIsEqual(this.get(defaultField), aContact.get(defaultField)))
+        changed[defaultField] = this.get(defaultField);
     }
 
     return {
