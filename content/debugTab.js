@@ -88,8 +88,8 @@ let DebugTab = {
   init: function DebugTab_init() {
     document.getElementById('insertFakeContacts')
             .addEventListener('click', this.insertFakeContacts.bind(this));
-    document.getElementById('createDb')
-            .addEventListener('click', this._createDb.bind(this));
+    document.getElementById('resetDb')
+            .addEventListener('click', this._resetDb.bind(this));
     document.getElementById('importOldTB')
             .addEventListener('click', this._importOldTB.bind(this));
     document.getElementById("insertHouse")
@@ -102,6 +102,17 @@ let DebugTab = {
 
   uninit: function DebugTab_uninit() {
     Ensemble.uninit(function(aResult) {});
+  },
+
+  _resetDb: function DebugTab__resetDb() {
+    Ensemble.uninit(function(aResult) {
+      // Now delete the database...
+      SQLiteContactStore.destroy();
+      // Now init a new one.
+      Ensemble.init(SQLiteContactStore, function(aResult) {
+        dump("Database reset.");
+      });
+    });
   },
 
   insertHouse: function DebugTab_insertHouse() {
@@ -186,24 +197,13 @@ let DebugTab = {
     }
   },
 
-  _createDb: function DebugTab_createDb() {
-    SQLiteContactStore.init(function(aResult) {
-      alert("Done! Result was: " + aResult);
-      if (aResult != Cr.NS_OK) {
-        alert(aResult.code);
-      }
-    });
-
-    Services.obs.addObserver(this, "profile-before-change", false);
-  },
-
   _importOldTB: function DebugTab_importOldTB() {
     Cu.import("resource://ensemble/connectors/TBMorkConnector.jsm");
     let mork = new TBMorkConnector();
     let result = mork.getAllRecords(function(aRecords, aTags) {
 
       let q = new JobQueue();
-
+/*
       for each (let [tagID, tagPrettyName] in Iterator(aTags)) {
         if (!Ensemble.hasTag(tagID)) {
           q.addJob(function(aJobFinished) {
@@ -215,9 +215,26 @@ let DebugTab = {
       q.start(function(aResult) {
         dump("\n\nInsertion result: " + aResult + "\n\n");
       });
+*/
+      let q = new JobQueue();
+      for (let contactRecord of aRecords) {
+        let record = contactRecord;
 
-      let contact = new Contact(record[0].fields, record[0].meta);
-
+        q.addJob(function(aJobFinished) {
+          let contact = new Contact(record.fields);
+          contact.save(null, {
+            success: function(aModel) {
+              aJobFinished(Cr.NS_OK);
+            },
+            error: function(aModel, aMessage) {
+              aJobFinished(aMessage);
+            },
+          });
+        });
+      }
+      q.start(function(aResult) {
+        dump("\n\nDone: " + aResult + "\n");
+      });
     });
   },
 
