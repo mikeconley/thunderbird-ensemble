@@ -59,6 +59,10 @@ const ContactsSearchFields = {
   department: "department",
   note: "note",
   other: "other",
+  defaultEmail: "defaultEmail",
+  defaultImpp: "defaultImpp",
+  defaultTel: "defaultTel",
+  defaultPhoto: "defaultPhoto",
 //  adr: "adr",
 //  bday: "bday",
 //  anniversary: "anniversary",
@@ -96,35 +100,14 @@ let Contact = Backbone.Model.extend({
       sex: null,
       genderIdentity: null,
       popularity: 0,
-      defaultFields: {
-        email: null,
-        impp: null,
-        tel: null,
-        photo: null,
-      }
+      defaultEmail: null,
+      defaultImpp: null,
+      defaultTel: null,
+      defaultPhoto: null,
     };
   },
 
   initialize: function() {
-    for (let field of kHasDefaults) {
-      // The stuff in the for-loop conditions doesn't get bound to this closure,
-      // so, welp, bind manually.
-      let fieldName = field;
-      this.__defineGetter__("default" + _.capitalize(fieldName), function() {
-        let defaultFields = this.get("defaultFields");
-        if (fieldName in defaultFields && (defaultFields[fieldName] != null)) {
-          if (kTypedFields.indexOf(fieldName) != -1)
-            return defaultFields[fieldName].value;
-          else {
-            // So the only non-typed field is photo... we might need more
-            // handlers here in the future if more defaults get added.
-            return defaultFields[fieldName];
-          }
-        }
-        return "";
-      });
-    }
-
     this.__defineGetter__("displayNameFamilyGiven", function() {
       return this._nameGetterHelper(true);
     });
@@ -145,7 +128,6 @@ let Contact = Backbone.Model.extend({
     else
       return aValue;
   },
-
 
   set: function(aAttributes, aOptions) {
     let wrapped = {};
@@ -176,10 +158,7 @@ let Contact = Backbone.Model.extend({
   diff: function Contact_diff(aContact) {
     let added = {};
     let removed = {};
-    let changed = {
-      defaultFields: {},
-      fields: {},
-    };
+    let changed = {};
 
     for each (let fieldName in kArrayFields) {
       let result = _.arrayDifference(aContact.get(fieldName),
@@ -192,20 +171,18 @@ let Contact = Backbone.Model.extend({
 
     for each (let fieldName in kStringFields) {
       if (this.get(fieldName) != aContact.get(fieldName))
-        changed.fields[fieldName] = this.get(fieldName);
+        changed[fieldName] = this.get(fieldName);
     }
 
     for each (let fieldName in kIntFields) {
       if (this.get(fieldName) != aContact.get(fieldName))
-        changed.fields[fieldName] = this.get(fieldName);
+        changed[fieldName] = this.get(fieldName);
     }
 
     for each (let defaultField in kHasDefaults) {
-      if (!_.safeIsEqual(this.get('defaultFields')[defaultField],
-                         aContact.get('defaultFields')[defaultField]))
-        changed.defaultFields[defaultField] = this.get('defaultFields')[defaultField];
-      else
-        changed.defaultFields[defaultField] = null;
+      let defaultName = "default" + _.capitalize(defaultField);
+      if (!_.safeIsEqual(this.get(defaultName), aContact.get(defaultName)))
+        changed[defaultName] = this.get(defaultName);
     }
 
     return {
@@ -272,26 +249,20 @@ let Contact = Backbone.Model.extend({
    *     photo: ['somedata'],
    *   },
    *   changed: {
-   *     fields: {
-   *       bday: '2012-07-13T20:44:16.028Z',
-   *       sex: 'Male',
-   *       genderIdentity: 'Male',
-   *       popularity: 5,
-   *     }
-   *     defaultFields: {
-   *       email: {
-   *         type: 'Work',
-   *         address: 'house@example.com',
-   *       },
-   *       impp: null,
-   *       tel: null,
+   *     bday: '2012-07-13T20:44:16.028Z',
+   *     sex: 'Male',
+   *     genderIdentity: 'Male',
+   *     popularity: 5,
+   *     defaultEmail: {
+   *       type: 'Work',
+   *       address: 'house@example.com',
    *     }
    *   }
    * }
    *
    * @param aDiff the diff to apply to this Contact.
    */
-  applyDiff: function Contact_applyDiff(aDiff) {
+  applyDiff: function Contact_applyDiff(aDiff, aOptions) {
     if (typeof(aDiff) !== 'object')
       throw new Error("Expected a diff object");
     if (!(aDiff.hasOwnProperty('added')))
@@ -300,28 +271,21 @@ let Contact = Backbone.Model.extend({
       throw new Error("The diff being applied is missing 'removed'");
     if (!(aDiff.hasOwnProperty('changed')))
       throw new Error("The diff being applied is missing 'changed'");
-    if (!(aDiff.changed.hasOwnProperty('fields')))
-      throw new Error("The diff being applied is missing 'changed.fields'");
-    if (!(aDiff.changed.hasOwnProperty('defaultFields')))
-      throw new Error("The diff being applied is missing 'changed.defaultFields");
-    // The changed fields are easy, so let's take care of those first.
-    for (let field in aDiff.changed.fields) {
-      this.set(field, aDiff.changed.fields[field]);
-    }
 
-    for (let field in aDiff.changed.defaultFields) {
-      this.get('defaultFields')[field] = aDiff.changed.defaultFields[field];
+    // The changed fields are easy, so let's take care of those first.
+    for (let field in aDiff.changed) {
+      this.set(field, _.clone(aDiff.changed[field]), aOptions);
     }
 
     // Now what was removed?
     for (let field in aDiff.removed)
       this.set(field, _.objDifference(this.get(field),
-                                      aDiff.removed[field]));
+                                      aDiff.removed[field]), aOptions);
 
     // Finally, what was added?
     for (let field in aDiff.added)
       this.set(field, _.objUnion(this.get(field),
-                                 aDiff.added[field]));
+                                 aDiff.added[field]), aOptions);
   },
 
   /**
@@ -347,10 +311,10 @@ let Contact = Backbone.Model.extend({
     diff.removed = {};
 
     // Remove any of the changes that result in nulls
-    let changedFields = diff.changed.fields;
+    let changedFields = diff.changed;
     for (let changedField in changedFields) {
       if (changedFields[changedField] === null)
-        delete diff.changed.fields[changedField];
+        delete diff.changed[changedField];
     }
 
     this.applyDiff(diff);

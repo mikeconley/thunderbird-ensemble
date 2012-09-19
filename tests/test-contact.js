@@ -64,18 +64,16 @@ let kTestFields = {
   sex: 'Male',
   genderIdentity: 'Male',
   popularity: 250,
-  defaultFields: {
-    email: {
-      type: 'Work',
-      value: 'house@example.com',
-    },
-    impp: {
-      type: 'ICQ',
-      value: '15215125',
-    },
-    tel: null,
-    photo: null,
-  }
+  defaultEmail: {
+    type: 'Work',
+    value: 'house@example.com',
+  },
+  defaultImpp: {
+    type: 'ICQ',
+    value: '15215125',
+  },
+  defaultTel: null,
+  defaultPhoto: null,
 };
 
 let kResultingFields = {
@@ -134,18 +132,16 @@ let kResultingFields = {
   genderIdentity: 'Male',
   popularity: 250,
 
-  defaultFields: {
-    email: {
-      type: 'Work',
-      value: 'house@example.com',
-    },
-    impp: {
-      type: 'ICQ',
-      value: '15215125',
-    },
-    tel: null,
-    photo: null,
+  defaultEmail: {
+    type: 'Work',
+    value: 'house@example.com',
   },
+  defaultImpp: {
+    type: 'ICQ',
+    value: '15215125',
+  },
+  defaultTel: null,
+  defaultPhoto: null,
 };
 
 const kTestFields2 = {
@@ -261,23 +257,17 @@ const kResultingDiff = {
     photo: ['somedata'],
   },
   changed: {
-    fields: {
-      bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
-      sex: 'Male',
-      genderIdentity: 'Male',
-      popularity: 250,
+    bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
+    sex: 'Male',
+    genderIdentity: 'Male',
+    popularity: 250,
+    defaultEmail: {
+      type: 'Work',
+      value: 'house@example.com',
     },
-    defaultFields: {
-      email: {
-        type: 'Work',
-        value: 'house@example.com',
-      },
-      impp: {
-        type: 'ICQ',
-        value: '15215125',
-      },
-      tel: null,
-      photo: null,
+    defaultImpp: {
+      type: 'ICQ',
+      value: '15215125',
     },
   }
 };
@@ -351,15 +341,7 @@ function test_can_produce_simple_diff_with_adds() {
       }],
     },
     removed: {},
-    changed: {
-      fields: {},
-      defaultFields: {
-        email: null,
-        impp: null,
-        tel: null,
-        photo: null,
-      },
-    },
+    changed: {},
   };
 
   let diff = a.diff(b);
@@ -403,15 +385,7 @@ function test_can_produce_simple_diff_with_removes() {
         value: '15215125'
       }],
     },
-    changed: {
-      fields: {},
-      defaultFields: {
-        email: null,
-        impp: null,
-        tel: null,
-        photo: null,
-      },
-    },
+    changed: {},
   };
 
   let diff = b.diff(a);
@@ -437,18 +411,10 @@ function test_can_produce_simple_diff_with_changes() {
     added: {},
     removed: {},
     changed: {
-      fields: {
-        sex: 'Female',
-        genderIdentity: 'Male',
-        bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
-        anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
-      },
-      defaultFields: {
-        email: null,
-        impp: null,
-        tel: null,
-        photo: null,
-      }
+      sex: 'Female',
+      genderIdentity: 'Male',
+      bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
+      anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
     },
   };
 
@@ -466,13 +432,13 @@ function test_can_produce_diff_mixed() {
   assert_items_equal(diff, kResultingDiff);
 }
 
+
 function test_can_apply_diff() {
   let house = new Contact(kTestFields);
   let wilson = new Contact(kFieldsForDiff);
 
-  wilson.applyDiff(kResultingDiff);
-
-  assert_items_equal(wilson.fields, house.fields);
+  wilson.applyDiff(kResultingDiff, {silent: true});
+  assert_items_equal(wilson.attributes, house.attributes);
 }
 
 // Merging tests
@@ -530,12 +496,10 @@ function test_can_do_simple_merge() {
     sex: null,
     genderIdentity: null,
     popularity: 0,
-    defaultFields: {
-      email: null,
-      impp: null,
-      tel: null,
-      photo: null,
-    },
+    defaultEmail: null,
+    defaultImpp: null,
+    defaultTel: null,
+    defaultPhoto: null,
   }
 
   let haddock = new Contact(kTestFields2);
@@ -641,6 +605,7 @@ function test_default_name_getters() {
 /**
  * Test that our getters for default email, impp, tel and photos work.
  */
+/*
 function test_default_field_getters() {
   let contact = new Contact(kTestFields);
   assert_equals(contact.defaultEmail, "house@example.com");
@@ -658,4 +623,4 @@ function test_default_field_getters() {
   contact.set("defaultFields", defaults);
   assert_equals(contact.defaultTel, "123456789");
   assert_equals(contact.defaultPhoto, "some data URL");
-}
+}*/

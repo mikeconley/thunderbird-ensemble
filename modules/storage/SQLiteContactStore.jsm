@@ -256,10 +256,6 @@ let SQLiteContactStore = {
             "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
             "popularity INTEGER NOT NULL DEFAULT (0), " +
             "attributes TEXT, " +
-            "default_email TEXT, " +
-            "default_impp TEXT, " +
-            "default_tel TEXT, " +
-            "default_photo TEXT, " +
             "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
             "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
             "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
@@ -318,6 +314,11 @@ let SQLiteContactStore = {
         aDb.executeAsync([stmt], 1, aStorageCallback);
         stmt.finalize();
       });
+
+      // TODO: Create some smart indexes for contact_data, since this
+      // is where we'll do most of our searching.
+
+      // TODO: Create constraint for contact_data for default values.
     }
 
     trans.run(function(aResult) {
