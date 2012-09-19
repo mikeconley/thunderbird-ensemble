@@ -259,8 +259,7 @@ let SQLiteContactStore = {
             "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
             "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
             "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
-            "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
-            "FOREIGN KEY (default_email) REFERENCES contact_data(id))",
+            "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP)) ",
 
           "CREATE TABLE IF NOT EXISTS contact_records (" +
             "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +

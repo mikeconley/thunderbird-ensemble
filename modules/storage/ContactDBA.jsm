@@ -188,6 +188,10 @@ let ContactDBA = {
         }
 
         for (let [, fieldValue] in Iterator(field)) {
+          if (!fieldValue) {
+            continue;
+          }
+
           let bp = array.newBindingParams();
           bp.bindByName("id", contactDataID++);
           bp.bindByName("contact_id", contactID);
@@ -199,9 +203,16 @@ let ContactDBA = {
             bp.bindByName("data2", "");
             bp.bindByName("data3", "");
           } else if (ContactsCommon.TypedFields.indexOf(fieldType) != -1) {
-            // We're dealing with an object that has type / value properties.
-            bp.bindByName("data1", fieldValue.value);
-            bp.bindByName("data2", fieldValue.type);
+            // We're dealing with an object that has type / value properties
+
+            if (ContactsCommon.TypedDefaultFields
+                              .indexOf(fieldType) != -1) {
+              bp.bindByName("data1", fieldValue.get("value"));
+              bp.bindByName("data2", fieldValue.get("type"));
+            } else {
+              bp.bindByName("data1", fieldValue.value);
+              bp.bindByName("data2", fieldValue.type);
+            }
             bp.bindByName("data3", "");
           } else {
             // TODO: What do we do in this case?
@@ -257,11 +268,9 @@ let ContactDBA = {
                                 "_createContactStatement",
                                 function(aItem) {
       return this._db.createAsyncStatement(
-        "INSERT INTO contacts (id, attributes, popularity, default_email, "
-        + "default_impp, default_tel, default_photo, "
+        "INSERT INTO contacts (id, attributes, popularity, "
         + "display_name_family_given, display_name_given_family) VALUES ("
-        +   ":id, :attributes, :popularity, :default_email, :default_impp, "
-        +   ":default_tel, :default_photo, :display_name_family_given, "
+        +   ":id, :attributes, :popularity, :display_name_family_given, "
         +   ":display_name_given_family)");
     }.bind(this));
 

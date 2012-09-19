@@ -16,7 +16,6 @@ const kBasicFields = ['name', 'honorificPrefix', 'givenName',
                       'jobTitle', 'department', 'note'];
 
 const kTypedArrayFields = ['tel', 'email', 'impp', 'url', 'other'];
-const kTypedFields = kTypedArrayFields.concat(['defaultEmail', 'defaultTel', 'defaultImpp']);
 const kAddressFields = ['adr'];
 const kDateFields = ['bday', 'anniversary'];
 
@@ -26,6 +25,7 @@ const kArrayFields = kBasicFields.concat(kTypedArrayFields)
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
 const kDefaultPrefix = "default";
 const kTypedDefaultFields = ['defaultEmail', 'defaultImpp', 'defaultTel'];
+const kTypedFields = kTypedArrayFields.concat(kTypedDefaultFields);
 const kUntypedDefaultFields = ['defaultPhoto'];
 const kDefaultFields = kTypedDefaultFields.concat(kUntypedDefaultFields);
 const kIntFields = ['popularity'];
@@ -55,7 +55,6 @@ const ContactsSearchFields = {
   familyName: "familyName",
   honorificSuffix: "honorificSuffix",
   nickname: "nickname",
-  photo: "photo",
   category: "category",
   email: "email",
   tel: "tel",
@@ -69,7 +68,6 @@ const ContactsSearchFields = {
   defaultEmail: "defaultEmail",
   defaultImpp: "defaultImpp",
   defaultTel: "defaultTel",
-  defaultPhoto: "defaultPhoto",
 //  adr: "adr",
 //  bday: "bday",
 //  anniversary: "anniversary",

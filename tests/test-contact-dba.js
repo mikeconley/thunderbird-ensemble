@@ -67,17 +67,14 @@ const kTestFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
-  defaults: {
-    email: {
-      type: 'Work',
-      value: 'house@example.com',
-    },
-    impp: {
-      type: 'ICQ',
-      value: '15215125',
-    },
-    tel: {},
-  }
+  defaultEmail: {
+    type: 'Work',
+    value: 'house@example.com',
+  },
+  defaultImpp: {
+    type: 'ICQ',
+    value: '15215125',
+  },
 };
 
 function assert_items_equal(aItemA, aItemB, aMsg) {
@@ -195,7 +192,7 @@ function test_saves_contact() {
   assert_items_equal(contactRow.attributes,
                      JSON.stringify(new Contact(kTestFields)));
 
-  assert_row_count("contact_data", 19);
+  assert_row_count("contact_data", 21);
   rows = get_all_rows("contact_data");
 
 }
