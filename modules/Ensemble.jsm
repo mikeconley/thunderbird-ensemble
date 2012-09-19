@@ -18,7 +18,6 @@ let Ensemble = {
   _initted: false,
   _initting: false,
   _datastore: null,
-  _tagsCache: {},
 
   init: function Ensemble_init(aDatastore, aCallback) {
     if (this._initted || this._initting)
@@ -87,15 +86,6 @@ let Ensemble = {
     });
 
     Log.info("Debug tab should be open now.");
-  },
-
-  hasTag: function Ensemble_hasTag(aTagID) {
-    return (aTagID in this._tagsCache);
-  },
-
-  addTag: function Ensemble_addTag(aTagID, aTagPrettyName,
-                                   aOriginator, aCallback) {
-    this._datastore.insertTag(aTagID, aTagPrettyName, aOriginator, aCallback);
   },
 
   _initDBAs: function Ensemble_fillCaches(aOuterFinished) {
