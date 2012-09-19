@@ -204,7 +204,10 @@ let ContactDBA = {
             bp.bindByName("data3", "");
           } else if (ContactsCommon.TypedFields.indexOf(fieldType) != -1) {
             // We're dealing with an object that has type / value properties
-
+            //
+            // Ugh, we have to special-case the default fields, because
+            // of how we have to store them in the Contact model. They're
+            // Backbone.Models, so we have to use get.
             if (ContactsCommon.TypedDefaultFields
                               .indexOf(fieldType) != -1) {
               bp.bindByName("data1", fieldValue.get("value"));
