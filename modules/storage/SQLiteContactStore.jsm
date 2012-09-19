@@ -154,6 +154,17 @@ let SQLiteContactStore = {
     }
   },
 
+  destroy: function SQLiteCS_destroy() {
+    // We can't destroy if we're initted or in the process of being
+    // initted.
+    if (this._initted || this._initting)
+      return;
+    Log.info("Destroying database! I hope that's what you wanted...");
+    let dbFile = Services.dirsvc.get(kDbFileDir, Ci.nsIFile);
+    dbFile.append(kDbFile);
+    dbFile.remove(false);
+  },
+
   _nextInsertID: {},
 
   /**
@@ -302,22 +313,29 @@ let SQLiteContactStore = {
       });
 
       trans.steps.push(function(aDb, aStorageCallback) {
-        let stmtString = [
+        let stmtStrings = [
           "CREATE UNIQUE INDEX IF NOT EXISTS categorization_index " +
             "ON categorizations (" +
             "category_id ASC, " +
             "contact_id ASC)",
-        ].join('\n');
 
-        let stmt = aDb.createStatement(stmtString);
-        aDb.executeAsync([stmt], 1, aStorageCallback);
-        stmt.finalize();
+          "CREATE INDEX contact_data_search_index " +
+            "ON contact_data (data1)",
+
+          "CREATE INDEX contact_data_field_type " +
+            "ON contact_data (field_type)",
+        ];
+
+        let stmts = [
+          aDb.createStatement(stmtString)
+          for each (stmtString in stmtStrings)
+        ];
+
+        aDb.executeAsync(stmts, stmts.length, aStorageCallback);
+
+        for each (let stmt in stmts)
+          stmt.finalize();
       });
-
-      // TODO: Create some smart indexes for contact_data, since this
-      // is where we'll do most of our searching.
-
-      // TODO: Create constraint for contact_data for default values.
     }
 
     trans.run(function(aResult) {

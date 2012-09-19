@@ -218,7 +218,10 @@ let ContactDBA = {
             }
             bp.bindByName("data3", "");
           } else {
-            // TODO: What do we do in this case?
+            // Hrm - what is this thing?
+            aJobFinished(new Error("Didn't recognize fieldType " +
+                                   fieldType));
+            return;
           }
           array.addParams(bp);
         }

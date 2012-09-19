@@ -55,7 +55,6 @@ const ContactsSearchFields = {
   familyName: "familyName",
   honorificSuffix: "honorificSuffix",
   nickname: "nickname",
-  category: "category",
   email: "email",
   tel: "tel",
   impp: "impp",

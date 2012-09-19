@@ -162,14 +162,119 @@ function teardownModule(module) {
   });
   mc.waitFor(function() done);
 
-  // Nuke the contacts.sqlite DB so that other tests can
-  // start fresh.
-  let dbFile = Services.dirsvc.get("ProfD", Ci.nsIFile);
-  dbFile.append("contacts.sqlite");
-  dbFile.remove(false);
+  SQLiteContactStore.destroy();
 }
 
 function test_saves_contact() {
+  const kExpectedRows = [
+    {
+      data1: "House",
+      data2: "",
+      field_type: "name",
+    },
+    {
+      data1: "Dr.",
+      data2: "",
+      field_type: "honorificPrefix",
+    },
+    {
+      data1: "Gregory",
+      data2: "",
+      field_type: "givenName",
+    },
+    {
+      data1: "Berton",
+      data2: "",
+      field_type: "additionalName",
+    },
+    {
+      data1: "Ryan",
+      data2: "",
+      field_type: "additionalName",
+    },
+    {
+      data1: "House",
+      data2: "",
+      field_type: "familyName",
+    },
+    {
+      data1: "Junior",
+      data2: "",
+      field_type: "honorificSuffix",
+    },
+    {
+      data1: "Hugh",
+      data2: "",
+      field_type: "nickname",
+    },
+    {
+      data1: "house@example.com",
+      data2: "Work",
+      field_type: "email",
+    },
+    {
+      data1: "houseOther@example.com",
+      data2: "Home",
+      field_type: "email",
+    },
+    {
+      data1: "https://www.example.com",
+      data2: "Homepage",
+      field_type: "url",
+    },
+    {
+      data1: "5553125123",
+      data2: "Work",
+      field_type: "tel",
+    },
+    {
+      data1: "5124241521",
+      data2: "Cell",
+      field_type: "tel",
+    },
+    {
+      data1: "15215125",
+      data2: "ICQ",
+      field_type: "impp",
+    },
+    {
+      data1: "Princeton-Plainsboro Teaching Hospital",
+      data2: "",
+      field_type: "org",
+    },
+    {
+      data1: "Diagnostician",
+      data2: "",
+      field_type: "jobTitle",
+    },
+    {
+      data1: "Diagnostics",
+      data2: "",
+      field_type: "department",
+    },
+    {
+      data1: "Sharp as a tack",
+      data2: "",
+      field_type: "note",
+    },
+    {
+      data1: "Not exactly the king of bedside manor.",
+      data2: "",
+      field_type: "note",
+    },
+    {
+      data1: "house@example.com",
+      data2: "Work",
+      field_type: "email",
+    },
+    {
+      data1: "15215125",
+      data2: "ICQ",
+      field_type: "impp",
+    },
+  ]
+
+
   let done = false, error;
   let contact = new Contact(kTestFields);
   contact.save(null, {
@@ -192,7 +297,21 @@ function test_saves_contact() {
   assert_items_equal(contactRow.attributes,
                      JSON.stringify(new Contact(kTestFields)));
 
-  assert_row_count("contact_data", 21);
   rows = get_all_rows("contact_data");
 
+  // We don't care about IDs, so strip those out.
+  rows = _.map(rows, function(row) {
+    assert_equals(row.contact_id, contact.id);
+    delete row.id;
+    delete row.contact_id;
+    // Not sure if we even need data3 in the table - this might get axed.
+    delete row.data3;
+    return row;
+  });
+
+  assert_row_count("contact_data", kExpectedRows.length);
+
+  for (let expectedRow of kExpectedRows) {
+    assert_true(_.objInclude(rows, expectedRow));
+  }
 }
