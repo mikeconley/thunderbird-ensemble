@@ -23,6 +23,7 @@ const kArrayFields = kBasicFields.concat(kTypedFields)
                                  .concat(kAddressFields);
 
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
+const kDefaultPrefix = "default";
 const kHasDefaults = ['email', 'impp', 'tel', 'photo'];
 const kIntFields = ['popularity'];
 const kAllFields = kArrayFields.concat(kStringFields)
@@ -69,6 +70,13 @@ const ContactsSearchFields = {
 //  sex: "sex",
 //  genderIdentity: "genderIdentity",
 };
+
+let TypedDefault = Backbone.Model.extend({
+  defaults: {
+    type: "",
+    value: "",
+  }
+});
 
 let Contact = Backbone.Model.extend({
 
@@ -124,6 +132,19 @@ let Contact = Backbone.Model.extend({
       return (aValue !== null && aValue !== undefined)
              ? new Date(aValue).toJSON()
              : null;
+    }
+    else if (_.startsWith(aKey, kDefaultPrefix)) {
+      // We're dealing with a default. In the event that the default is
+      // one of our typed values, we need to return our special
+      // TypedDefault object, or else we get strange behaviour from
+      // Backbone.js, because it doesn't expect plain ol' Objects as
+      // model attributes.
+      // From: http://stackoverflow.com/questions/6351271/backbone-js-get-and-set-nested-object-attribute
+      let suffix = aKey.substring(kDefaultPrefix.length).toLowerCase();
+      if (aValue && kTypedFields.indexOf(suffix) != -1) {
+        return new TypedDefault({type: aValue.type, value: aValue.value});
+      }
+      return aValue;
     }
     else
       return aValue;

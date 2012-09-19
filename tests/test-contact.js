@@ -283,6 +283,19 @@ function assert_items_equal(aItemA, aItemB, aMsg) {
     throw new Error(aMsg);
 }
 
+function assert_serializations_equal(aObjA, aObjB, aMsg) {
+  assert_items_equal(JSON.parse(JSON.stringify(aObjA)),
+                     JSON.parse(JSON.stringify(aObjB)),
+                     aMsg);
+}
+
+function is_typed_default(aFieldName) {
+  if (!_.startsWith(aFieldName, "default"))
+    return false;
+  let suffix = aFieldName.substring("default".length).toLowerCase();
+  return (ContactsCommon.TypedFields.indexOf(suffix) != -1);
+}
+
 function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
 }
@@ -296,10 +309,14 @@ function test_can_access_fields_object() {
   assert_not_equals(r.attributes, null);
 
   for (let fieldName in kResultingFields) {
-    assert_items_equal(r.attributes[fieldName], kResultingFields[fieldName],
-                "Field " + fieldName + " not equal: " + JSON.stringify(r.attributes[fieldName])
-                + " -- "
-                + JSON.stringify(kResultingFields[fieldName]));
+    if (is_typed_default(fieldName))
+      assert_serializations_equal(r.get(fieldName), kResultingFields[fieldName])
+    else {
+      assert_items_equal(r.get(fieldName), kResultingFields[fieldName],
+                  "Field " + fieldName + " not equal: " + JSON.stringify(r.attributes[fieldName])
+                  + " -- "
+                  + JSON.stringify(kResultingFields[fieldName]));
+    }
   }
 }
 
@@ -429,16 +446,15 @@ function test_can_produce_diff_mixed() {
 
   let diff = a.diff(b);
 
-  assert_items_equal(diff, kResultingDiff);
+  assert_serializations_equal(diff, kResultingDiff);
 }
 
 
 function test_can_apply_diff() {
   let house = new Contact(kTestFields);
   let wilson = new Contact(kFieldsForDiff);
-
-  wilson.applyDiff(kResultingDiff, {silent: true});
-  assert_items_equal(wilson.attributes, house.attributes);
+  wilson.applyDiff(kResultingDiff);
+  assert_serializations_equal(wilson, house);
 }
 
 // Merging tests
@@ -506,9 +522,6 @@ function test_can_do_simple_merge() {
   let wilson = new Contact(kFieldsForDiff);
   haddock.merge(wilson);
 
-  // We have to to the JSON stringify / parse dance in order to strip
-  // the contact of some metadata that Backbone tosses in to mark changes
-  // when we do things like merge into an existing contact.
   assert_items_equal(JSON.parse(JSON.stringify(haddock)), kExpectedMerge);
 }
 
@@ -525,7 +538,7 @@ function test_saving_contact() {
     handleSync: function(aMethod, aModel, aOptions) {
       aModel.id = 1; // Simulating we inserted a contact at row 1.
       assert_equals(aMethod, "create");
-      assert_items_equal(aModel.attributes, kResultingFields);
+      assert_serializations_equal(aModel, kResultingFields);
       done = true;
     }
   };
@@ -542,7 +555,7 @@ function test_saving_contact() {
   contact.dba = {
     handleSync: function(aMethod, aModel, aOptions) {
       assert_equals(aMethod, "update");
-      assert_items_equal(aModel.attributes, updatedFields);
+      assert_serializations_equal(aModel, updatedFields);
       done = true;
     }
   };
