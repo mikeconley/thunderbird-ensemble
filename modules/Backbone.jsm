@@ -11,7 +11,7 @@ let loader = Cc["@mozilla.org/moz/jssubscript-loader;1"]
 loader.loadSubScript("resource://ensemble/lib/underscore-1.3.3.js");
 loader.loadSubScript("resource://ensemble/lib/backbone-0.9.2.js");
 
-Backbone.sync = function(aMethod, aModel, aOptions) {
-  // Delegate to the database abstraction (DBA) of the model.
-  aModel.dba.handleSync(aMethod, aModel, aOptions);
+Backbone.sync = function(aMethod, aModelOrCollection, aOptions) {
+  // Delegate to the database abstraction (DBA) of the model or collection.
+  aModelOrCollection.dba.handleSync(aMethod, aModelOrCollection, aOptions);
 };

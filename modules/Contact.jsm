@@ -4,7 +4,9 @@
 
 const Cu = Components.utils;
 
-let EXPORTED_SYMBOLS = ["Contact", "ContactsCommon", "ContactsSearchFields"];
+let EXPORTED_SYMBOLS = ["Contact",
+                        "ContactsCommon",
+                        "ContactsSearchFields"];
 
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
