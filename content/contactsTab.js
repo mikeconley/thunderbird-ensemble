@@ -29,6 +29,7 @@ let ContactsView = Backbone.View.extend({
   },
   render: function() {
     let self = this;
+    // TODO: this is synchronous, and can bog us down. Let's not do this.
     this.collection.models.forEach(function(aContact) {
       self.renderContact(aContact);
     });
