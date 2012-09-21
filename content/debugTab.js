@@ -11,6 +11,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
+Cu.import("resource://ensemble/Contacts.jsm");
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 
@@ -94,7 +95,8 @@ let DebugTab = {
             .addEventListener('click', this._importOldTB.bind(this));
     document.getElementById("insertHouse")
             .addEventListener("click", this.insertHouse.bind(this));
-
+    document.getElementById("listContacts")
+            .addEventListener("click", this._listContacts.bind(this));
     Ensemble.init(SQLiteContactStore, function(aResult) {
       dump("aResult is: " + aResult);
     });
@@ -102,6 +104,10 @@ let DebugTab = {
 
   uninit: function DebugTab_uninit() {
     Ensemble.uninit(function(aResult) {});
+  },
+
+  _listContacts: function DebugTab__countDb() {
+    Ensemble.openContactsTab();
   },
 
   _resetDb: function DebugTab__resetDb() {

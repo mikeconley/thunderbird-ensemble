@@ -13,6 +13,7 @@ let Common = {};
 Cu.import("resource://ensemble/Common.jsm", Common);
 Cu.import("resource://ensemble/Backbone.jsm");
 Cu.import("resource://ensemble/storage/ContactDBA.jsm");
+Cu.import("resource://ensemble/storage/ContactsDBA.jsm");
 
 let Ensemble = {
   _initted: false,
@@ -64,35 +65,55 @@ let Ensemble = {
     }.bind(this));
   },
 
-  openDebugTab: function Ensemble_openOrFocusDebugTab() {
-    Log.info("Opening or focusing debug tab");
+  _get3PaneTabmail: function Ensemble__get3Pane() {
     let mail3Pane = Services.wm.getMostRecentWindow("mail:3pane");
     if (!mail3Pane) {
       Log.error("No mail3pane found - bailing!");
-      return;
+      return false;
     }
 
     let tabmail = mail3Pane.document.getElementById('tabmail');
 
     if (!tabmail) {
       Log.error("No tabmail found in the top-most 3pane. Bailing!");
-      return;
+      return false;
     }
+    return tabmail;
+  },
 
-    Log.info("Opening debug tab");
-
-    tabmail.openTab("chromeTab", {
-      chromePage: "chrome://ensemble/content/debugTab.xhtml",
-    });
-
+  openDebugTab: function Ensemble_openOrFocusDebugTab() {
+    Log.info("Opening or focusing debug tab");
+    let tabmail = this._get3PaneTabmail();
+    if (tabmail) {
+      tabmail.openTab("chromeTab", {
+        chromePage: "chrome://ensemble/content/debugTab.xhtml",
+      });
+    }
     Log.info("Debug tab should be open now.");
   },
 
+  openContactsTab: function Ensemble_openContactsTab() {
+    Log.info("Opening or focusing contact list tab");
+
+    let tabmail = this._get3PaneTabmail();
+    if (tabmail) {
+      tabmail.openTab("chromeTab", {
+        chromePage: "chrome://ensemble/content/contactsTab.xhtml",
+      });
+    }
+    Log.info("Contact list tab should be open now.");
+  },
+
   _initDBAs: function Ensemble_fillCaches(aOuterFinished) {
+    const kDBAs = [ContactDBA, ContactsDBA];
     let q = new JobQueue();
-    q.addJob(function(aJobFinished) {
-      ContactDBA.init(this._datastore, aJobFinished);
-    }.bind(this));
+    let self = this;
+
+    kDBAs.forEach(function(aDBA) {
+      q.addJob(function(aJobFinished) {
+        aDBA.init(self._datastore, aJobFinished);
+      });
+    });
 
     q.start(aOuterFinished);
   },

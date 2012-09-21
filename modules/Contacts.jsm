@@ -14,4 +14,14 @@ Cu.import("resource://ensemble/storage/ContactsDBA.jsm");
 let Contacts = Backbone.Collection.extend({
   model: Contact,
   dba: ContactsDBA,
+  parse: function(aData) {
+    let models = [];
+    for each (let [id, attributes] in Iterator(aData)) {
+      let c = new Contact(attributes);
+      c.id = id;
+      models.push(c)
+    }
+
+    return models;
+  },
 });

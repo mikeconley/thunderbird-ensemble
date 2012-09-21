@@ -272,7 +272,7 @@ let ContactDBA = {
   _defineStatements: function() {
     XPCOMUtils.defineLazyGetter(this,
                                 "_createContactStatement",
-                                function(aItem) {
+                                function() {
       return this._db.createAsyncStatement(
         "INSERT INTO contacts (id, attributes, popularity, "
         + "display_name_family_given, display_name_given_family) VALUES ("
@@ -282,7 +282,7 @@ let ContactDBA = {
 
     XPCOMUtils.defineLazyGetter(this,
                                 "_createContactDataStatement",
-                                function(aItem) {
+                                function() {
       return this._db.createAsyncStatement(
         "INSERT INTO contact_data (id, contact_id, data1, data2, data3, "
         + "field_type) VALUES("
