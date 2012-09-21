@@ -244,19 +244,19 @@ let SQLiteContactStore = {
             "category_id ASC, " +
             "contact_id ASC)",
 
-          "CREATE INDEX contact_data_search_index " +
+          "CREATE INDEX IF NOT EXISTS contact_data_search_index " +
             "ON contact_data (data1)",
 
-          "CREATE INDEX contact_data_field_type " +
+          "CREATE INDEX IF NOT EXISTS contact_data_field_type " +
             "ON contact_data (field_type)",
 
-          "CREATE INDEX contacts_display_name_family_given" +
+          "CREATE INDEX IF NOT EXISTS contacts_display_name_family_given " +
             "ON contacts (display_name_family_given)",
 
-          "CREATE INDEX contacts_display_name_given_family" +
+          "CREATE INDEX contacts_display_name_given_family " +
             "ON contacts (display_name_given_family)",
 
-          "CREATE INDEX contacts_popularity" +
+          "CREATE INDEX IF NOT EXISTS contacts_popularity " +
             "ON contacts (popularity)",
         ];
 
