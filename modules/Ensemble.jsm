@@ -43,7 +43,8 @@ let Ensemble = {
         this.uninit();
       }
 
-      aCallback(aResult);
+      if (aCallback)
+        aCallback(aResult);
     }.bind(this));
   },
 

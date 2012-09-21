@@ -97,13 +97,9 @@ let DebugTab = {
             .addEventListener("click", this.insertHouse.bind(this));
     document.getElementById("listContacts")
             .addEventListener("click", this._listContacts.bind(this));
-    Ensemble.init(SQLiteContactStore, function(aResult) {
-      dump("aResult is: " + aResult);
-    });
   },
 
   uninit: function DebugTab_uninit() {
-    Ensemble.uninit(function(aResult) {});
   },
 
   _listContacts: function DebugTab__countDb() {
