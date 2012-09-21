@@ -249,6 +249,15 @@ let SQLiteContactStore = {
 
           "CREATE INDEX contact_data_field_type " +
             "ON contact_data (field_type)",
+
+          "CREATE INDEX contacts_display_name_family_given" +
+            "ON contacts (display_name_family_given)",
+
+          "CREATE INDEX contacts_display_name_given_family" +
+            "ON contacts (display_name_given_family)",
+
+          "CREATE INDEX contacts_popularity" +
+            "ON contacts (popularity)",
         ];
 
         let stmts = [
