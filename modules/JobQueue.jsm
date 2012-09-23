@@ -70,25 +70,26 @@ JobQueue.prototype = {
     this._listeners.push(aListener);
   },
 
-  start: function(aFinishedCallback) {
-    this._finishedCallback = aFinishedCallback;
+  start: function(aFinishedListener) {
+    this._finishedListener = aFinishedListener;
     this._origJobsLength = this._queue.length;
     this._tick(Cr.NS_OK);
   },
 
+  _onError: function(aError) {
+    this._finishedListener.error(aError);
+    this._finish(false);
+  },
+
+  _onSuccess: function(aResult) {
+    this._notifyOnProgressChanged(this._origJobsLength - this._queue.length);
+    this._tick(aResult);
+  },
+
   _tick: function(aResult) {
-    if (aResult !== Cr.NS_OK) {
-      this._finish(aResult);
-      return;
-    }
-
     if (this._queue.length == 0) {
-      this._finish(Cr.NS_OK);
+      this._finish(true, aResult);
       return;
-    }
-
-    if (this._queue.length < this._origJobsLength) {
-      this._notifyOnProgressChanged(this._origJobsLength - this._queue.length);
     }
 
     let jobObj = this._queue.shift();
@@ -98,7 +99,13 @@ JobQueue.prototype = {
       notify: function(aTimer) {
         try {
           this._notifyOnJobStarted(jobObj.name);
-          jobObj.job(this._tick.bind(this));
+
+          let jobFinished = {
+            jobSuccess: this._onSuccess.bind(this),
+            jobError: this._onError.bind(this)
+          };
+
+          jobObj.job(jobFinished);
         } catch(e) {
           this._finish(e);
         }
@@ -125,15 +132,11 @@ JobQueue.prototype = {
     }
   },
 
-  _finish: function(aResult) {
-    // We only report that the last job ended successfully if aResult
-    // is Cr.NS_OK.
-    if (aResult == Cr.NS_OK)
-      this._notifyOnProgressChanged(this._origJobsLength);
+  _finish: function(aTotalSuccess, aResult) {
+    if (aTotalSuccess)
+      this._finishedListener.success(aResult);
 
     this._listeners = [];
-    this._finishedCallback(aResult);
+    this._finishedListener.complete();
   },
 };
-
-

@@ -141,13 +141,25 @@ function get_all_rows(aTableName) {
 function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
   let done = false;
-  SQLiteContactStore.init(function(aResult) {
-    assert_equals(aResult, Cr.NS_OK);
-    ContactDBA.init(SQLiteContactStore, function(aResult) {
+  Services.prefs.setCharPref("contacts.db.logging.dump", "All");
+  SQLiteContactStore.init({
+    jobSuccess: function(aResult) {
       assert_equals(aResult, Cr.NS_OK);
-      done = true;
-    });
+      ContactDBA.init(SQLiteContactStore, {
+        jobSuccess: function(aResult) {
+          assert_equals(aResult, Cr.NS_OK);
+          done = true;
+        },
+        jobError: function(aError) {
+          throw aError;
+        },
+      });
+    },
+    jobError: function(aError) {
+      throw aError;
+    },
   });
+
   mc.waitFor(function() done);
 }
 
@@ -155,9 +167,14 @@ function teardownModule(module) {
   let done = false;
   ContactDBA.uninit(function(aResult) {
     assert_equals(aResult, Cr.NS_OK);
-    SQLiteContactStore.uninit(function(aResult) {
-      assert_equals(aResult, Cr.NS_OK);
-      done = true;
+    SQLiteContactStore.uninit({
+      jobSuccess: function(aResult) {
+        assert_equals(aResult, Cr.NS_OK);
+        done = true;
+      },
+      jobError: function(aError) {
+        throw aError;
+      }
     });
   });
   mc.waitFor(function() done);

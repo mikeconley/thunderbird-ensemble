@@ -83,13 +83,16 @@ TBMorkConnector.prototype = {
     }
 
     let outerResult = aResult;
-    q.start(function(aInnerResult) {
-      if (aInnerResult === Cr.NS_OK) {
+    q.start({
+      success: function(aInnerResult) {
         aCallback(outerResult, aTags);
-      } else {
-        aCallback(aInnerResult);
-      }
+      },
+      error: function(aError) {
+        aCallback(aError);
+      },
+      complete: function() {}
     });
+
   },
 
   _processDirectory: function TBMC__processDirectory(aDirectory, aResult,
@@ -97,7 +100,7 @@ TBMorkConnector.prototype = {
     if (!(aDirectory instanceof Ci.nsIAbDirectory)) {
       let e = new Error("_processDirectory was passed something that wasn't "
                         + "an nsIAbDirectory.");
-      aJobFinished(e);
+      aJobFinished.jobError(e);
       return;
     }
 
@@ -107,7 +110,7 @@ TBMorkConnector.prototype = {
     // Same with the OSX address book.
     if (aDirectory instanceof Ci.nsIAbLDAPDirectory ||
         aDirectory.URI.indexOf("moz-abosxdirectory") != -1) {
-      aJobFinished(Cr.NS_OK);
+      aJobFinished.jobSuccess(Cr.NS_OK);
       return;
     }
 
@@ -183,13 +186,15 @@ TBMorkConnector.prototype = {
             fields: aFields,
             meta: aMeta,
           });
-          aJobFinished(Cr.NS_OK);
+          aJobFinished.jobSuccess(Cr.NS_OK);
         });
       });
     }
 
-    q.start(function(aResult) {
-      aJobFinished(aResult);
+    q.start({
+      success: aJobFinished.jobSuccess,
+      error: aJobFinished.jobError,
+      complete: function() {},
     });
 
   },

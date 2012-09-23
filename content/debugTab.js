@@ -107,13 +107,23 @@ let DebugTab = {
   },
 
   _resetDb: function DebugTab__resetDb() {
-    Ensemble.uninit(function(aResult) {
-      // Now delete the database...
-      SQLiteContactStore.destroy();
-      // Now init a new one.
-      Ensemble.init(SQLiteContactStore, function(aResult) {
-        dump("Database reset.");
-      });
+    Ensemble.uninit({
+      jobSuccess: function(aResult) {
+        // Now delete the database...
+        SQLiteContactStore.destroy();
+        // Now init a new one.
+        Ensemble.init(SQLiteContactStore, {
+          jobSuccess: function(aResult) {
+            dump("\nDatabase reset.\n");
+          },
+          jobError: function(aError) {
+            throw aError;
+          }
+        });
+      },
+      jobError: function(aError) {
+        throw aError;
+      }
     });
   },
 
@@ -226,24 +236,25 @@ let DebugTab = {
           let contact = new Contact(record.fields);
           contact.save(null, {
             success: function(aModel) {
-              aJobFinished(Cr.NS_OK);
+              aJobFinished.jobSuccess(Cr.NS_OK);
             },
             error: function(aModel, aMessage) {
-              aJobFinished(aMessage);
+              aJobFinished.jobError(aMessage);
             },
           });
         });
       }
-      q.start(function(aResult) {
-        dump("\n\nDone: " + aResult + "\n");
+      q.start({
+        success: function(aResult) {
+          dump("\nDone!\n");
+        },
+        error: function(aError) {
+          throw aError;
+        },
+        complete: function() {},
       });
     });
   },
-
-  observe: function(aSubject, aTopic, aData) {
-    if (aTopic == "profile-before-change")
-      SQLiteContactStore.uninit();
-  }
 };
 
 window.addEventListener('load', function() {

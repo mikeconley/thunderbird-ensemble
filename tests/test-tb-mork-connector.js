@@ -508,8 +508,13 @@ function call_process_directory_and_wait(aAddressBook) {
   let tags = {};
   let done = false;
 
-  let onFinished = function(aResult) {
-    done = true;
+  let onFinished = {
+    jobSuccess: function(aResult) {
+      done = true;
+    },
+    jobError: function(aError) {
+      throw aError;
+    },
   };
 
   let connector = new TBMorkConnector();

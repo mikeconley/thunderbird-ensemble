@@ -29,7 +29,7 @@ let ContactDBA = {
    * @param aDB the initalized SQLiteContactStore to read from and write to
    * @param aCallback the callback to be fired upon completion.
    */
-  init: function(aDatastore, aCallback) {
+  init: function(aDatastore, aJobFinished) {
     // It's OK for the DBAs to reach into SQLiteContactStore like this -
     // these are expected to be tightly coupled.
     this._datastore = aDatastore;
@@ -69,14 +69,14 @@ let ContactDBA = {
 
           handleError: function(aError) {
             let e = new Error("Could not get MAX(id)! error #: " + aError);
-            aInnerJobFinished(e);
+            aInnerJobFinished.jobError(e);
           },
 
           handleCompletion: function(aReason) {
             if (aReason === kSQLCallbacks.REASON_FINISHED)
-              aInnerJobFinished(Cr.NS_OK);
+              aInnerJobFinished.jobSuccess(Cr.NS_OK);
             else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-              aInnerJobFinished(new Error("Getting MAX(id) was cancelled!"));
+              aInnerJobFinished.jobError(new Error("Getting MAX(id) was cancelled!"));
             }
             // We don't handle errors on completion, only in handleError.
           },
@@ -90,10 +90,14 @@ let ContactDBA = {
 
     q.addJob(function(aJobFinished) {
       this._defineStatements();
-      aJobFinished(Cr.NS_OK);
+      aJobFinished.jobSuccess(Cr.NS_OK);
     }.bind(this));
 
-    q.start(aCallback);
+    q.start({
+      success: aJobFinished.jobSuccess,
+      error: aJobFinished.jobError,
+      complete: function() {},
+    });
   },
 
   /**
@@ -159,15 +163,15 @@ let ContactDBA = {
       statement.executeAsync({
         handleResult: function(aResultSet) {},
         handleError: function(aError) {
-          aJobFinished(new Error("Could not insert contact into contacts "
-                                 + "database. Error: " + aError.message));
+          aJobFinished.jobError(new Error("Could not insert contact into contacts "
+                                          + "database. Error: " + aError.message));
         },
         handleCompletion: function(aReason) {
           if (aReason === kSQLCallbacks.REASON_FINISHED) {
-            aJobFinished(Cr.NS_OK);
+            aJobFinished.jobSuccess(Cr.NS_OK);
             return;
           } else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-            aJobFinished(new Error("Inserting contact was cancelled."));
+            aJobFinished.jobError(new Error("Inserting contact was cancelled."));
           }
         },
       });
@@ -219,8 +223,8 @@ let ContactDBA = {
             bp.bindByName("data3", "");
           } else {
             // Hrm - what is this thing?
-            aJobFinished(new Error("Didn't recognize fieldType " +
-                                   fieldType));
+            aJobFinished.jobError(new Error("Didn't recognize fieldType " +
+                                            fieldType));
             return;
           }
           array.addParams(bp);
@@ -231,15 +235,15 @@ let ContactDBA = {
       statement.executeAsync({
         handleResult: function(aResultSet) {},
         handleError: function(aError) {
-          aJobFinished(new Error("Could not insert row into contacts_data "
-                                 + "database. Error: " + aError.message));
+          aJobFinished.jobError(new Error("Could not insert row into contacts_data "
+                                          + "database. Error: " + aError.message));
         },
         handleCompletion: function(aReason) {
           if (aReason === kSQLCallbacks.REASON_FINISHED) {
-            aJobFinished(Cr.NS_OK);
+            aJobFinished.jobSuccess(Cr.NS_OK);
             return;
           } else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-            aJobFinished(new Error("Inserting contact_data was cancelled."));
+            aJobFinished.jobError(new Error("Inserting contact_data was cancelled."));
           }
         },
       });
@@ -247,18 +251,22 @@ let ContactDBA = {
 
     this._db.beginTransaction();
 
-    q.start(function(aResult) {
-      if (aResult === Cr.NS_OK) {
-        this._db.commitTransaction();
-        this._nextInsertID.contacts++;
-        this._nextInsertID.contact_data = contactDataID;
+    let self = this;
+
+    q.start({
+      success: function(aResult) {
+        self._db.commitTransaction();
+        self._nextInsertID.contacts++;
+        self._nextInsertID.contact_data = contactDataID;
         aContact.id = contactID;
         aOptions.success(aContact);
-      } else {
-        this._db.rollbackTransaction();
+      },
+      error: function(aError) {
+        self._db.rollbackTransaction();
         aOptions.error(aResult);
-      }
-    }.bind(this));
+      },
+      complete: function() {},
+    });
   },
 
   // Statements

@@ -34,7 +34,11 @@ AsyncJobMachine.prototype = {
       let timerEvent = {
         notify: function(aTimer) {
           this.finishedJobs.push(aJobID);
-          aJobFinished(aReturn);
+          if (!(aReturn instanceof Error))
+            aJobFinished.jobSuccess(aReturn);
+          else {
+            aJobFinished.jobError(aReturn);
+          }
         }.bind(this),
       };
       timer.initWithCallback(timerEvent, aDelay,
@@ -43,6 +47,16 @@ AsyncJobMachine.prototype = {
     }.bind(this);
   },
 };
+
+/**
+ * Helper function that simply throws an error if aError is defined.
+ *
+ * @param aError a thing that might be an Error.
+ */
+function throw_error_if_one_exists(aError) {
+  if (aError)
+    throw aError;
+}
 
 /**
  * Test running three async jobs, and make sure that they're completed
@@ -57,18 +71,27 @@ function test_basic_functionality() {
   q.addJob(j.make_async_job(kThirdJob, kJobWait));
 
   let done = false;
+  let error;
 
-  q.start(function(aResult) {
-    assert_equals(aResult, Cr.NS_OK);
-    assert_equals(3, j.finishedJobs.length, "Should have completed 3 jobs.");
-    // Make sure they were completed in order.
-    assert_equals(kFirstJob, j.finishedJobs[0]);
-    assert_equals(kSecondJob, j.finishedJobs[1]);
-    assert_equals(kThirdJob, j.finishedJobs[2]);
-    done = true;
+  q.start({
+    success: function(aResult) {
+      assert_equals(aResult, Cr.NS_OK);
+      assert_equals(3, j.finishedJobs.length, "Should have completed 3 jobs.");
+      // Make sure they were completed in order.
+      assert_equals(kFirstJob, j.finishedJobs[0]);
+      assert_equals(kSecondJob, j.finishedJobs[1]);
+      assert_equals(kThirdJob, j.finishedJobs[2]);
+    },
+    error: function(aError) {
+      error = aError;
+    },
+    complete: function() {
+      done = true;
+    },
   });
 
   mc.waitFor(function() done, "Timed out waiting for jobs to finish!");
+  throw_error_if_one_exists(error);
 }
 
 /**
@@ -87,17 +110,24 @@ function test_error_handling() {
 
   let done = false;
 
-  q.start(function(aResult) {
-    // We should have gotten an error back
-    assert_not_equals(aResult, Cr.NS_OK);
-    assert_true(aResult instanceof Error);
-    assert_equals(kErrorMessage, aResult.message);
-    assert_equals(2, j.finishedJobs.length,
-                  "Should have completed only 2 jobs.");
-    // Make sure they were completed in order.
-    assert_equals(kFirstJob, j.finishedJobs[0]);
-    assert_equals(kSecondJob, j.finishedJobs[1]);
-    done = true;
+  q.start({
+    success: function(aResult) {
+      throw new Error("We should not have finished successfully.");
+    },
+    error: function(aError) {
+      // We should have gotten an error back
+      assert_not_equals(aError, Cr.NS_OK);
+      assert_true(aError instanceof Error);
+      assert_equals(kErrorMessage, aError.message);
+      assert_equals(2, j.finishedJobs.length,
+                    "Should have completed only 2 jobs.");
+      // Make sure they were completed in order.
+      assert_equals(kFirstJob, j.finishedJobs[0]);
+      assert_equals(kSecondJob, j.finishedJobs[1]);
+    },
+    complete: function() {
+      done = true;
+    },
   });
 
   mc.waitFor(function() done, "Timed out waiting for jobs to finish!");
@@ -129,19 +159,25 @@ function test_listeners_on_success() {
 
   let done = false;
 
-  q.start(function(aResult) {
-    assert_equals(aResult, Cr.NS_OK);
-    assert_equals(completed.length, 3,
-                  "Should have reported 3 jobs completed.");
+  q.start({
+    success: function(aResult) {
+      assert_equals(aResult, Cr.NS_OK);
+      assert_equals(completed.length, 3,
+                    "Should have reported 3 jobs completed.");
 
-    for (let i = 0; i < 3; ++i)
-      assert_equals(completed[i], i + 1);
+      for (let i = 0; i < 3; ++i)
+        assert_equals(completed[i], i + 1);
 
-    assert_equals(kFirstJob, started[0]);
-    assert_equals(kSecondJob, started[1]);
-    assert_equals(kThirdJob, started[2]);
-
-    done = true;
+      assert_equals(kFirstJob, started[0]);
+      assert_equals(kSecondJob, started[1]);
+      assert_equals(kThirdJob, started[2]);
+    },
+    error: function(aError) {
+      throw aError;
+    },
+    complete: function() {
+      done = true;
+    },
   });
 
   mc.waitFor(function() done, "Timed out waiting for jobs to finish!");
@@ -158,7 +194,8 @@ function test_listeners_on_error() {
 
   q.addJob(j.make_async_job(kFirstJob, kJobWait), kFirstJob);
   q.addJob(j.make_async_job(kSecondJob, kJobWait), kSecondJob);
-  q.addJob(j.make_async_job(kThirdJob, kJobWait, new Error()), kThirdJob);
+  q.addJob(j.make_async_job(kThirdJob, kJobWait,
+                            new Error("Well hello there")), kThirdJob);
 
   let completed = [];
   let started = [];
@@ -175,21 +212,27 @@ function test_listeners_on_error() {
 
   let done = false;
 
-  q.start(function(aResult) {
-    assert_not_equals(aResult, Cr.NS_OK);
-    assert_true(aResult instanceof Error);
-    assert_equals(completed.length, 2,
-                  "Should have reported 2 jobs completed.");
+  q.start({
+    success: function(aResult) {
+      throw new Error("We should not have ended successfully.");
+    },
+    error: function(aError) {
+      assert_not_equals(aError, Cr.NS_OK);
+      assert_true(aError instanceof Error);
+      assert_equals(completed.length, 2,
+                    "Should have reported 2 jobs completed.");
 
-    for (let i = 0; i < 2; ++i)
-      assert_equals(completed[i], i + 1);
+      for (let i = 0; i < 2; ++i)
+        assert_equals(completed[i], i + 1);
 
-    // Though only 2 jobs completed, 3 jobs were started.
-    assert_equals(kFirstJob, started[0]);
-    assert_equals(kSecondJob, started[1]);
-    assert_equals(kThirdJob, started[2]);
-
-    done = true;
+      // Though only 2 jobs completed, 3 jobs were started.
+      assert_equals(kFirstJob, started[0]);
+      assert_equals(kSecondJob, started[1]);
+      assert_equals(kThirdJob, started[2]);
+    },
+    complete: function() {
+      done = true;
+    },
   });
 
   mc.waitFor(function() done, "Timed out waiting for jobs to finish!");

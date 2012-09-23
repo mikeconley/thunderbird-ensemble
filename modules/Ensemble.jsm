@@ -20,7 +20,7 @@ let Ensemble = {
   _initting: false,
   _datastore: null,
 
-  init: function Ensemble_init(aDatastore, aCallback) {
+  init: function Ensemble_init(aDatastore, aJobFinished) {
     if (this._initted || this._initting)
       return;
 
@@ -33,37 +33,44 @@ let Ensemble = {
     q.addJob(this._datastore.init.bind(this._datastore));
     q.addJob(this._initDBAs.bind(this));
 
-    q.start(function(aResult) {
-      if (aResult === Cr.NS_OK) {
-        this._initting = false;
-        this._initted = true;
+    let self = this;
+    q.start({
+      success: function(aResult) {
+        self._initting = false;
+        self._initted = true;
         Log.info("Startup complete.");
-      } else {
+        aJobFinished.jobSuccess(aResult);
+      },
+      error: function(aError) {
         Log.error("Init failed with message: " + aResult.message);
-        this.uninit();
-      }
-
-      if (aCallback)
-        aCallback(aResult);
-    }.bind(this));
+        self.uninit();
+        aJobFinished.jobError(aError);
+      },
+      complete: function() {},
+    });
   },
 
-  uninit: function Ensemble_uninit(aCallback) {
-    if (!this._initted && !this._initting)
+  uninit: function Ensemble_uninit(aJobFinished) {
+    if (!this._initted && !this._initting) {
+      Log.warn("Attempted to shutdown an uninitted Ensemble.");
+      aJobFinished.jobSuccess(Cr.NS_OK);
       return;
+    }
 
     Log.info("Shutting down.");
-    this._datastore.uninit(function(aResult) {
-      if (aResult === Cr.NS_OK) {
-        this._initted = false;
-        Log.info("Shutdown complete.");
-      } else {
-        Log.error("Uninit failed with message: " + aResult.message);
-      }
 
-      if (aCallback)
-        aCallback(aResult);
-    }.bind(this));
+    let self = this;
+    this._datastore.uninit({
+      jobSuccess: function(aResult) {
+        self._initted = false;
+        Log.info("Shutdown complete.");
+        aJobFinished.jobSuccess(aResult);
+      },
+      jobError: function(aError) {
+        Log.error("Uninit failed with message: " + aResult.message);
+        aJobFinished.jobError(aError);
+      },
+    });
   },
 
   _get3PaneTabmail: function Ensemble__get3Pane() {
@@ -105,7 +112,7 @@ let Ensemble = {
     Log.info("Contact list tab should be open now.");
   },
 
-  _initDBAs: function Ensemble_fillCaches(aOuterFinished) {
+  _initDBAs: function Ensemble_fillCaches(aOuterJobFinished) {
     const kDBAs = [ContactDBA, ContactsDBA];
     let q = new JobQueue();
     let self = this;
@@ -116,7 +123,11 @@ let Ensemble = {
       });
     });
 
-    q.start(aOuterFinished);
+    q.start({
+      success: aOuterJobFinished.jobSuccess,
+      error: aOuterJobFinished.jobError,
+      complete: function() {},
+    });
   },
 
 }

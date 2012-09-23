@@ -14,21 +14,30 @@ let EnsembleInitter = {
 
   init: function() {
     if (!this._initted) {
-      Ensemble.init(SQLiteContactStore, this.onEnsembleInitted.bind(this));
+      let self = this;
+      Ensemble.init(SQLiteContactStore, {
+        jobSuccess: function(aResult) {
+          Services.obs
+                  .addObserver(self, "quit-application-granted",
+                               false);
+        },
+        jobError: function(aError) {
+          self._initted = false;
+        },
+      });
       this._initted = true;
     }
   },
   uninit: function() {
     if (this._initted) {
-      Ensemble.uninit();
+      Ensemble.uninit({
+        jobSuccess: function(aResult) {
+        },
+        jobError: function(aError) {
+          // TODO
+        }
+      });
       Services.obs.removeObserver(this, "quit-application-granted");
-      this._initted = false;
-    }
-  },
-  onEnsembleInitted: function(aResult) {
-    if (aResult == Cr.NS_OK) {
-      Services.obs.addObserver(this, "quit-application-granted", false);
-    } else {
       this._initted = false;
     }
   },

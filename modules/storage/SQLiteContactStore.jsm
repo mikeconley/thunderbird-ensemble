@@ -29,11 +29,12 @@ let SQLiteContactStore = {
   _initting: false,
   _db: null,
 
-  init: function SQLiteCS_init(aCallback) {
+  init: function SQLiteCS_init(aJobFinished) {
     // First thing's first - let's make sure we're not re-entering.
     if (this._initted || this._initting) {
       Log.warn("Initialize called on SQLiteContactStore that was already"
                + " initializing or initialized.");
+      aJobFinished.jobSuccess(Cr.NS_OK);
       return;
     }
 
@@ -53,7 +54,8 @@ let SQLiteContactStore = {
     if (!db.connectionReady) {
       let err = new Error("Could not establish connection to contacts.sqlite");
       err.code = Common.Errors.NO_CONNECTION;
-      throw err;
+      aJobFinished.jobError(err);
+      return;
     }
 
     // Not sure if these are smart numbers or not. Copied from the Thunderbird
@@ -71,7 +73,7 @@ let SQLiteContactStore = {
       // the caller that something went wrong.
       this._initting = false;
       this._initted = false;
-      aCallback(aError);
+      aJobFinished.jobError(aError);
     }.bind(this);
 
 
@@ -95,20 +97,25 @@ let SQLiteContactStore = {
         Log.info(kDbFile + ' is up to date and requires no migration. Nice!');
       }
 
-      q.start(function(aResult) {
-        if (aResult === Cr.NS_OK) {
+      let self = this;
+
+      q.start({
+        success: function(aResult) {
           // Hooray! We're set up.
           Log.info("SQLiteContactStore initialized.");
-          this._initting = false;
-          this._initted = true;
-          aCallback(aResult);
-        } else {
+          self._initting = false;
+          self._initted = true;
+          aJobFinished.jobSuccess(aResult);
+        },
+        error: function(aError) {
           Log.error("Initialization failed with status: " + aResult);
-          this.uninit(function(aStatus) {
-            failed(aResult)
+          self.uninit({
+            aJobSuccess: failed,
+            aJobError: failed,
           });
-        }
-      }.bind(this));
+        },
+        complete: function() {},
+      });
 
     } catch(aError) {
       // Something went really wrong. Uninit and return an error.
@@ -118,7 +125,7 @@ let SQLiteContactStore = {
     }
   },
 
-  uninit: function SQLiteCS_uninit(aCallback) {
+  uninit: function SQLiteCS_uninit(aJobFinished) {
     // Uninit'ing - we're either fully initted, or we failed during the initting
     // stage and are trying to clean up.
     if (!this._initted && !this._initting) {
@@ -137,8 +144,8 @@ let SQLiteContactStore = {
           this._initting = false;
           this._initted = false;
           // If we were passed a callback, fire back the all green.
-          if (aCallback) {
-            aCallback(Cr.NS_OK);
+          if (aJobFinished) {
+            aJobFinished.jobSuccess(Cr.NS_OK);
           }
         }.bind(this)
       });
@@ -161,7 +168,7 @@ let SQLiteContactStore = {
     return (aDbVersion < kDbCurrentVersion);
   },
 
-  _migrate: function SQLiteCS__migrate(aDb, aCallback) {
+  _migrate: function SQLiteCS__migrate(aDb, aJobFinished) {
     let dbVersion = aDb.schemaVersion;
 
     // Preliminaries - make sure we were passed a database in a sane state.
@@ -171,13 +178,15 @@ let SQLiteContactStore = {
                + ' and lower.');
       // It's weird that we got here, but we should still be OK because we
       // can grok this db version.
-      aCallback(Cr.NS_OK);
+      aJobFinished.jobSuccess(Cr.NS_OK);
     }
 
     if (dbVersion > kDbCurrentVersion) {
       Log.error('The database appears to be from the future... cannot deal with'
                 + ' it. Bailing.');
-      aCallback(Cr.NS_ERROR_FAILURE);
+      aJobFinished.jobError(
+        new Error("The database version appears to be from the future.")
+      );
     }
 
     // Ok, so dbVersion < kDbCurrentVersion. That's good.
@@ -278,8 +287,10 @@ let SQLiteContactStore = {
         aDb.schemaVersion = kDbCurrentVersion;
         Log.info("Successfully migrated to schema version "
                  + kDbCurrentVersion);
+        aJobFinished.jobSuccess(aResult);
+      } else {
+        aJobFinished.jobError(aResult);
       }
-      aCallback(aResult);
     });
   },
 
