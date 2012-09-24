@@ -2,12 +2,23 @@
 
   <script type="application/x-javascript" src="messenger-overlay.js" />
 
+  <commandset id="mailCommands">
+    <command id="cmd_openContacts" oncommand="Ensemble.openContactsTab();" />
+  </commandset>
+
   <toolbarpalette id="MailToolbarPalette">
     <toolbarbutton id="button-open-contacts"
-                   type="menu-button"
+                   type="button"
                    class="toolbarbutton-1"
                    label="Open Contacts"
                    tooltiptext="Open Contacts"
+                   command="cmd_openContacts" />
+    <toolbarbutton id="button-open-contacts-debug"
+                   type="button"
+                   class="toolbarbutton-1"
+                   label="Open Contacts Debug"
+                   tooltiptext="Open Contacts Debug"
                    oncommand="Ensemble.openDebugTab();" />
   </toolbarpalette>
+
 </overlay>

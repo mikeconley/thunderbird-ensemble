@@ -105,9 +105,7 @@ let Ensemble = {
 
     let tabmail = this._get3PaneTabmail();
     if (tabmail) {
-      tabmail.openTab("chromeTab", {
-        chromePage: "chrome://ensemble/content/contactsTab.xhtml",
-      });
+      tabmail.openTab("contactsTab", {});
     }
     Log.info("Contact list tab should be open now.");
   },
