@@ -63,17 +63,6 @@ let kTestFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
-  popularity: 250,
-  defaultEmail: {
-    type: 'Work',
-    value: 'house@example.com',
-  },
-  defaultImpp: {
-    type: 'ICQ',
-    value: '15215125',
-  },
-  defaultTel: null,
-  defaultPhoto: null,
 };
 
 let kResultingFields = {
@@ -130,18 +119,6 @@ let kResultingFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
-  popularity: 250,
-
-  defaultEmail: {
-    type: ['Work'],
-    value: 'house@example.com',
-  },
-  defaultImpp: {
-    type: ['ICQ'],
-    value: '15215125',
-  },
-  defaultTel: null,
-  defaultPhoto: null,
 };
 
 const kTestFields2 = {
@@ -207,18 +184,18 @@ const kResultingDiff = {
     honorificSuffix: ['Junior'],
     nickname: ['Hugh'],
     email: [{
-      type: 'Work',
+      type: ['Work'],
       value: 'house@example.com',
     }, {
-      type: 'Home',
+      type: ['Home'],
       value: 'houseOther@example.com',
     }],
     url: [{
-      type: 'Homepage',
+      type: ['Homepage'],
       value: 'https://www.example.com'
     }],
     adr: [{
-      type: 'Work',
+      type: ['Work'],
       streetAddress: '123 Fake St.',
       locality: 'Toronto',
       region: 'Ontario',
@@ -226,10 +203,10 @@ const kResultingDiff = {
       countryName: 'Canada',
     }],
     tel: [{
-      type: 'Work',
+      type: ['Work'],
       value: '5553125123'
     }, {
-      type: 'Cell',
+      type: ['Cell'],
       value: '5124241521'
     }],
     org: ['Princeton-Plainsboro Teaching Hospital'],
@@ -245,13 +222,13 @@ const kResultingDiff = {
     familyName: ['Wilson'],
     nickname: ['Robert'],
     email: [{
-      type: 'Work',
+      type: ['Work'],
       value: 'wilson@example.com',
     }, {
-      type: 'Copy',
+      type: ['Copy'],
       value: 'house@example.com',
     }, {
-      type: 'Home',
+      type: ['Home'],
       value: 'houseOther@example.com',
     }],
     photo: ['somedata'],
@@ -260,15 +237,6 @@ const kResultingDiff = {
     bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
     sex: 'Male',
     genderIdentity: 'Male',
-    popularity: 250,
-    defaultEmail: {
-      type: 'Work',
-      value: 'house@example.com',
-    },
-    defaultImpp: {
-      type: 'ICQ',
-      value: '15215125',
-    },
   }
 };
 
@@ -281,16 +249,6 @@ function assert_items_equal(aItemA, aItemB, aMsg) {
 
   if (!_.safeIsEqual(aItemA, aItemB))
     throw new Error(aMsg);
-}
-
-function assert_serializations_equal(aObjA, aObjB, aMsg) {
-  assert_items_equal(JSON.parse(JSON.stringify(aObjA)),
-                     JSON.parse(JSON.stringify(aObjB)),
-                     aMsg);
-}
-
-function is_typed_default(aFieldName) {
-  return (BaseRecordsCommon.TypedDefaultFields.indexOf(aFieldName) != -1);
 }
 
 function setupModule(module) {
@@ -306,13 +264,17 @@ function test_can_access_fields_object() {
   assert_not_equals(r.attributes, null);
 
   for (let fieldName in kResultingFields) {
-    assert_serializations_equal(r.get(fieldName), kResultingFields[fieldName])
+    let item = r.get(fieldName);
+    if (BaseRecordConsts.TypedArrayFields.indexOf(fieldName) != -1)
+      item = item.toJSON();
+
+    assert_items_equal(item, kResultingFields[fieldName])
   }
 }
 
 
 // Diff tests
-function xtest_can_produce_simple_diff_with_adds() {
+function test_can_produce_simple_diff_with_adds() {
   let a = new BaseRecord(kTestFields2);
 
   let b = new BaseRecord({
@@ -324,18 +286,18 @@ function xtest_can_produce_simple_diff_with_adds() {
       givenName: ['Archibald'],
       familyName: ['Haddock'],
       tel: [{
-        type: 'Home',
+        type: ['Home'],
         value: '555-125-1512'
       }, {
-        type: 'Cell',
+        type: ['Cell'],
         value: '555-555-1555'
       }],
       email: [{
-        type: 'Work',
+        type: ['Work'],
         value: 'captain.haddock@example.com'
       }],
       adr: [{
-        type: 'Work',
+        type: ['Work'],
         streetAddress: '123 Fake St.',
         locality: 'Toronto',
         region: 'Ontario',
@@ -343,7 +305,7 @@ function xtest_can_produce_simple_diff_with_adds() {
         countryName: 'Canada',
       }],
       impp: [{
-        type: 'ICQ',
+        type: ['ICQ'],
         value: '15215125'
       }],
     },
@@ -356,7 +318,7 @@ function xtest_can_produce_simple_diff_with_adds() {
   assert_items_equal(diff, kExpectedDiff);
 }
 
-function xtest_can_produce_simple_diff_with_removes() {
+function test_can_produce_simple_diff_with_removes() {
   let a = new BaseRecord(kTestFields2);
 
   let b = new BaseRecord({
@@ -369,18 +331,18 @@ function xtest_can_produce_simple_diff_with_removes() {
       givenName: ['Archibald'],
       familyName: ['Haddock'],
       tel: [{
-        type: 'Home',
+        type: ['Home'],
         value: '555-125-1512'
       }, {
-        type: 'Cell',
+        type: ['Cell'],
         value: '555-555-1555'
       }],
       email: [{
-        type: 'Work',
+        type: ['Work'],
         value: 'captain.haddock@example.com'
       }],
       adr: [{
-        type: 'Work',
+        type: ['Work'],
         streetAddress: '123 Fake St.',
         locality: 'Toronto',
         region: 'Ontario',
@@ -388,7 +350,7 @@ function xtest_can_produce_simple_diff_with_removes() {
         countryName: 'Canada',
       }],
       impp: [{
-        type: 'ICQ',
+        type: ['ICQ'],
         value: '15215125'
       }],
     },
@@ -400,7 +362,7 @@ function xtest_can_produce_simple_diff_with_removes() {
   assert_items_equal(diff, kExpectedDiff);
 }
 
-function xtest_can_produce_simple_diff_with_changes() {
+function test_can_produce_simple_diff_with_changes() {
   let a = new BaseRecord({
     genderIdentity: 'Male',
     sex: 'Female',
@@ -430,25 +392,25 @@ function xtest_can_produce_simple_diff_with_changes() {
   assert_items_equal(diff, kExpectedDiff);
 }
 
-function xtest_can_produce_diff_mixed() {
+function test_can_produce_diff_mixed() {
   let a = new BaseRecord(kTestFields);
   let b = new BaseRecord(kFieldsForDiff);
 
   let diff = a.diff(b);
 
-  assert_serializations_equal(diff, kResultingDiff);
+  assert_items_equal(diff, kResultingDiff);
 }
 
 
-function xtest_can_apply_diff() {
+function test_can_apply_diff() {
   let house = new BaseRecord(kTestFields);
   let wilson = new BaseRecord(kFieldsForDiff);
   wilson.applyDiff(kResultingDiff);
-  assert_serializations_equal(wilson, house);
+  assert_items_equal(wilson.toJSON(), house.toJSON());
 }
 
 // Merging tests
-function xtest_can_do_simple_merge() {
+function test_can_do_simple_merge() {
   const kExpectedMerge = {
     name: ['Captain Haddock', 'Wilson'],
     honorificPrefix: ['Dr.'],
@@ -458,23 +420,23 @@ function xtest_can_do_simple_merge() {
     honorificSuffix: [],
     nickname: ['Robert'],
     email: [{
-      type: 'Work',
+      type: ['Work'],
       value: 'captain.haddock@example.com',
     }, {
-      type: 'Work',
+      type: ['Work'],
       value: 'wilson@example.com',
     }, {
-      type: 'Copy',
+      type: ['Copy'],
       value: 'house@example.com',
     }, {
-      type: 'Home',
+      type: ['Home'],
       value: 'houseOther@example.com',
     }],
     photo: ['somedata'],
     url: [],
     category: [],
     adr: [{
-      type: 'Work',
+      type: ['Work'],
       streetAddress: '123 Fake St.',
       locality: 'Toronto',
       region: 'Ontario',
@@ -482,14 +444,14 @@ function xtest_can_do_simple_merge() {
       countryName: 'Canada',
     }],
     tel: [{
-      type: 'Home',
+      type: ['Home'],
       value: '555-125-1512',
     }, {
-      type: 'Cell',
+      type: ['Cell'],
       value: '555-555-1555',
     }],
     impp: [{
-      type: 'ICQ',
+      type: ['ICQ'],
       value: '15215125'
     }],
     other: [],
@@ -501,16 +463,11 @@ function xtest_can_do_simple_merge() {
     anniversary: null,
     sex: null,
     genderIdentity: null,
-    popularity: 0,
-    defaultEmail: null,
-    defaultImpp: null,
-    defaultTel: null,
-    defaultPhoto: null,
   }
 
   let haddock = new BaseRecord(kTestFields2);
   let wilson = new BaseRecord(kFieldsForDiff);
-  haddock.merge(wilson);
 
-  assert_items_equal(JSON.parse(JSON.stringify(haddock)), kExpectedMerge);
+  haddock.merge(wilson);
+  assert_items_equal(haddock.toJSON(), kExpectedMerge);
 }

@@ -4,7 +4,7 @@
 
 const Cu = Components.utils;
 const EXPORTED_SYMBOLS = ["BaseRecord",
-                          "BaseRecordsCommon"];
+                          "BaseRecordConsts"];
 
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
@@ -14,36 +14,24 @@ const kBasicFields = ['name', 'honorificPrefix', 'givenName',
                       'nickname', 'photo', 'category', 'org',
                       'jobTitle', 'department', 'note'];
 
-const kTypedArrayFields = ['tel', 'email', 'impp', 'url', 'other'];
-const kAddressFields = ['adr'];
+const kTypedArrayFields = ['tel', 'email', 'impp', 'url', 'other', 'adr'];
+const kAddressField = 'adr';
 const kDateFields = ['bday', 'anniversary'];
 
-const kArrayFields = kBasicFields.concat(kTypedArrayFields)
-                                 .concat(kAddressFields);
+const kArrayFields = kBasicFields.concat(kTypedArrayFields);
+kArrayFields.push(kAddressField);
 
 const kStringFields = ['sex', 'genderIdentity'].concat(kDateFields);
-const kDefaultPrefix = "default";
-const kTypedDefaultFields = ['defaultEmail', 'defaultImpp', 'defaultTel'];
-const kTypedFields = kTypedArrayFields.concat(kTypedDefaultFields);
-const kUntypedDefaultFields = ['defaultPhoto'];
-const kDefaultFields = kTypedDefaultFields.concat(kUntypedDefaultFields);
-const kIntFields = ['popularity'];
-const kAllFields = kArrayFields.concat(kStringFields)
-                               .concat(kIntFields)
-                               .concat(kDefaultFields);
+const kAllFields = kArrayFields.concat(kStringFields);
+
+const BaseRecordConsts = {
+  TypedArrayFields: kTypedArrayFields
+};
 
 let TypedValue = Backbone.Model.extend({
   defaults: {
     type: [],
     value: "",
-  },
-
-  constructor: function(aAttributes) {
-    if (!aAttributes || _.isString(aAttributes)) {
-      aAttributes = {type: [], value: aAttributes};
-    }
-
-    return Backbone.Model.prototype.constructor.call(this, aAttributes);
   },
 
   set: function(aAttributes, aOptions) {
@@ -63,10 +51,26 @@ let TypedValue = Backbone.Model.extend({
   },
 });
 
+let TypedAddress = TypedValue.extend({
+  defaults: {
+    type: [],
+    streetAddress: "",
+    locality: "",
+    region: "",
+    postalCode: "",
+    countryName: ""
+  },
+});
 
-let BaseRecordsCommon = {
-  TypedDefaultFields: kTypedDefaultFields,
-};
+let TypedCollection = Backbone.Collection.extend({
+  model: TypedValue,
+  toJSON: function() {
+    if (!this.models.length) {
+      return [];
+    }
+    return [obj.toJSON() for each (obj in this.models)];
+  }
+});
 
 let BaseRecord = Backbone.Model.extend({
 
@@ -79,15 +83,15 @@ let BaseRecord = Backbone.Model.extend({
       familyName: [],
       honorificSuffix: [],
       nickname: [],
-      email: [],
+      email: new TypedCollection(),
       photo: [],
-      url: [],
+      url: new TypedCollection(),
       category: [],
-      adr: [],
-      tel: [],
-      impp: [],
+      adr: new TypedCollection(),
+      tel: new TypedCollection(),
+      impp: new TypedCollection(),
       org: [],
-      other: [],
+      other: new TypedCollection(),
       jobTitle: [],
       department: [],
       bday: null,
@@ -95,44 +99,7 @@ let BaseRecord = Backbone.Model.extend({
       anniversary: null,
       sex: null,
       genderIdentity: null,
-      popularity: 0,
-      defaultEmail: null,
-      defaultImpp: null,
-      defaultTel: null,
-      defaultPhoto: null,
     };
-  },
-
-  _prepareField: function(aKey, aValue) {
-    if (kTypedArrayFields.indexOf(aKey) != -1) {
-      if (Array.isArray(aValue))
-        aValue = _.map(aValue, function(aTypedValue) {
-          return new TypedValue(aTypedValue);
-        });
-      else
-        aValue = new TypedValue(aValue);
-    }
-    if (kAddressFields.indexOf(aKey) != -1) {
-      if (Array.isArray(aValue)) {
-        aValue = _.map(aValue, function(aTypedAddress) {
-          aTypedAddress.type = new TypedValue(aTypedAddress.type);
-          return aTypedAddress;
-        });
-      }
-      else {
-        aValue.type = new TypedValue(aValue.type);
-      }
-    }
-
-    if (kArrayFields.indexOf(aKey) != -1 && !Array.isArray(aValue)) {
-      return [aValue];
-    }
-    else if (kDateFields.indexOf(aKey) != -1) {
-      return (aValue !== null && aValue !== undefined)
-             ? new Date(aValue).toJSON()
-             : null;
-    }
-    return aValue;
   },
 
   set: function(aAttributes, aOptions) {
@@ -151,6 +118,60 @@ let BaseRecord = Backbone.Model.extend({
     return Backbone.Model.prototype.set.call(this, wrapped, aOptions);
   },
 
+  _prepareField: function(aKey, aValue) {
+    // Are we dealing with a typed array field?
+    if (kTypedArrayFields.indexOf(aKey) != -1) {
+      if (aValue instanceof TypedCollection)
+        return aValue;
+      // If we didn't get an array, wrap the item in an array.
+      if (!Array.isArray(aValue))
+        aValue = [aValue];
+      // Go through each item, convert it to a TypedValue, and then dump them
+      // into a TypedCollection. We special-case address fields, and return
+      // a collection of TypedAddress's instead.
+      return new TypedCollection(_.map(aValue, function(aTypedValue) {
+        return (aKey == kAddressField) ? new TypedAddress(aTypedValue)
+                                       : new TypedValue(aTypedValue);
+      }));
+    }
+
+    // If we've gotten here, and we're still dealing with an "array field",
+    // that means we're dealing with one of the string lists, like names.
+    // If it's not already wrapped in array, go ahead and do that.
+    if (kArrayFields.indexOf(aKey) != -1 && !Array.isArray(aValue)) {
+      return aValue !== undefined ? [aValue] : [];
+    }
+
+    // Or if we have a Date, convert that to a JSON string representation
+    // of a Date for the value.
+    if (kDateFields.indexOf(aKey) != -1) {
+      return (aValue !== null && aValue !== undefined)
+             ? new Date(aValue).toJSON()
+             : null;
+    }
+
+    // If all else fails, just use the original value.
+    return aValue;
+  },
+
+  toJSON: function() {
+    let obj = Backbone.Model.prototype.toJSON.call(this);
+
+    for (let key of kArrayFields) {
+      if (kTypedArrayFields.indexOf(key) != -1) {
+        let item = this.get(key);
+        if (item) {
+          obj[key] = item.toJSON();
+        }
+      }
+
+      if (obj[key] && obj[key].hasOwnProperty("changes"))
+        delete obj[key].changes;
+    }
+
+    return obj;
+  },
+
   /**
    * Construct and return a diff between this BaseRecord and aBaseRecord.
    * The resulting diff, if applied to aBaseRecord, will result in this
@@ -162,13 +183,16 @@ let BaseRecord = Backbone.Model.extend({
    * @param aBaseRecord the other BaseRecord to diff against.
    */
   diff: function BaseRecord_diff(aBaseRecord) {
+    let otherRecord = aBaseRecord.toJSON();
+    let selfRecord = this.toJSON();
+
     let added = {};
     let removed = {};
     let changed = {};
 
     for each (let fieldName in kArrayFields) {
-      let result = _.arrayDifference(aBaseRecord.get(fieldName),
-                                     this.get(fieldName));
+      let result = _.arrayDifference(otherRecord[fieldName],
+                                     selfRecord[fieldName]);
       if (result.added.length > 0)
         added[fieldName] = result.added;
       if (result.removed.length > 0)
@@ -176,18 +200,8 @@ let BaseRecord = Backbone.Model.extend({
     }
 
     for each (let fieldName in kStringFields) {
-      if (this.get(fieldName) != aBaseRecord.get(fieldName))
-        changed[fieldName] = this.get(fieldName);
-    }
-
-    for each (let fieldName in kIntFields) {
-      if (this.get(fieldName) != aBaseRecord.get(fieldName))
-        changed[fieldName] = this.get(fieldName);
-    }
-
-    for each (let defaultField in kDefaultFields) {
-      if (!_.safeIsEqual(this.get(defaultField), aBaseRecord.get(defaultField)))
-        changed[defaultField] = this.get(defaultField);
+      if (selfRecord[fieldName] != otherRecord[fieldName])
+        changed[fieldName] = selfRecord[fieldName];
     }
 
     return {
@@ -257,7 +271,6 @@ let BaseRecord = Backbone.Model.extend({
    *     bday: '2012-07-13T20:44:16.028Z',
    *     sex: 'Male',
    *     genderIdentity: 'Male',
-   *     popularity: 5,
    *     defaultEmail: {
    *       type: 'Work',
    *       address: 'house@example.com',
@@ -279,18 +292,30 @@ let BaseRecord = Backbone.Model.extend({
 
     // The changed fields are easy, so let's take care of those first.
     for (let field in aDiff.changed) {
-      this.set(field, _.clone(aDiff.changed[field]), aOptions);
+      this.set(field, aDiff.changed[field]);
     }
 
     // Now what was removed?
-    for (let field in aDiff.removed)
-      this.set(field, _.objDifference(this.get(field),
-                                      aDiff.removed[field]), aOptions);
+    let recordObj = this.toJSON();
+    for (let field in aDiff.removed) {
+      if (recordObj[field]) {
+        this.set(field, _.objDifference(recordObj[field],
+                                        aDiff.removed[field]));
+      }
+    }
+
+    // Update the record, since we may have just altered it.
+    recordObj = this.toJSON();
 
     // Finally, what was added?
-    for (let field in aDiff.added)
-      this.set(field, _.objUnion(this.get(field),
-                                 aDiff.added[field]), aOptions);
+    for (let field in aDiff.added) {
+      if (recordObj[field]) {
+        this.set(field, _.objUnion(this.toJSON()[field],
+                                   aDiff.added[field]));
+      } else {
+        this.set(field, aDiff.added[field]);
+      }
+    }
   },
 
   /**
@@ -324,5 +349,4 @@ let BaseRecord = Backbone.Model.extend({
 
     this.applyDiff(diff);
   },
-
 });

@@ -63,17 +63,6 @@ let kTestFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
-  popularity: 250,
-  defaultEmail: {
-    type: 'Work',
-    value: 'house@example.com',
-  },
-  defaultImpp: {
-    type: 'ICQ',
-    value: '15215125',
-  },
-  defaultTel: null,
-  defaultPhoto: null,
 };
 
 let kResultingFields = {
@@ -85,21 +74,21 @@ let kResultingFields = {
   honorificSuffix: ['Junior'],
   nickname: ['Hugh'],
   email: [{
-    type: 'Work',
+    type: ['Work'],
     value: 'house@example.com',
   }, {
-    type: 'Home',
+    type: ['Home'],
     value: 'houseOther@example.com'
   }],
 
   photo: [],
   url: [{
-    type: 'Homepage',
+    type: ['Homepage'],
     value: 'https://www.example.com'
   }],
   category: [],
   adr: [{
-    type: 'Work',
+    type: ['Work'],
     streetAddress: '123 Fake St.',
     locality: 'Toronto',
     region: 'Ontario',
@@ -108,15 +97,15 @@ let kResultingFields = {
   }],
 
   tel: [{
-    type: 'Work',
+    type: ['Work'],
     value: '5553125123'
   }, {
-    type: 'Cell',
+    type: ['Cell'],
     value: '5124241521'
   }],
 
   impp: [{
-    type: 'ICQ',
+    type: ['ICQ'],
     value: '15215125'
   }],
 
@@ -130,18 +119,6 @@ let kResultingFields = {
   anniversary: null,
   sex: 'Male',
   genderIdentity: 'Male',
-  popularity: 250,
-
-  defaultEmail: {
-    type: 'Work',
-    value: 'house@example.com',
-  },
-  defaultImpp: {
-    type: 'ICQ',
-    value: '15215125',
-  },
-  defaultTel: null,
-  defaultPhoto: null,
 };
 
 const kTestFields2 = {
@@ -207,18 +184,18 @@ const kResultingDiff = {
     honorificSuffix: ['Junior'],
     nickname: ['Hugh'],
     email: [{
-      type: 'Work',
+      type: ['Work'],
       value: 'house@example.com',
     }, {
-      type: 'Home',
+      type: ['Home'],
       value: 'houseOther@example.com',
     }],
     url: [{
-      type: 'Homepage',
+      type: ['Homepage'],
       value: 'https://www.example.com'
     }],
     adr: [{
-      type: 'Work',
+      type: ['Work'],
       streetAddress: '123 Fake St.',
       locality: 'Toronto',
       region: 'Ontario',
@@ -226,10 +203,10 @@ const kResultingDiff = {
       countryName: 'Canada',
     }],
     tel: [{
-      type: 'Work',
+      type: ['Work'],
       value: '5553125123'
     }, {
-      type: 'Cell',
+      type: ['Cell'],
       value: '5124241521'
     }],
     org: ['Princeton-Plainsboro Teaching Hospital'],
@@ -245,13 +222,13 @@ const kResultingDiff = {
     familyName: ['Wilson'],
     nickname: ['Robert'],
     email: [{
-      type: 'Work',
+      type: ['Work'],
       value: 'wilson@example.com',
     }, {
-      type: 'Copy',
+      type: ['Copy'],
       value: 'house@example.com',
     }, {
-      type: 'Home',
+      type: ['Home'],
       value: 'houseOther@example.com',
     }],
     photo: ['somedata'],
@@ -260,15 +237,6 @@ const kResultingDiff = {
     bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
     sex: 'Male',
     genderIdentity: 'Male',
-    popularity: 250,
-    defaultEmail: {
-      type: 'Work',
-      value: 'house@example.com',
-    },
-    defaultImpp: {
-      type: 'ICQ',
-      value: '15215125',
-    },
   }
 };
 
@@ -283,331 +251,19 @@ function assert_items_equal(aItemA, aItemB, aMsg) {
     throw new Error(aMsg);
 }
 
-function assert_serializations_equal(aObjA, aObjB, aMsg) {
-  assert_items_equal(JSON.parse(JSON.stringify(aObjA)),
-                     JSON.parse(JSON.stringify(aObjB)),
-                     aMsg);
-}
-
-function is_typed_default(aFieldName) {
-  return (ContactsCommon.TypedDefaultFields.indexOf(aFieldName) != -1);
-}
-
 function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
 }
 
-/**
- * Test that we can access fields object correctly after passing in an
- * appropriately formed fields object on construction.
- */
-function test_can_access_fields_object() {
-  let r = new Contact(kTestFields);
-  assert_not_equals(r.attributes, null);
-
-  for (let fieldName in kResultingFields) {
-    if (is_typed_default(fieldName))
-      assert_serializations_equal(r.get(fieldName), kResultingFields[fieldName])
-    else {
-      assert_items_equal(r.get(fieldName), kResultingFields[fieldName],
-                  "Field " + fieldName + " not equal: " + JSON.stringify(r.attributes[fieldName])
-                  + " -- "
-                  + JSON.stringify(kResultingFields[fieldName]));
-    }
-  }
+function test_popularity_default_set() {
+  let contact = new Contact(kTestFields);
+  assert_equals(contact.get("popularity"), 0, "Popularity should default to 0");
 }
 
-
-// Diff tests
-function test_can_produce_simple_diff_with_adds() {
-  let a = new Contact(kTestFields2);
-
-  let b = new Contact({
-    name: 'Captain Haddock',
-  });
-
-  const kExpectedDiff = {
-    added: {
-      givenName: ['Archibald'],
-      familyName: ['Haddock'],
-      tel: [{
-        type: 'Home',
-        value: '555-125-1512'
-      }, {
-        type: 'Cell',
-        value: '555-555-1555'
-      }],
-      email: [{
-        type: 'Work',
-        value: 'captain.haddock@example.com'
-      }],
-      adr: [{
-        type: 'Work',
-        streetAddress: '123 Fake St.',
-        locality: 'Toronto',
-        region: 'Ontario',
-        postalCode: 'L5T2R1',
-        countryName: 'Canada',
-      }],
-      impp: [{
-        type: 'ICQ',
-        value: '15215125'
-      }],
-    },
-    removed: {},
-    changed: {},
-  };
-
-  let diff = a.diff(b);
-
-  assert_items_equal(diff, kExpectedDiff);
-}
-
-function test_can_produce_simple_diff_with_removes() {
-  let a = new Contact(kTestFields2);
-
-  let b = new Contact({
-    name: 'Captain Haddock',
-  });
-
-  const kExpectedDiff = {
-    added: {},
-    removed: {
-      givenName: ['Archibald'],
-      familyName: ['Haddock'],
-      tel: [{
-        type: 'Home',
-        value: '555-125-1512'
-      }, {
-        type: 'Cell',
-        value: '555-555-1555'
-      }],
-      email: [{
-        type: 'Work',
-        value: 'captain.haddock@example.com'
-      }],
-      adr: [{
-        type: 'Work',
-        streetAddress: '123 Fake St.',
-        locality: 'Toronto',
-        region: 'Ontario',
-        postalCode: 'L5T2R1',
-        countryName: 'Canada',
-      }],
-      impp: [{
-        type: 'ICQ',
-        value: '15215125'
-      }],
-    },
-    changed: {},
-  };
-
-  let diff = b.diff(a);
-
-  assert_items_equal(diff, kExpectedDiff);
-}
-
-function test_can_produce_simple_diff_with_changes() {
-  let a = new Contact({
-    genderIdentity: 'Male',
-    sex: 'Female',
-    bday: 'Sun Apr 13 1980 00:00:00 GMT-0500 (EST)',
-    anniversary: 'Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)',
-  });
-
-  let b = new Contact({
-    sex: 'Male',
-    genderIdentity: 'Female',
-    anniversary: 'Sun Apr 13 1980 00:00:00 GMT-0500 (EST)',
-  });
-
-  const kExpectedDiff = {
-    added: {},
-    removed: {},
-    changed: {
-      sex: 'Female',
-      genderIdentity: 'Male',
-      bday: new Date('Sun Apr 13 1980 00:00:00 GMT-0500 (EST)').toJSON(),
-      anniversary: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
-    },
-  };
-
-  let diff = a.diff(b);
-
-  assert_items_equal(diff, kExpectedDiff);
-}
-
-function test_can_produce_diff_mixed() {
-  let a = new Contact(kTestFields);
-  let b = new Contact(kFieldsForDiff);
-
-  let diff = a.diff(b);
-
-  assert_serializations_equal(diff, kResultingDiff);
-}
-
-
-function test_can_apply_diff() {
+function test_apply_diff_returns_contact() {
   let house = new Contact(kTestFields);
   let wilson = new Contact(kFieldsForDiff);
+
   wilson.applyDiff(kResultingDiff);
-  assert_serializations_equal(wilson, house);
-}
-
-// Merging tests
-function test_can_do_simple_merge() {
-  const kExpectedMerge = {
-    name: ['Captain Haddock', 'Wilson'],
-    honorificPrefix: ['Dr.'],
-    givenName: ['Archibald', 'James'],
-    additionalName: ['Coleman', 'Ryan'],
-    familyName: ['Haddock', 'Wilson'],
-    honorificSuffix: [],
-    nickname: ['Robert'],
-    email: [{
-      type: 'Work',
-      value: 'captain.haddock@example.com',
-    }, {
-      type: 'Work',
-      value: 'wilson@example.com',
-    }, {
-      type: 'Copy',
-      value: 'house@example.com',
-    }, {
-      type: 'Home',
-      value: 'houseOther@example.com',
-    }],
-    photo: ['somedata'],
-    url: [],
-    category: [],
-    adr: [{
-      type: 'Work',
-      streetAddress: '123 Fake St.',
-      locality: 'Toronto',
-      region: 'Ontario',
-      postalCode: 'L5T2R1',
-      countryName: 'Canada',
-    }],
-    tel: [{
-      type: 'Home',
-      value: '555-125-1512',
-    }, {
-      type: 'Cell',
-      value: '555-555-1555',
-    }],
-    impp: [{
-      type: 'ICQ',
-      value: '15215125'
-    }],
-    other: [],
-    org: [],
-    jobTitle: [],
-    department: [],
-    bday: new Date('Fri Jul 13 2012 15:13:53 GMT-0400 (EDT)').toJSON(),
-    note: [],
-    anniversary: null,
-    sex: null,
-    genderIdentity: null,
-    popularity: 0,
-    defaultEmail: null,
-    defaultImpp: null,
-    defaultTel: null,
-    defaultPhoto: null,
-  }
-
-  let haddock = new Contact(kTestFields2);
-  let wilson = new Contact(kFieldsForDiff);
-  haddock.merge(wilson);
-
-  assert_items_equal(JSON.parse(JSON.stringify(haddock)), kExpectedMerge);
-}
-
-// Database Abstraction tests
-
-/**
- * Test that when we save a contact, that the DBA receives the right
- * method and model attributes in the handleSync function.
- */
-function test_saving_contact() {
-  let done = false;
-  let contact = new Contact(kTestFields);
-  contact.dba = {
-    handleSync: function(aMethod, aModel, aOptions) {
-      aModel.id = 1; // Simulating we inserted a contact at row 1.
-      assert_equals(aMethod, "create");
-      assert_serializations_equal(aModel, kResultingFields);
-      done = true;
-    }
-  };
-
-  contact.save();
-  mc.waitFor(function() done);
-
-  done = false;
-  // Ok, now let's try updating that contact.
-  const kUpdatedName = ["Something else"];
-  let updatedFields = _.extend({}, kResultingFields);
-  updatedFields.name = kUpdatedName;
-
-  contact.dba = {
-    handleSync: function(aMethod, aModel, aOptions) {
-      assert_equals(aMethod, "update");
-      assert_serializations_equal(aModel, updatedFields);
-      done = true;
-    }
-  };
-
-  contact.save({name: kUpdatedName});
-  mc.waitFor(function() done);
-}
-
-/**
- * Test that we can retrieve an individual contact.
- */
-function test_read_contact() {
-  const kSomeID = 905;
-  let contact = new Contact();
-  contact.id = kSomeID;
-
-  let done = false;
-  contact.dba = {
-    handleSync: function(aMethod, aModel, aOptions) {
-      assert_equals(aMethod, "read");
-      assert_equals(aModel.id, kSomeID);
-
-      let retrieved = new Contact(kTestFields);
-      aOptions.success(retrieved);
-      done = true;
-    },
-  };
-
-  contact.fetch();
-
-  mc.waitFor(function() done);
-
-  // Because the contact has been updated, we have to stringify, parse
-  // and then grab the attributes like this. Lame, I know.
-  assert_items_equal(JSON.parse(JSON.stringify(contact)).attributes,
-                     kResultingFields);
-}
-
-/**
- * Test that our getters for default fields work.
- */
-function test_default_name_getters() {
-  let contact = new Contact(kTestFields);
-
-  // name field overrides givenName and familyName.
-  assert_equals(contact.displayNameFamilyGiven, "House");
-  assert_equals(contact.displayNameGivenFamily, "House");
-  // Now blank the name field.
-  contact.set("name", []);
-  assert_equals(contact.displayNameFamilyGiven, "House, Gregory");
-  assert_equals(contact.displayNameGivenFamily, "Gregory House");
-
-  // What about the weird ones, with double names?
-  contact.set("familyName", ["House", "Jones"]);
-  contact.set("givenName", ["Gregory", "Neil"]);
-  assert_equals(contact.displayNameFamilyGiven, "House Jones, Gregory Neil");
-  assert_equals(contact.displayNameGivenFamily, "Gregory Neil House Jones");
+  //assert_items_equal(wilson.toJSON(), house.toJSON());*/
 }
