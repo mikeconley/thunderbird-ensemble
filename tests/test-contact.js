@@ -260,10 +260,17 @@ function test_popularity_default_set() {
   assert_equals(contact.get("popularity"), 0, "Popularity should default to 0");
 }
 
+function test_popularity_populate() {
+  const kPopularity = 905;
+  let contact = new Contact(kTestFields, {popularity: kPopularity});
+  assert_equals(contact.get("popularity"), kPopularity,
+                "Expected the popularity to be updated.");
+}
+
 function test_apply_diff_returns_contact() {
   let house = new Contact(kTestFields);
   let wilson = new Contact(kFieldsForDiff);
 
-  wilson.applyDiff(kResultingDiff);
-  //assert_items_equal(wilson.toJSON(), house.toJSON());*/
+  wilson.fields.applyDiff(kResultingDiff);
+  assert_items_equal(wilson.fields.toJSON(), house.fields.toJSON());
 }
