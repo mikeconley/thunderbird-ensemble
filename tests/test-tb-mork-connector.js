@@ -725,11 +725,57 @@ function assert_contact_matches_map(aContact, aMap) {
 }
 
 // -- Here's where the actual testing begins --
+function test_connection_success() {
+  let connector = new TBMorkConnector();
+  let promise = connector.testConnection();
+  let done = false;
+
+  promise.then(function() {
+    done = true;
+  }, function(aError) {
+    throw aError;
+  });
+
+  mc.waitFor(function() done, "Timed out waiting for connection success");
+}
+
+// -- Here's where the actual testing begins --
+function test_read_records() {
+  let connector = new TBMorkConnector();
+  let promise = connector.readRecords();
+  let done = false;
+
+  promise.then(function(aRecords) {
+    dump(JSON.stringify(aRecords, null, "\t"));
+    done = true;
+  }, function(aError) {
+    throw aError;
+  });
+
+  mc.waitFor(function() done, "Timed out waiting for connection success");
+}
+
+function test_read_tags() {
+  let connector = new TBMorkConnector();
+  let promise = connector.readTags();
+  let done = false;
+
+  promise.then(function(aTags) {
+    dump("\n" + JSON.stringify(aTags, null, "\t"));
+    done = true;
+  }, function(aError) {
+    throw aError;
+  });
+
+  mc.waitFor(function() done, "Timed out waiting for tags.");
+}
+
+
 
 /**
  * Test processing the entire address book.
  */
-function test_process_entire_ab() {
+function xtest_process_entire_ab() {
   let [results, tags] = call_getAllRecords_and_wait();
 
   const kEverybody = kBones.concat(kHarvestars)
@@ -775,7 +821,7 @@ function test_process_entire_ab() {
  * Calls the _processDirectory private method of a TBMorkConnector
  * instance.
  */
-function test_process_single_directory() {
+function xtest_process_single_directory() {
   let [results, tags] = call_process_directory_and_wait(gBonevilleAB);
   assert_has_n_tags(tags, 1);
   assert_tags_contain(tags, [kBonevilleABName]);
@@ -790,7 +836,7 @@ function test_process_single_directory() {
  * mailing lists in it. Calls the _processDirectory private method of a
  * TBMorkConnector instance.
  */
-function test_process_mailing_list_directory() {
+function xtest_process_mailing_list_directory() {
   let [results, tags] = call_process_directory_and_wait(gValleyAB);
   assert_has_n_tags(tags, 3);
   assert_tags_contain(tags, [kValleyABName, kBarrelhavenMLName,
@@ -810,7 +856,7 @@ function test_process_mailing_list_directory() {
 /**
  * Test processing the Personal Address Book.
  */
-function test_process_pab() {
+function xtest_process_pab() {
   let [results, tags] = call_process_directory_and_wait(gPAB);
   assert_has_n_tags(tags, 0);
   assert_has_n_contacts(results, kBeings.length);
@@ -821,7 +867,7 @@ function test_process_pab() {
 /**
  * Test processing the Collected Address Book.
  */
-function test_process_cab() {
+function xtest_process_cab() {
   let [results, tags] = call_process_directory_and_wait(gCAB);
   assert_has_n_tags(tags, 0);
   assert_has_n_contacts(results, kOtherBeings.length);

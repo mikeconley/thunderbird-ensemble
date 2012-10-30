@@ -20,9 +20,16 @@ const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/iteratorUtils.jsm");
+
+Cu.import("resource://gre/modules/commonjs/promise/core.js");
+
+Cu.import("resource://gre/modules/DeferredTask.jsm");
+Cu.import("resource://gre/modules/Task.jsm");
+
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://gre/modules/NetUtil.jsm");
-Cu.import("resource://ensemble/JobQueue.jsm");
+Cu.import("resource://ensemble/Record.jsm");
+Cu.import("resource://ensemble/Tag.jsm");
 
 const kStrings = ["FirstName", "LastName", "DisplayName", "NickName",
                   "JobTitle", "Department", "Company", "Notes"];
@@ -60,152 +67,256 @@ const kMeta = ["PopularityIndex"];
 const kDiscards = ["RecordKey", "DbRowID", "LowercasePrimaryEmail",
                    "LastModifiedDate", "PhotoType", "PhotoURI"];
 
-let TBMorkConnector = function(aParams) {
-  this._params = aParams;
-}
+let TBMorkConnector = function(aAccountKey, aRecordChangesCbObj) {};
 
 TBMorkConnector.prototype = {
-  writable: false,
-  syncable: false,
+  get accountKey() "",
+  get supportsTags() false,
+  get isSyncable() false,
+  get isWritable() false,
+  get shouldPoll() false,
+  get displayName() "Old Thunderbird Address Book",
+  get prefs() null,
+  set prefs(aValue) {},
 
-  _processDirectories: function TBMC__processDirectories(aEnumerator,
-                                                         aResult,
-                                                         aTags,
-                                                         aCallback) {
-    let q = new JobQueue();
-
-    while (aEnumerator.hasMoreElements()) {
-      let ab = aEnumerator.getNext();
-
-      q.addJob(function(aJobFinished) {
-        this._processDirectory(ab, aResult, aTags, aJobFinished);
-      }.bind(this));
-    }
-
-    let outerResult = aResult;
-    q.start({
-      success: function(aInnerResult) {
-        aCallback(outerResult, aTags);
-      },
-      error: function(aError) {
-        aCallback(aError);
-      },
-      complete: function() {}
-    });
-
+  testConnection: function TBMC_testConnection() {
+    let promise = Promise.defer();
+    // We use DeferredTask to make this synchronous activity asynchronous.
+    let task = new DeferredTask(function() {
+      let enumerator = MailServices.ab.directories;
+      if (enumerator.hasMoreElements()) {
+        promise.resolve();
+      } else {
+        let e = new Error("There are no directories in the address book!");
+        promise.reject(e);
+      }
+    }, 0);
+    task.start();
+    return promise.promise;
   },
 
-  _processDirectory: function TBMC__processDirectory(aDirectory, aResult,
-                                                     aTags, aJobFinished) {
-    if (!(aDirectory instanceof Ci.nsIAbDirectory)) {
-      let e = new Error("_processDirectory was passed something that wasn't "
-                        + "an nsIAbDirectory.");
-      aJobFinished.jobError(e);
-      return;
+  authorize: function TBMC_authorize() {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+  poll: function TBMC_poll() {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+  createRecords: function TBMC_createRecords(aRecordsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+  _shouldConsider: function(aDirectory) {
+    return !(aDirectory instanceof Ci.nsIAbLDAPDirectory ||
+             aDirectory.URI.indexOf("moz-abosxdirectory") != -1);
+  },
+
+  _getMapping: function(aCard, aDirectory) {
+    let mapping = new CardMapping();
+    for (let property in fixIterator(aCard.properties,
+                                     Ci.nsIProperty)) {
+      mapping.handle(property.name, property.value);
     }
 
-
-    // What kind of directory do we have here? An LDAP directory? If so,
-    // skip it - we'll want to use the LDAP Connector to get those contacts.
-    // Same with the OSX address book.
-    if (aDirectory instanceof Ci.nsIAbLDAPDirectory ||
-        aDirectory.URI.indexOf("moz-abosxdirectory") != -1) {
-      aJobFinished.jobSuccess(Cr.NS_OK);
-      return;
-    }
-
-    // Handle the Collected AB and Personal AB differently.
     let isPersonal = (aDirectory.URI == kPersonalAddressbookURI);
     let isCollected = (aDirectory.URI == kCollectedAddressbookURI);
 
-    let mailingLists = [];
-    let cache = {};
-    let cards = aDirectory.childCards;
-    while (cards.hasMoreElements()) {
-      let card = cards.getNext();
-      if (card instanceof Ci.nsIAbCard) {
+    // Now put it in the right categories...
+    if (aDirectory.URI == kPersonalAddressbookURI)
+      mapping.addCategory("system:personal");
+    else if (aDirectory.URI == kCollectedAddressbookURI)
+      mapping.addCategory("system:collected");
+    else {
+      // Or were we part of some other, user-defined address book?
+      mapping.addCategory(aDirectory.dirName);
+    }
 
-        // Or wait, is this a mailing list? If so, stash this for
-        // processing at the end.
-        if (card.isMailList) {
-          mailingLists.push(MailServices.ab
-                                        .getDirectory(card.mailListURI));
+    return mapping;
+  },
+
+  _deferredCardConversion: function(aCard, aDirectory) {
+    let promise = Promise.defer();
+    let self = this;
+    let task = new DeferredTask(function() {
+      try {
+        let mapping = self._getMapping(aCard, aDirectory);
+        promise.resolve(mapping);
+      } catch(e) {
+        promise.reject(e);
+      }
+    }, 10);
+    task.start();
+    return promise.promise;
+  },
+
+  readRecords: function TBMC_readRecords(aIDCollection) {
+    let promise = Promise.defer();
+    let cardEnums = [];
+    let directories = MailServices.ab.directories;
+
+    let self = this;
+
+    Task.spawn(function() {
+      let results = [];
+      let mappings = new Map();
+      let mailingLists = [];
+
+      while (directories.hasMoreElements()) {
+        let directory = directories.getNext();
+        if ((!(directory instanceof Ci.nsIAbDirectory))
+            || !self._shouldConsider(directory)) {
           continue;
         }
 
-        let mapping = new CardMapping();
-        for (let property in fixIterator(card.properties,
-                                         Ci.nsIProperty)) {
-          mapping.handle(property.name, property.value);
+        let cardEnum = directory.childCards;
+
+        while(cardEnum.hasMoreElements()) {
+          let card = cardEnum.getNext();
+          if (!(card instanceof Ci.nsIAbCard)) {
+            continue;
+          }
+
+          if (card.isMailList) {
+            mailingLists.push(MailServices.ab
+                                          .getDirectory(card.mailListURI));
+            continue;
+          }
+
+          let mapping = yield self._deferredCardConversion(card, directory);
+          mappings.set(card.directoryId + card.localId, mapping);
         }
 
-        // Now put it in the right categories...
-        if (isPersonal)
-          mapping.addCategory("system:personal");
-        else if (isCollected)
-          mapping.addCategory("system:collected");
-        else {
-          // Or were we part of some other, user-defined address book?
-          mapping.addCategory(aDirectory.dirName);
-          aTags[aDirectory.dirName] = aDirectory.dirName;
-        }
-
-        // Cache the result. We'll extract later once we've done
-        // the mailing lists.
-        cache[card.localId] = mapping;
-      }
-    }
-
-    // Now for the mailing lists.
-    for each (let [, list] in Iterator(mailingLists)) {
-      if (list instanceof Ci.nsIAbDirectory) {
-        let cards = list.childCards;
-        while (cards.hasMoreElements()) {
-          let card = cards.getNext();
-          if (card instanceof Ci.nsIAbCard) {
-            if (card.localId in cache) {
-              let mapping = cache[card.localId];
-              mapping.addCategory(list.dirName);
-              aTags[list.dirName] = list.dirName;
+        for (let list of mailingLists) {
+          if ((!list instanceof Ci.nsIAbDirectory)) {
+            continue;
+          }
+          let cards = list.childCards;
+          while (cards.hasMoreElements()) {
+            let card = cards.getNext();
+            if (card instanceof Ci.nsIAbCard) {
+              let key = card.directoryId + card.localId;
+              if (mappings.has(key)) {
+                let mapping = mappings.get(key);
+                mapping.addCategory(list.dirName);
+              }
             }
           }
         }
       }
-    }
 
-    let q = new JobQueue();
+      // Ok, let's get the results!
+      for (let [, mapping] of mappings) {
+        let [fields, meta] = yield mapping.deriveRecord();
+        let record = new Record(fields, meta);
+        results.push(record);
+      }
 
-    // Ok, extract to results.
-    for each (let [, mappingItem] in Iterator(cache)) {
-      // Ugh - we have to create a new binding, since JS doesn't
-      // do fresh let bindings per iteration.
-      let mapping = mappingItem;
-      q.addJob(function(aJobFinished) {
-        mapping.deriveRecord(function(aFields, aMeta) {
-          aResult.push({
-            fields: aFields,
-            meta: aMeta,
-          });
-          aJobFinished.jobSuccess(Cr.NS_OK);
-        });
-      });
-    }
+      throw new Task.Result(results);
 
-    q.start({
-      success: aJobFinished.jobSuccess,
-      error: aJobFinished.jobError,
-      complete: function() {},
+    }).then(function(aResults) {
+      promise.resolve(aResults);
+    }, function(aError) {
+      promise.reject(aError);
     });
 
+    return promise.promise;
   },
 
-  getAllRecords: function TBMC_getAllRecords(aCallback) {
-    let result = [];
-    let tags = {};
-    this._processDirectories(MailServices.ab.directories, result, tags,
-                             aCallback);
+  updateRecords: function TBMC_updateRecords(aRecordsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
+
+  deleteRecords: function TBMC_deleteRecords(aIDCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+  createTags: function TBMC_createTags(aTagsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+  readTags: function TBMC_readTags(aTagIDCollection) {
+    let promise = Promise.defer();
+    let results = [];
+    let directories = MailServices.ab.directories;
+    let self = this;
+
+    return Task.spawn(function() {
+      while (directories.hasMoreElements()) {
+        let directory = directories.getNext();
+
+        if (!(directory instanceof Ci.nsIAbDirectory)
+            || !self._shouldConsider(directory)) {
+          continue;
+        }
+
+        let attrs = yield self._getTagAttrs(directory);
+        let tag = new Tag(attrs);
+        results.push(tag);
+
+        let mailingLists = directory.childNodes;
+        while (mailingLists.hasMoreElements()) {
+          let list = mailingLists.getNext();
+          if (!(list instanceof Ci.nsIAbDirectory)) {
+            continue;
+          }
+          let attrs = yield self._getTagAttrs(list);
+          let tag = new Tag(attrs);
+          results.push(tag);
+        }
+      }
+
+      throw new Task.Result(results);
+    });
+  },
+
+  _getTagAttrs: function(aDirectory) {
+    let promise = Promise.defer();
+    let task = new DeferredTask(function() {
+      let displayName = aDirectory.dirName,
+          exportName = aDirectory.dirName;
+      let originator = "user";
+
+      if (aDirectory.URI == kPersonalAddressbookURI) {
+        displayName = "Personal";
+        exportName = "system:personal";
+        originator = "system";
+      }
+      else if (aDirectory.URI == kCollectedAddressbookURI) {
+        displayName = "Collected";
+        exportName = "system:collected";
+        originator = "system";
+      }
+
+      promise.resolve({
+        displayName: displayName,
+        originator: originator,
+        exportName: exportName,
+        idCollection: []
+      });
+    }, 10);
+    task.start();
+    return promise.promise;
+  },
+
+  updateTags: function TBMC_updateTags(aTagsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+  deleteTags: function TBMC_deleteTags(aTagsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
 };
+
+TBMorkConnector.isSingleton = true;
+TBMorkConnector.iconURL = "TBD!";
+TBMorkConnector.serviceName = "Old Thunderbird Address Book";
+TBMorkConnector.createConnectionURI = "TBD!";
+TBMorkConnector.managementURI = "TBD!";
+TBMorkConnector.defaultPrefs = {};
+TBMorkConnector.uniqueID = "thunderbird-original-abook@mikeconley.ca";
 
 
 function CardMapping() {
@@ -227,21 +338,10 @@ function CardMapping() {
   this._handlers.set(kMeta, this._handleMeta);
   this._handlers.set(kDiscards, this._handleDiscard);
 
-  this._asyncOps = 0;
+  this._photoPromise = null;
 }
 
 CardMapping.prototype = {
-  get asyncOps() {
-    return this._asyncOps;
-  },
-
-  set asyncOps(aVal) {
-    this._asyncOps = aVal;
-
-    if (this._asyncOps == 0)
-      this._finish();
-  },
-
   handle: function CardMapping_handle(aName, aValue) {
     for (let [names, handler] of this._handlers) {
       if (names.indexOf(aName) != -1) {
@@ -254,10 +354,15 @@ CardMapping.prototype = {
     this._handleOther(aName, aValue);
   },
 
-  deriveRecord: function CardMapping_deriveRecord(aCallback) {
-    this._finishDerivationCb = aCallback;
-    if (this.asyncOps == 0)
+  deriveRecord: function CardMapping_deriveRecord() {
+    this._promise = Promise.defer();
+    if (!this._photoPromise) {
       this._finish();
+    } else {
+      this._photoPromise.then(this._finish.bind(this),
+                              this._promise.reject);
+    }
+    return this._promise.promise;
   },
 
   addCategory: function CardMapping_addCategory(aCategory) {
@@ -265,7 +370,7 @@ CardMapping.prototype = {
   },
 
   _finish: function CardMapping__finish() {
-    if (!this._finishDerivationCb)
+    if (!this._promise)
       return;
 
     // Process the fields, scrunching down any empty spaces in the Arrays,
@@ -284,7 +389,7 @@ CardMapping.prototype = {
         result[field] = this._fields[field];
     }
 
-    this._finishDerivationCb(result, this._meta);
+    this._promise.resolve([this._fields, this._meta]);
   },
 
   _handleString: function CardMapping__handleString(aName, aValue) {
@@ -485,7 +590,7 @@ CardMapping.prototype = {
 
   _handleMeta: function CardMapping__handleMeta(aName, aValue) {
     const kMetaMap = {
-      "PopularityIndex": "popularityIndex",
+      "PopularityIndex": "popularity",
     };
 
     if (!(aName in kMetaMap))
@@ -515,18 +620,18 @@ CardMapping.prototype = {
     let mimeSvc = Cc["@mozilla.org/mime;1"].getService(Ci.nsIMIMEService);
     let mimeType = mimeSvc.getTypeFromFile(photoFile);
 
-    this.asyncOps++;
+    this._photoPromise = Promise.defer();
 
     NetUtil.asyncFetch(photoFile, function(aInputStream, aStatus) {
-      if (!Components.isSuccessCode(aStatus))
-        throw new Error("Couldn't get data from photo file " + aValue);
-
+      if (!Components.isSuccessCode(aStatus)) {
+        this._photoPromise.reject(new Error("Couldn't get data from photo file " + aValue));
+      }
       let data = NetUtil.readInputStreamToString(aInputStream,
                                                  aInputStream.available());
 
       let dataURI = "data:" + mimeType + ";base64," + btoa(data);
       this._fields.photo.push(dataURI);
-      this.asyncOps--;
+      this._photoPromise.resolve();
     }.bind(this));
 
   },

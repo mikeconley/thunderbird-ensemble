@@ -8,29 +8,14 @@ let EXPORTED_SYMBOLS = ["Contact"];
 
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
-Cu.import("resource://ensemble/BaseRecord.jsm");
+Cu.import("resource://ensemble/Record.jsm");
 Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 
-let Contact = Backbone.Model.extend({
-  dba: ContactDBA,
-
+let Contact = Record.extend({
   defaults: function() {
     return {
       popularity: 0,
       fields: new BaseRecord()
     };
-  },
-
-  initialize: function() {
-    this.__defineGetter__("fields", function() this.get("fields"));
-    this.__defineSetter__("fields", function(aValue) {
-      this.set("fields", aValue);
-      return aValue;
-    });
-  },
-
-  constructor: function(aFields, aMeta) {
-    Backbone.Model.prototype.constructor.call(this, aMeta);
-    this.set("fields", new BaseRecord(aFields));
   },
 });
