@@ -178,27 +178,30 @@ TBMorkConnector.prototype = {
           }
 
           if (card.isMailList) {
-            mailingLists.push(MailServices.ab
-                                          .getDirectory(card.mailListURI));
+            mailingLists.push({
+              list: MailServices.ab.getDirectory(card.mailListURI),
+              parentURI: directory.URI
+            });
             continue;
           }
 
           let mapping = yield self._deferredCardConversion(card, directory);
-          mappings.set(card.directoryId + card.localId, mapping);
+          mappings.set(directory.URI + card.localId, mapping);
         }
 
-        for (let list of mailingLists) {
-          if ((!list instanceof Ci.nsIAbDirectory)) {
+        for (let listObject of mailingLists) {
+          if ((!listObject.list instanceof Ci.nsIAbDirectory)) {
             continue;
           }
-          let cards = list.childCards;
+          let cards = listObject.list.childCards;
+
           while (cards.hasMoreElements()) {
             let card = cards.getNext();
             if (card instanceof Ci.nsIAbCard) {
-              let key = card.directoryId + card.localId;
+              let key = listObject.parentURI + card.localId;
               if (mappings.has(key)) {
                 let mapping = mappings.get(key);
-                mapping.addCategory(list.dirName);
+                mapping.addCategory(listObject.list.dirName);
               }
             }
           }

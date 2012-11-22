@@ -11,6 +11,7 @@ const Cr = Components.results;
 
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/connectors/TBMorkConnector.jsm");
+Cu.import("resource://gre/modules/Task.jsm");
 
 let gPAB, gCAB, gBonevilleAB, gValleyAB, gHarvestarsML, gBarrelhavenML;
 
@@ -344,10 +345,11 @@ function inject_contacts(aAB, aContacts, aMailList) {
   for each (let [i, person] in Iterator(aContacts)) {
     let card = create_contact("", "", "");
     card = inject_map_values(card, person.map);
-    aAB.addCard(card);
 
     if (aMailList)
       aMailList.addressLists.appendElement(card, false);
+
+    aAB.addCard(card);
   }
 }
 
@@ -393,8 +395,9 @@ function inject_map_values(aCard, aMap) {
 function query_collection_fields(aCollection, aField, aValue) {
   for each (let [, item] in Iterator(aCollection)) {
     let fields = item.fields;
-    if (fields.hasOwnProperty(aField)) {
-      if (String(fields[aField]) == aValue)
+    let value = fields.get(aField);
+    if (value) {
+      if (String(value) == aValue)
         return item;
     }
   }
@@ -417,17 +420,21 @@ function assert_not_null(aThing, aMsg) {
 }
 
 function assert_any_field_has_value(aCollection, aValue) {
-  let matches = [item for each (item in aCollection)
-                 if (item.value == aValue)]
+  let matches = aCollection.filter(function(aItem) {
+    return aItem.get("value") == aValue;
+  });
   if (matches.length > 0)
     return matches;
 
-  throw new Error("Expected a collection to contain a value: " + aValue);
+  throw new Error("Expected a collection to contain a value: " + aValue +
+                  " but contained: " + JSON.stringify(aCollection, null, "\t"));
 }
 
 function assert_any_field_has_type(aCollection, aType) {
-  let matches = [item for each (item in aCollection)
-                 if (item.type == aType)];
+  let matches = aCollection.filter(function(aItem) {
+    return aItem.get("type") == aType;
+  });
+
   if (matches.length > 0)
     return matches;
 
@@ -435,13 +442,13 @@ function assert_any_field_has_type(aCollection, aType) {
 }
 
 function assert_any_field_has_type_and_value(aCollection, aType, aValue) {
-  let matches = [item for each (item in aCollection)
-                 if (item.type == aType)];
+  let matches = aCollection.filter(function(aItem) {
+    return aItem.get("type") == aType && aItem.get("value") == aValue;
+  });
 
-  for each (let [, field] in Iterator(matches)) {
-    if (field.value == aValue)
-      return field;
-  }
+  if (matches.length > 0)
+    return matches;
+
   throw new Error("Expected a collection to contain a type " + aType +
                   " with value: " + aValue);
 }
@@ -479,8 +486,9 @@ function assert_contacts_exist_and_match(aCollection, aContacts) {
 function assert_all_contacts_have_tags(aResults, aTags) {
   for each (let [, result] in Iterator(aResults)) {
     for each (let [, tag] in Iterator(aTags)) {
-      if (result.fields.category.indexOf(tag) == -1)
+      if (result.fields.get("category").indexOf(tag) == -1) {
         throw new Error("Expected contact to have tag " + tag);
+      }
     }
   }
 }
@@ -493,8 +501,9 @@ function assert_has_n_tags(aTags, aNum) {
 
 function assert_tags_contain(aTags, aTagIDs) {
   for each (let [, tagID] in Iterator(aTagIDs)) {
-    if (!(tagID in aTags))
-      throw new Error("Expected tags to contain tag with ID " + tagID);
+    assert_true(aTags.some(function(aTag) {
+      return aTag.get("exportName") == tagID;
+    }));
   }
 }
 
@@ -524,22 +533,24 @@ function call_process_directory_and_wait(aAddressBook) {
   return [results, tags];
 }
 
-function call_getAllRecords_and_wait(aAddressBook) {
-  let results = [];
-  let tags = {};
+function get_records_and_tags(aAddressBook) {
   let done = false;
+  let tuple = null;
 
-  let onFinished = function(aResults, aTags) {
-    results = aResults;
-    tags = aTags;
+  Task.spawn(function() {
+    let connector = new TBMorkConnector();
+    let results = yield connector.readRecords();
+    let tags = yield connector.readTags();
+    throw new Task.Result([results, tags]);
+  }).then(function(aTuple) {
+    tuple = aTuple;
     done = true;
-  };
-
-  let connector = new TBMorkConnector();
-  connector.getAllRecords(onFinished);
+  }, function(aError) {
+    throw aError;
+  });
 
   mc.waitFor(function() done);
-  return [results, tags];
+  return tuple;
 }
 
 
@@ -619,22 +630,22 @@ function assert_contact_matches_map(aContact, aMap) {
     // Basic strings
     if (property in kStringsMap) {
       let mapping = kStringsMap[property];
-      if (aContact.fields[mapping][0] != value)
+      if (aContact.fields.get(mapping) != value)
         throw new Error("Contact did not match map - property " + property +
                         " should have been " + value +
-                        " but was " + aContact.fields[mapping][0]);
+                        " but was " + aContact.fields.get(mapping)[0]);
       continue;
     }
 
     // Emails...
     if (kEmails.indexOf(property) != -1) {
-      assert_any_field_has_value(aContact.fields.email, value);
+      assert_any_field_has_value(aContact.fields.get("email"), value);
       continue;
     }
 
     // IMs...
     if (property in kIMMap) {
-      assert_any_field_has_type_and_value(aContact.fields.impp, kIMMap[property],
+      assert_any_field_has_type_and_value(aContact.fields.get("impp"), kIMMap[property],
                                           value);
       continue;
     }
@@ -643,16 +654,17 @@ function assert_contact_matches_map(aContact, aMap) {
     if (kAddresses.indexOf(property) != -1) {
       let type = property.substring(0, 4);
       let suffix = property.substring(4);
-      let matches = assert_any_field_has_type(aContact.fields.adr, type);
+      let matches = assert_any_field_has_type(aContact.fields.get("adr"), type);
       assert_equals(matches.length, 1);
+      let match = matches[0];
       let mapping = kAddressSuffixMap[suffix];
 
       if (suffix == "Address")
-        assert_prefix(matches[0][mapping], value);
+        assert_prefix(match.get("streetAddress"), value);
       else if (suffix == "Address2")
-        assert_suffix(matches[0][mapping], value);
+        assert_suffix(match.get("streetAddress"), value);
       else
-        assert_equals(matches[0][mapping], value);
+        assert_equals(match.get(mapping), value);
       continue;
     }
 
@@ -660,24 +672,24 @@ function assert_contact_matches_map(aContact, aMap) {
     if (property in kPhonesMap) {
       let type = kPhonesMap[property];
       if (string_has_suffix(property, "Type"))
-        assert_any_field_has_type(aContact.fields.tel, type);
+        assert_any_field_has_type(aContact.fields.get("tel"), type);
       else
-        assert_any_field_has_type_and_value(aContact.fields.tel,
+        assert_any_field_has_type_and_value(aContact.fields.get("tel"),
                                             type, value);
       continue;
     }
 
     // Websites
     if (kWebsites.indexOf(property) != -1) {
-      assert_any_field_has_value(aContact.fields.url, value);
+      assert_any_field_has_value(aContact.fields.get("url"), value);
       continue;
     }
 
     // Birthday and Anniversary
     if (property in kDatesMap) {
       let mapping = kDatesMap[property];
-      assert_not_null(aContact.fields[mapping]);
-      let someDate = new Date(aContact.fields[mapping]);
+      assert_not_null(aContact.fields.get(mapping));
+      let someDate = new Date(aContact.fields.get(mapping));
       if (string_has_suffix(property, "Day"))
         assert_equals(String(someDate.getDate()), value);
       else if (string_has_suffix(property, "Month")) {
@@ -690,18 +702,19 @@ function assert_contact_matches_map(aContact, aMap) {
     }
 
     if (property == "PopularityIndex") {
-      assert_equals(String(aContact.meta.popularityIndex), value);
+      assert_equals(String(aContact.get("popularity")), value);
       continue;
     }
 
     // Others
     if (kOtherFields.indexOf(property) != -1) {
-      assert_any_field_has_type_and_value(aContact.fields.other,
+      assert_any_field_has_type_and_value(aContact.fields.get("other"),
                                           property, value);
       continue;
     }
 
     // Leftover tags
+
     if (property == "PreferMailFormat") {
       if (value == "1") // Plaintext
         assert_all_contacts_have_tags([aContact], [kRecieveInPlaintextTagID]);
@@ -719,7 +732,7 @@ function assert_contact_matches_map(aContact, aMap) {
     }
 
     // Ok, try a custom value...
-    assert_any_field_has_type_and_value(aContact.fields.other,
+    assert_any_field_has_type_and_value(aContact.fields.get("other"),
                                         property, value);
   }
 }
@@ -746,13 +759,12 @@ function test_read_records() {
   let done = false;
 
   promise.then(function(aRecords) {
-    dump(JSON.stringify(aRecords, null, "\t"));
     done = true;
   }, function(aError) {
     throw aError;
   });
 
-  mc.waitFor(function() done, "Timed out waiting for connection success");
+  mc.waitFor(function() done, "Timed out waiting to read records.");
 }
 
 function test_read_tags() {
@@ -761,7 +773,6 @@ function test_read_tags() {
   let done = false;
 
   promise.then(function(aTags) {
-    dump("\n" + JSON.stringify(aTags, null, "\t"));
     done = true;
   }, function(aError) {
     throw aError;
@@ -770,33 +781,23 @@ function test_read_tags() {
   mc.waitFor(function() done, "Timed out waiting for tags.");
 }
 
-
-
 /**
  * Test processing the entire address book.
  */
-function xtest_process_entire_ab() {
-  let [results, tags] = call_getAllRecords_and_wait();
-
+function test_process_entire_ab() {
+  let [results, tags] = get_records_and_tags();
   const kEverybody = kBones.concat(kHarvestars)
                            .concat(kBarrelhaven)
                            .concat(kBeings)
                            .concat(kOtherBeings);
 
   assert_contacts_exist_and_match(results, kEverybody);
-  // There should be 4 tags - Boneville, The Valley, Barrelhaven,
-  // and Harvestars.
-  assert_has_n_tags(tags, 4);
-  assert_tags_contain(tags, [kBonevilleABName, kValleyABName,
+  assert_has_n_tags(tags, 6);
+
+  assert_tags_contain(tags, [kPersonalTagID, kCollectedTagID,
+                             kBonevilleABName, kValleyABName,
                              kHarvestarsMLName, kBarrelhavenMLName]);
 
-  // For some reason, doing it like this:
-  //
-  // const kTagMap = {
-  //   kBoneVilleABName: kBones
-  // }
-  //
-  // causes kTagMap to interpret "kBoneVilleABName" as a property name. Hrm.
   const kTagMap = {};
   kTagMap[kBonevilleABName] = kBones;
   kTagMap[kValleyABName] = kValley;
@@ -807,70 +808,4 @@ function xtest_process_entire_ab() {
     let contacts = assert_contacts_exist_and_match(results, contactsToQuery);
     assert_all_contacts_have_tags(contacts, [tagID]);
   }
-}
-
-// -- Private Function Tests --
-//
-// I know it's not very OOP to poke at an object's private methods
-// externally, but TBMorkConnector is complicated, and exposes
-// very little, and I want to test all the moving bits. If that
-// means my tests are fragile, well, so be it.
-
-/**
- * Test processing a single address book with some contacts in it.
- * Calls the _processDirectory private method of a TBMorkConnector
- * instance.
- */
-function xtest_process_single_directory() {
-  let [results, tags] = call_process_directory_and_wait(gBonevilleAB);
-  assert_has_n_tags(tags, 1);
-  assert_tags_contain(tags, [kBonevilleABName]);
-  assert_equals(tags[kBonevilleABName], kBonevilleABName);
-  assert_has_n_contacts(results, kBones.length);
-  assert_contacts_exist_and_match(results, kBones);
-  assert_all_contacts_have_tags(results, [kBonevilleABName]);
-}
-
-/**
- * Test processing a single address book with some contacts and populated
- * mailing lists in it. Calls the _processDirectory private method of a
- * TBMorkConnector instance.
- */
-function xtest_process_mailing_list_directory() {
-  let [results, tags] = call_process_directory_and_wait(gValleyAB);
-  assert_has_n_tags(tags, 3);
-  assert_tags_contain(tags, [kValleyABName, kBarrelhavenMLName,
-                             kHarvestarsMLName]);
-  assert_equals(tags[kValleyABName], kValleyABName);
-  assert_equals(tags[kBarrelhavenMLName], kBarrelhavenMLName);
-  assert_equals(tags[kHarvestarsMLName], kHarvestarsMLName);
-
-  assert_has_n_contacts(results, kValley.length);
-
-  const kContacts = [kThorn, kGranma, kBriar, kLucious, kJonathan,
-                     kWendell, kEuclid, kRory];
-
-  assert_contacts_exist_and_match(results, kContacts);
-}
-
-/**
- * Test processing the Personal Address Book.
- */
-function xtest_process_pab() {
-  let [results, tags] = call_process_directory_and_wait(gPAB);
-  assert_has_n_tags(tags, 0);
-  assert_has_n_contacts(results, kBeings.length);
-  assert_contacts_exist_and_match(results, kBeings);
-  assert_all_contacts_have_tags(results, [kPersonalTagID]);
-}
-
-/**
- * Test processing the Collected Address Book.
- */
-function xtest_process_cab() {
-  let [results, tags] = call_process_directory_and_wait(gCAB);
-  assert_has_n_tags(tags, 0);
-  assert_has_n_contacts(results, kOtherBeings.length);
-  assert_contacts_exist_and_match(results, kOtherBeings);
-  assert_all_contacts_have_tags(results, [kCollectedTagID]);
 }
