@@ -255,16 +255,28 @@ function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
 }
 
-function test_popularity_default_set() {
+function test_popularity() {
   let contact = new Contact(kTestFields);
   assert_equals(contact.get("popularity"), 0, "Popularity should default to 0");
-}
 
-function test_popularity_populate() {
   const kPopularity = 905;
-  let contact = new Contact(kTestFields, {popularity: kPopularity});
+  contact = new Contact(kTestFields, {popularity: kPopularity});
   assert_equals(contact.get("popularity"), kPopularity,
                 "Expected the popularity to be updated.");
+}
+
+function test_prefersText() {
+  let contact = new Contact(kTestFields);
+  assert_equals(contact.get("prefersText"), false,
+                "Contact should not prefer text mail by default.");
+
+  contact = new Contact(kTestFields, {prefersText: true});
+  assert_equals(contact.get("prefersText"), true,
+                "Expected prefersText to be true.");
+
+  contact = new Contact(kTestFields, {prefersText: false});
+  assert_equals(contact.get("prefersText"), false,
+                "Expected prefersText to be false.");
 }
 
 function test_apply_diff_returns_contact() {

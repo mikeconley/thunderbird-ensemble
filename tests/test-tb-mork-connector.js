@@ -20,8 +20,6 @@ const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 
 const kPersonalTagID = "system:personal";
 const kCollectedTagID = "system:collected";
-const kReceiveInPlaintextTagID = "system:receive-in-plaintext";
-const kReceiveInHTMLTagID = "system:receive-in-html";
 const kPrefersDisplayNameTagID = "system:prefers-display-name";
 const kAllowRemoteContentTagID = "system:allow-remote-content";
 
@@ -35,6 +33,7 @@ const kFoneBone = {
     LastName: "Bone",
     NickName: "The Fonz",
     PrimaryEmail: "fone.bone@boneville.com",
+    PreferMailFormat: "0",
   },
 
   nameForError: "Fone Bone",
@@ -49,6 +48,7 @@ const kPhoneyBone = {
     PrimaryEmail: "phoney.bone@boneville.com",
     Notes: "This guy looooooves money.",
     _GoogleTalk: "moneylover101@gmail.com",
+    PreferMailFormat: "1",
   },
 
   nameForError: "Phoney Bone",
@@ -130,6 +130,7 @@ const kThorn = {
     HomePhone: "515-215-2121",
     PrimaryEmail: "thorn@harvestar.com",
     SomeCustomValue: "This is a custom value.",
+    PreferMailFormat: "2",
   },
 
   nameForError: "Thorn Harvestar",
@@ -716,10 +717,13 @@ function assert_contact_matches_map(aContact, aMap) {
     // Leftover tags
 
     if (property == "PreferMailFormat") {
-      if (value == "1") // Plaintext
-        assert_all_contacts_have_tags([aContact], [kRecieveInPlaintextTagID]);
-      else if (value == "2") // HTML
-        assert_all_contacts_have_tags([aContact], [kReceiveInHTMLTagID]);
+      if (value == "1") {
+        assert_true(aContact.get("prefersText"),
+                    "Contact should prefer text mail.");
+      } else {
+        assert_false(aContact.get("prefersText"),
+                     "Contact should not prefer text mail.");
+      }
       continue;
     }
 

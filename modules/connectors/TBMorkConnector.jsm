@@ -54,14 +54,11 @@ const kOthers = ["PhoneticFirstName", "PhoneticLastName", "SpouseName",
 // Photos
 const kPhotos = ["PhotoName"];
 
-// More complex tags that we handle specially
-const kPreferMailFormat = ["PreferMailFormat"];
-
 // Simple boolean tags...
 const kBooleanTags = ["AllowRemoteContent", "PreferDisplayName"];
 
 // Meta stuff
-const kMeta = ["PopularityIndex"];
+const kMeta = ["PopularityIndex", "PreferMailFormat"];
 
 // Stuff we don't need
 const kDiscards = ["RecordKey", "DbRowID", "LowercasePrimaryEmail",
@@ -336,7 +333,6 @@ function CardMapping() {
   this._handlers.set(kDates, this._handleDate);
   this._handlers.set(kOthers, this._handleOther);
   this._handlers.set(kPhotos, this._handlePhoto);
-  this._handlers.set(kPreferMailFormat, this._handlePreferMailFormat);
   this._handlers.set(kBooleanTags, this._handleBooleanTags);
   this._handlers.set(kMeta, this._handleMeta);
   this._handlers.set(kDiscards, this._handleDiscard);
@@ -568,14 +564,6 @@ CardMapping.prototype = {
     // This one's easy...we just don't add it.
   },
 
-  _handlePreferMailFormat: function CardMapping__handlePrefMailFormat
-    (aName, aValue) {
-    if (parseInt(aValue) == Ci.nsIAbPreferMailFormat.plaintext)
-      this.addCategory("system:receive-in-plaintext");
-    else if (parseInt(aValue) == Ci.nsIAbPreferMailFormat.html)
-      this.addCategory("system:receive-in-html");
-  },
-
   _handleBooleanTags: function CardMapping__handleBooleanTags
     (aName, aValue) {
 
@@ -594,10 +582,15 @@ CardMapping.prototype = {
   _handleMeta: function CardMapping__handleMeta(aName, aValue) {
     const kMetaMap = {
       "PopularityIndex": "popularity",
+      "PreferMailFormat": "prefersText",
     };
 
     if (!(aName in kMetaMap))
       throw new Error("Unexpected Meta value: " + aName);
+
+    if (aName == "PreferMailFormat") {
+      aValue = (parseInt(aValue) == Ci.nsIAbPreferMailFormat.plaintext);
+    }
 
     this._meta[kMetaMap[aName]] = aValue;
   },

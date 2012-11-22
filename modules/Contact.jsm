@@ -9,13 +9,15 @@ let EXPORTED_SYMBOLS = ["Contact"];
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
 Cu.import("resource://ensemble/Record.jsm");
+Cu.import("resource://ensemble/BaseRecord.jsm");
 Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 
 let Contact = Record.extend({
   defaults: function() {
     return {
       popularity: 0,
-      fields: new Record()
+      prefersText: false,
+      fields: new BaseRecord()
     };
   },
 });
