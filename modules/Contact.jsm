@@ -15,7 +15,7 @@ let Contact = Record.extend({
   defaults: function() {
     return {
       popularity: 0,
-      fields: new BaseRecord()
+      fields: new Record()
     };
   },
 });
