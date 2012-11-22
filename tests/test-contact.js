@@ -267,17 +267,28 @@ function test_popularity() {
 
 function test_prefersText() {
   let contact = new Contact(kTestFields);
-  assert_equals(contact.get("prefersText"), false,
-                "Contact should not prefer text mail by default.");
+  assert_false(contact.get("prefersText"),
+               "Contact should not prefer text mail by default.");
 
   contact = new Contact(kTestFields, {prefersText: true});
-  assert_equals(contact.get("prefersText"), true,
-                "Expected prefersText to be true.");
+  assert_true(contact.get("prefersText"));
 
   contact = new Contact(kTestFields, {prefersText: false});
-  assert_equals(contact.get("prefersText"), false,
-                "Expected prefersText to be false.");
+  assert_false(contact.get("prefersText"));
 }
+
+function test_preferDisplayName() {
+  let contact = new Contact(kTestFields);
+  assert_true(contact.get("preferDisplayName"),
+              "Should prefer contact display name by default.");
+
+  contact = new Contact(kTestFields, {preferDisplayName: true});
+  assert_true(contact.get("preferDisplayName"));
+
+  contact = new Contact(kTestFields, {preferDisplayName: false});
+  assert_false(contact.get("preferDisplayName"));
+}
+
 
 function test_apply_diff_returns_contact() {
   let house = new Contact(kTestFields);

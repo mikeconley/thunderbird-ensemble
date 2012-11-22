@@ -55,10 +55,10 @@ const kOthers = ["PhoneticFirstName", "PhoneticLastName", "SpouseName",
 const kPhotos = ["PhotoName"];
 
 // Simple boolean tags...
-const kBooleanTags = ["AllowRemoteContent", "PreferDisplayName"];
+const kBooleanTags = ["AllowRemoteContent"];
 
 // Meta stuff
-const kMeta = ["PopularityIndex", "PreferMailFormat"];
+const kMeta = ["PopularityIndex", "PreferMailFormat", "PreferDisplayName"];
 
 // Stuff we don't need
 const kDiscards = ["RecordKey", "DbRowID", "LowercasePrimaryEmail",
@@ -569,7 +569,6 @@ CardMapping.prototype = {
 
     const kTagMap = {
       "AllowRemoteContent": "system:allow-remote-content",
-      "PreferDisplayName": "system:prefers-display-name",
     };
 
     if (!(aName in kTagMap))
@@ -583,6 +582,7 @@ CardMapping.prototype = {
     const kMetaMap = {
       "PopularityIndex": "popularity",
       "PreferMailFormat": "prefersText",
+      "PreferDisplayName": "preferDisplayName",
     };
 
     if (!(aName in kMetaMap))
@@ -590,6 +590,10 @@ CardMapping.prototype = {
 
     if (aName == "PreferMailFormat") {
       aValue = (parseInt(aValue) == Ci.nsIAbPreferMailFormat.plaintext);
+    }
+
+    if (aName == "PreferDisplayName") {
+      aValue = (parseInt(aValue) == 1);
     }
 
     this._meta[kMetaMap[aName]] = aValue;

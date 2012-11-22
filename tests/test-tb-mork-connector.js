@@ -34,6 +34,7 @@ const kFoneBone = {
     NickName: "The Fonz",
     PrimaryEmail: "fone.bone@boneville.com",
     PreferMailFormat: "0",
+    PreferDisplayName: true,
   },
 
   nameForError: "Fone Bone",
@@ -49,6 +50,7 @@ const kPhoneyBone = {
     Notes: "This guy looooooves money.",
     _GoogleTalk: "moneylover101@gmail.com",
     PreferMailFormat: "1",
+    PreferDisplayName: false,
   },
 
   nameForError: "Phoney Bone",
@@ -623,7 +625,6 @@ function assert_contact_matches_map(aContact, aMap) {
 
   const kTagMap = {
     "AllowRemoteContent": kAllowRemoteContentTagID,
-    "PreferDisplayName": kPrefersDisplayNameTagID,
   };
 
   for each (let [property, value] in Iterator(aMap)) {
@@ -714,8 +715,6 @@ function assert_contact_matches_map(aContact, aMap) {
       continue;
     }
 
-    // Leftover tags
-
     if (property == "PreferMailFormat") {
       if (value == "1") {
         assert_true(aContact.get("prefersText"),
@@ -723,6 +722,17 @@ function assert_contact_matches_map(aContact, aMap) {
       } else {
         assert_false(aContact.get("prefersText"),
                      "Contact should not prefer text mail.");
+      }
+      continue;
+    }
+
+    if (property == "PreferDisplayName") {
+      if (value) {
+        assert_true(aContact.get("preferDisplayName"),
+                    "Contact should default to displaying with display name.");
+      } else {
+        assert_false(aContact.get("preferDisplayName"),
+                     "Contact should not default to displaying with display name.");
       }
       continue;
     }

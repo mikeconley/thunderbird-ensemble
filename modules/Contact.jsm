@@ -17,6 +17,7 @@ let Contact = Record.extend({
     return {
       popularity: 0,
       prefersText: false,
+      preferDisplayName: true,
       fields: new BaseRecord()
     };
   },
