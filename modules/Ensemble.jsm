@@ -15,10 +15,10 @@ Cu.import("resource://ensemble/Backbone.jsm");
 Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 Cu.import("resource://ensemble/storage/ContactsDBA.jsm");
 
-let Ensemble = {
+const Ensemble = {
   _initted: false,
   _initting: false,
-  _datastore: null,
+  datastore: null,
 
   init: function Ensemble_init(aDatastore, aJobFinished) {
     if (this._initted || this._initting)
@@ -27,10 +27,10 @@ let Ensemble = {
     Log.info("Starting up.");
     this._initting = true;
 
-    this._datastore = aDatastore;
+    this.datastore = aDatastore;
 
     let q = new JobQueue();
-    q.addJob(this._datastore.init.bind(this._datastore));
+    q.addJob(this.datastore.init.bind(this.datastore));
     q.addJob(this._initDBAs.bind(this));
 
     let self = this;
@@ -60,7 +60,7 @@ let Ensemble = {
     Log.info("Shutting down.");
 
     let self = this;
-    this._datastore.uninit({
+    this.datastore.uninit({
       jobSuccess: function(aResult) {
         self._initted = false;
         Log.info("Shutdown complete.");
@@ -117,7 +117,7 @@ let Ensemble = {
 
     kDBAs.forEach(function(aDBA) {
       q.addJob(function(aJobFinished) {
-        aDBA.init(self._datastore, aJobFinished);
+        aDBA.init(self.datastore, aJobFinished);
       });
     });
 
@@ -128,4 +128,14 @@ let Ensemble = {
     });
   },
 
+  get contacts() ContactsManager
 }
+
+const ContactsManager = {
+  save: function CM_save(aContacts) {
+    // TODO: Here's where we might ask the connected records for each contact to
+    // update themselves. Then we attempt to write to them. When we're finally
+    // all set there, we write to the contacts store.
+    ContactDBA.save(aContacts);
+  },
+};

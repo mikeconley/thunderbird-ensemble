@@ -12,13 +12,17 @@ let EXPORTED_SYMBOLS = ["ContactDBA"];
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 
+Cu.import("resource://gre/modules/commonjs/promise/core.js");
+Cu.import("resource://gre/modules/Task.jsm");
+
+
 /**
- * ContactDBA is the abstraction layer between Contact.jsm and
+ * ContactDBA is the abstraction layer between Contacts (Contact.jsm) and
  * SQLiteContactStore.jsm. This layer takes care of forming and
  * executing the SQLite statements that get run by SQLiteContactStore.
  *
  */
-let ContactDBA = {
+const ContactDBA = {
   _db: null,
   _nextInsertID: {},
 
@@ -27,9 +31,9 @@ let ContactDBA = {
    * don't use ContactDBA or Contact without initializing this first!
    *
    * @param aDB the initalized SQLiteContactStore to read from and write to
-   * @param aCallback the callback to be fired upon completion.
+   * @returns a Promise that resolves once the DBA is initted.
    */
-  init: function(aDatastore, aJobFinished) {
+  init: function(aDatastore) {
     // It's OK for the DBAs to reach into SQLiteContactStore like this -
     // these are expected to be tightly coupled.
     this._datastore = aDatastore;
@@ -38,102 +42,74 @@ let ContactDBA = {
     // We need to get the nextInsertIDs for both the contacts
     // table and the contact_data table.
     const kIDManagedTables = ["contacts", "contact_data"];
-    let q = new JobQueue();
 
-    for (let managedTable of kIDManagedTables) {
-      // So this is kind of lame, but we have to do an extra let-binding
-      // here, or else the closure for the job gets contaminated with
-      // subsequent iterations. Grrr...
-      let tableName = managedTable;
-      // For each table that uses IDs, schedule a job to calculate the next
-      // inserted ID value.
+    let self = this;
 
-      q.addJob(function(aInnerJobFinished) {
-        // I'm not dealing with user input, so I'm not worried about
-        // SQL injection here - plus, it doesn't appear as if mozStorage
-        // will let me bind a table name as a parameter anyway.
-        let statement = this._db.createStatement(
-          "SELECT MAX(id) from " + tableName);
-
-        statement.executeAsync({
-          handleResult: function(aResultSet) {
-            let row, id = 0;
-
-            while ((row = aResultSet.getNextRow())) {
-              // If the table is empty, we get null.
-              if (!row.getIsNull(0))
-                id = row.getInt64(0);
-            }
-            this._nextInsertID[tableName] = id + 1;
-          }.bind(this),
-
-          handleError: function(aError) {
-            let e = new Error("Could not get MAX(id)! error #: " + aError);
-            aInnerJobFinished.jobError(e);
-          },
-
-          handleCompletion: function(aReason) {
-            if (aReason === kSQLCallbacks.REASON_FINISHED)
-              aInnerJobFinished.jobSuccess(Cr.NS_OK);
-            else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-              aInnerJobFinished.jobError(new Error("Getting MAX(id) was cancelled!"));
-            }
-            // We don't handle errors on completion, only in handleError.
-          },
-        });
-
-        // We're not using this again, so go ahead and finalize.
-        statement.finalize();
-
-      }.bind(this));
-    }
-
-    q.addJob(function(aJobFinished) {
-      this._defineStatements();
-      aJobFinished.jobSuccess(Cr.NS_OK);
-    }.bind(this));
-
-    q.start({
-      success: aJobFinished.jobSuccess,
-      error: aJobFinished.jobError,
-      complete: function() {},
+    return Task.spawn(function() {
+      for (let managedTable of kIDManagedTables) {
+        // So this is kind of lame, but we have to do an extra let-binding
+        // here, or else the closure for the job gets contaminated with
+        // subsequent iterations. Grrr...
+        let tableName = managedTable;
+        // For each table that uses IDs, schedule a job to calculate the next
+        // inserted ID value.
+        yield self._getNextInsertID(tableName);
+      }
+      self._defineStatements();
     });
+  },
+
+  _getNextInsertID: function (aTableName) {
+    // I'm not dealing with user input, so I'm not worried about
+    // SQL injection here - plus, it doesn't appear as if mozStorage
+    // will let me bind a table name as a parameter anyway.
+    let statement = this._db.createStatement(
+      "SELECT MAX(id) from " + aTableName);
+
+    let promise = Promise.defer();
+
+    statement.executeAsync({
+      handleResult: function(aResultSet) {
+        let row, id = 0;
+
+        while ((row = aResultSet.getNextRow())) {
+          // If the table is empty, we get null.
+          if (!row.getIsNull(0))
+            id = row.getInt64(0);
+        }
+        this._nextInsertID[aTableName] = id + 1;
+      }.bind(this),
+
+      handleError: function(aError) {
+        let e = new Error("Could not get MAX(id)! error #: " + aError);
+        promise.reject(e);
+      },
+
+      handleCompletion: function(aReason) {
+        if (aReason === kSQLCallbacks.REASON_FINISHED)
+          promise.resolve();
+        else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
+          promise.reject(new Error("Getting MAX(id) was cancelled!"));
+        }
+        // We don't handle errors on completion, only in handleError.
+      },
+    });
+
+    statement.finalize();
+    return promise.promise;
   },
 
   /**
    * Shuts this abstraction layer down, finalizes any statements, frees
    * memory, etc.
    *
-   * @param aCallback the callback to be fired upon completion.
+   * @returns a Promise that is resolved upon completion.
    */
-  uninit: function(aCallback) {
+  uninit: function() {
+    let promise = Promise.defer();
     this._finalizeStatements();
-    aCallback(Cr.NS_OK);
-  },
-
-  /**
-   * Handle a sync call (like save or fetch) for a Contact. Called by
-   * Backbone.jsm. This function is asynchronous.
-   *
-   * @param aMethod a string - either "create", "read", "update" or "delete.
-   * @param aContact the Contact model that's being operated upon.
-   * @param aOptions the options passed to the original sync call.
-   */
-  handleSync: function(aMethod, aContact, aOptions) {
-    try {
-      switch (aMethod) {
-        case "create":
-          this._create(aContact, aOptions);
-          break;
-        // read
-        // update
-        // delete
-        default:
-          throw("Didn't recognize method: " + aMethod);
-      }
-    } catch(e) {
-      aOptions.error(aContact, e);
-    }
+    promise.resolve();
+    return promise.promise;
   },
 
   _create: function(aContact, aOptions) {
@@ -273,8 +249,9 @@ let ContactDBA = {
   _finalizeStatements: function() {
     const kStatements = [this._createContactStatement,
                          this._createContactDataStatement];
-    for (let statement of kStatements)
+    for (let statement of kStatements) {
       statement.finalize();
+    }
   },
 
   _defineStatements: function() {
