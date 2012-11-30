@@ -23,13 +23,15 @@ Cu.import("resource:///modules/iteratorUtils.jsm");
 
 Cu.import("resource://gre/modules/commonjs/promise/core.js");
 
-Cu.import("resource://gre/modules/DeferredTask.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://gre/modules/NetUtil.jsm");
 Cu.import("resource://ensemble/Record.jsm");
 Cu.import("resource://ensemble/Tag.jsm");
+
+let Common = {};
+Cu.import("resource://ensemble/Common.jsm", Common);
 
 const kStrings = ["FirstName", "LastName", "DisplayName", "NickName",
                   "JobTitle", "Department", "Company", "Notes"];
@@ -78,8 +80,7 @@ TBMorkConnector.prototype = {
 
   testConnection: function TBMC_testConnection() {
     let promise = Promise.defer();
-    // We use DeferredTask to make this synchronous activity asynchronous.
-    let task = new DeferredTask(function() {
+    let task = Common.Utils.executeSoon(function() {
       let enumerator = MailServices.ab.directories;
       if (enumerator.hasMoreElements()) {
         promise.resolve();
@@ -87,8 +88,7 @@ TBMorkConnector.prototype = {
         let e = new Error("There are no directories in the address book!");
         promise.reject(e);
       }
-    }, 0);
-    task.start();
+    });
     return promise.promise;
   },
 
@@ -135,15 +135,14 @@ TBMorkConnector.prototype = {
   _deferredCardConversion: function(aCard, aDirectory) {
     let promise = Promise.defer();
     let self = this;
-    let task = new DeferredTask(function() {
+    Common.Utils.executeSoon(function() {
       try {
         let mapping = self._getMapping(aCard, aDirectory);
         promise.resolve(mapping);
       } catch(e) {
         promise.reject(e);
       }
-    }, 10);
-    task.start();
+    });
     return promise.promise;
   },
 
@@ -272,7 +271,7 @@ TBMorkConnector.prototype = {
 
   _getTagAttrs: function(aDirectory) {
     let promise = Promise.defer();
-    let task = new DeferredTask(function() {
+    Common.Utils.executeSoon(function() {
       let displayName = aDirectory.dirName,
           exportName = aDirectory.dirName;
       let originator = "user";
@@ -294,8 +293,7 @@ TBMorkConnector.prototype = {
         exportName: exportName,
         idCollection: []
       });
-    }, 10);
-    task.start();
+    });
     return promise.promise;
   },
 
