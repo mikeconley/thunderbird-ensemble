@@ -13,6 +13,7 @@ Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
 Cu.import("resource://ensemble/Contacts.jsm");
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
+Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 Cu.import("resource://ensemble/JobQueue.jsm");
 
 let kTestFields = {
@@ -129,13 +130,11 @@ let DebugTab = {
 
   insertHouse: function DebugTab_insertHouse() {
     let house = new Contact(kTestFields);
-    house.save(null, {
-      success: function(aModel) {
-        alert("Success!");
-      },
-      error: function(aModel, aError) {
-        alert("Failure: " + aError + " -- " + aError.fileName + ":" + aError.lineNumber);
-      }
+    ContactDBA.createContact(house)
+              .then(function() {
+      alert("SUCCESS!");
+    }, function(aError) {
+      alert("FAILURE: " + aError + " -- " + aError.fileName + ":" + aError.lineNumber);
     });
   },
 

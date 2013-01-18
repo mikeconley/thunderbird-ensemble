@@ -253,16 +253,5 @@ _.mixin({
    */
   capitalize: function capitalize(aString) {
     return aString.charAt(0).toUpperCase() + aString.slice(1);
-  },
-
-  /**
-   * Returns true of aString starts with aStartsWith.
-   *
-   * @param aString the string to check for a prefix
-   * @param aStartsWith the prefix to look for
-   * @returns true if aString starts with aStartsWith. False otherwise.
-   */
-  startsWith: function startsWith(aString, aStartsWith) {
-    return (aString.substring(0, aStartsWith.length) == aStartsWith);
   }
 });

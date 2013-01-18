@@ -111,13 +111,16 @@ const Ensemble = {
   },
 
   _initDBAs: function Ensemble_fillCaches(aOuterJobFinished) {
-    const kDBAs = [ContactDBA, ContactsDBA];
+    const kDBAs = [ContactDBA];
     let q = new JobQueue();
     let self = this;
 
     kDBAs.forEach(function(aDBA) {
       q.addJob(function(aJobFinished) {
-        aDBA.init(self.datastore, aJobFinished);
+        aDBA.init(self.datastore)
+            .then(function() {
+              aJobFinished(Cr.NS_OK);
+            });
       });
     });
 
