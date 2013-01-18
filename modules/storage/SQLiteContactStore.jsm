@@ -47,7 +47,7 @@ let SQLiteContactStore = {
 
     return Task.spawn(function() {
       self._db = yield Sqlite.openConnection({path: kPath});
-//      yield self._migrateDb();
+      yield self._migrateDb();
       this._initting = false;
       this._initted = true;
     });
@@ -87,9 +87,9 @@ let SQLiteContactStore = {
     return OS.File.exists(kPath);
   },
 
-/*
-  _migrate: function SQLiteCS__migrate(aDb, aJobFinished) {
-    let dbVersion = aDb.schemaVersion;
+
+  _migrateDb: function SQLiteCS__migrateDb() {
+    let dbVersion = this._db.schemaVersion;
 
     // Preliminaries - make sure we were passed a database in a sane state.
     if (dbVersion == kDbCurrentVersion) {
@@ -98,120 +98,93 @@ let SQLiteContactStore = {
                + ' and lower.');
       // It's weird that we got here, but we should still be OK because we
       // can grok this db version.
-      aJobFinished.jobSuccess(Cr.NS_OK);
+      return Promise.resolve();
     }
 
     if (dbVersion > kDbCurrentVersion) {
       Log.error('The database appears to be from the future... cannot deal with'
                 + ' it. Bailing.');
-      aJobFinished.jobError(
-        new Error("The database version appears to be from the future.")
-      );
+      return Promise.reject(new Error("The database version appears to be from the future."));
     }
 
     // Ok, so dbVersion < kDbCurrentVersion. That's good.
-
-    let trans = new SQLiteMultistepTransaction(aDb);
-
-    // Schema 1
+    // So are we starting from nothing? If so, skip migrations
+    // and just create the current table schema from scratch.
     if (dbVersion == 0) {
-      trans.steps.push(function(aDb, aStorageCallback) {
-        let stmtStrings = [
-          "CREATE TABLE IF NOT EXISTS contacts (" +
-            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
-            "popularity INTEGER NOT NULL DEFAULT (0), " +
-            "attributes TEXT, " +
-            "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
-            "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
-            "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
-            "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP)) ",
-
-          "CREATE TABLE IF NOT EXISTS contact_records (" +
-            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
-            "contact_id INTEGER NOT NULL, " +
-            "data TEXT NOT NULL DEFAULT ('{}'), " +
-            "source TEXT NOT NULL, " +
-            "FOREIGN KEY(contact_id) REFERENCES contacts(id))",
-
-          "CREATE TABLE IF NOT EXISTS contact_data (" +
-            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
-            "contact_id INTEGER NOT NULL, " +
-            "data1 TEXT NOT NULL DEFAULT (''), " +
-            "data2 TEXT NOT NULL DEFAULT (''), " +
-            "data3 TEXT NOT NULL DEFAULT (''), " +
-            "field_type TEXT NOT NULL, " +
-            "FOREIGN KEY(contact_id) REFERENCES contacts(id)) ",
-
-          "CREATE TABLE IF NOT EXISTS categories (" +
-            "id INTEGER PRIMARY KEY NOT NULL UNIQUE, " +
-            "display_name TEXT NOT NULL, " +
-            "export_name TEXT NOT NULL, " +
-            "originator TEXT NOT NULL)",
-
-          "CREATE TABLE IF NOT EXISTS categorizations (" +
-            "contact_id INTEGER NOT NULL, " +
-            "category_id INTEGER NOT NULL, " +
-            "FOREIGN KEY(contact_id) REFERENCES contacts(id), " +
-            "FOREIGN KEY(category_id) REFERENCES categories(id))",
-        ];
-
-        let stmts = [
-          aDb.createStatement(stmtString)
-          for each (stmtString in stmtStrings)
-        ];
-
-        aDb.executeAsync(stmts, stmts.length, aStorageCallback);
-
-        for each (let stmt in stmts)
-          stmt.finalize();
-      });
-
-      trans.steps.push(function(aDb, aStorageCallback) {
-        let stmtStrings = [
-          "CREATE UNIQUE INDEX IF NOT EXISTS categorization_index " +
-            "ON categorizations (" +
-            "category_id ASC, " +
-            "contact_id ASC)",
-
-          "CREATE INDEX IF NOT EXISTS contact_data_search_index " +
-            "ON contact_data (data1)",
-
-          "CREATE INDEX IF NOT EXISTS contact_data_field_type " +
-            "ON contact_data (field_type)",
-
-          "CREATE INDEX IF NOT EXISTS contacts_display_name_family_given " +
-            "ON contacts (display_name_family_given)",
-
-          "CREATE INDEX contacts_display_name_given_family " +
-            "ON contacts (display_name_given_family)",
-
-          "CREATE INDEX IF NOT EXISTS contacts_popularity " +
-            "ON contacts (popularity)",
-        ];
-
-        let stmts = [
-          aDb.createStatement(stmtString)
-          for each (stmtString in stmtStrings)
-        ];
-
-        aDb.executeAsync(stmts, stmts.length, aStorageCallback);
-
-        for each (let stmt in stmts)
-          stmt.finalize();
-      });
+      return this._createDb();
     }
 
-    trans.run(function(aResult) {
-      if (aResult === Cr.NS_OK) {
-        // Bump the dbVersion to current
-        aDb.schemaVersion = kDbCurrentVersion;
-        Log.info("Successfully migrated to schema version "
-                 + kDbCurrentVersion);
-        aJobFinished.jobSuccess(aResult);
-      } else {
-        aJobFinished.jobError(aResult);
+    // This is where migrations should go... but I don't have
+    // any yet, so I'll just resolve the returned promise.
+    return Promise.resolve();
+  },
+
+  _createDb: function SQLiteCS__createDb() {
+    const TABLES = {
+      contacts:
+        "id INTEGER PRIMARY KEY, " +
+        "popularity INTEGER NOT NULL DEFAULT (0), " +
+        "attributes TEXT NOT NULL DEFAULT ('{}'), " +
+        "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
+        "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
+        "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
+        "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP)",
+
+      contact_records:
+        "id INTEGER PRIMARY KEY, " +
+        "contact_id INTEGER NOT NULL, " +
+        "data TEXT NOT NULL DEFAULT ('{}'), " +
+        "source TEXT NOT NULL, " +
+        "FOREIGN KEY(contact_id) REFERENCES contacts(id)",
+
+      contact_data:
+        "id INTEGER PRIMARY KEY, " +
+        "contact_id INTEGER NOT NULL, " +
+        "data1 TEXT NOT NULL DEFAULT (''), " +
+        "data2 TEXT NOT NULL DEFAULT (''), " +
+        "data3 TEXT NOT NULL DEFAULT (''), " +
+        "field_type TEXT NOT NULL, " +
+        "FOREIGN KEY(contact_id) REFERENCES contacts(id)",
+
+      categories:
+        "id INTEGER PRIMARY KEY, " +
+        "display_name TEXT NOT NULL, " +
+        "export_name TEXT NOT NULL, " +
+        "originator TEXT NOT NULL",
+
+      categorizations:
+        "contact_id INTEGER NOT NULL, " +
+        "category_id INTEGER NOT NULL, " +
+        "FOREIGN KEY(contact_id) REFERENCES contacts(id), " +
+        "FOREIGN KEY(category_id) REFERENCES categories(id)"
+    };
+
+    // I know; it's supposed to be "indices".
+    const INDEXES = {
+      contact_data_search_index: "contact_data (data1)",
+      contact_data_field_type: "contact_data (field_type)",
+      contacts_display_name_family_given: "contacts (display_name_family_given)",
+      contacts_display_name_given_family: "contacts (display_name_given_family)",
+      contacts_popularity: "contacts (popularity)"
+    };
+
+    let self = this;
+    return Task.spawn(function() {
+      for (let [k, v] in Iterator(TABLES)) {
+        Log.info("Creating table " + k);
+        yield self._db.execute("CREATE TABLE " + k + "(" + v + ")");
+        Log.info("Table " + k + " created.");
+      }
+
+      Log.info("Creating index categorization_index");
+      yield self._db.execute("CREATE UNIQUE INDEX IF NOT EXISTS categorization_index ON categorizations (category_id ASC, contact_id ASC)");
+      Log.info("Index categorization_index created.");
+
+      for (let [k, v] in Iterator(INDEXES)) {
+        Log.info("Creating index " + k);
+        yield self._db.execute("CREATE INDEX IF NOT EXISTS " + k + " ON " + v);
+        Log.info("Index " + k + " created.");
       }
     });
-  },
-*/
+  }
 };
