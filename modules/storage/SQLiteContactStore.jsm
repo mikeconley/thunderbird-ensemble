@@ -21,6 +21,9 @@ Cu.import('resource://ensemble/Common.jsm', Common);
 
 let Log = Log4Moz.getConfiguredLogger('contacts.db');
 
+const kPath = OS.Path.join(OS.Constants.Path.profileDir,
+                           kDbFile);
+
 let SQLiteContactStore = {
   _initted: false,
   _initting: false,
@@ -41,11 +44,9 @@ let SQLiteContactStore = {
 
     // Grab a hold of the DB file we're going to be dealing with.
     let self = this;
-    let dbFile = OS.Path.join(OS.Constants.Path.profileDir,
-                              kDbFile);
 
     return Task.spawn(function() {
-      self._db = yield Sqlite.openConnection({path: dbFile});
+      self._db = yield Sqlite.openConnection({path: kPath});
 //      yield self._migrateDb();
       this._initting = false;
       this._initted = true;
@@ -79,9 +80,11 @@ let SQLiteContactStore = {
 
     Log.info("Destroying database! I hope that's what you wanted...");
 
-    let path = OS.Path.join(OS.Constants.Path.profileDir,
-                            kDbFile);
-    let dbFile = FileUtils.File.remove(path);
+    return OS.File.remove(kPath);
+  },
+
+  exists: function SQLiteCS_exists() {
+    return OS.File.exists(kPath);
   },
 
 /*

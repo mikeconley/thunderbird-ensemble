@@ -6,43 +6,44 @@ const MODULE_NAME = 'test-contact-store';
 const RELATIVE_ROOT = '../shared-modules';
 const MODULE_REQUIRES = ['folder-display-helpers'];
 
-const {results: Cr} = Components;
-
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
+let os = {};
+Cu.import("resource://mozmill/stdlib/os.js", os);
+
+function initUtils() {
+  const kUtils = "./test-utils.js";
+  let utils = os.abspath(kUtils, os.getFileForPath(__file__));
+  collector.initTestModule(utils);
+}
 
 function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
+  initUtils();
+  collector.getModule('ensemble-test-utils').installInto(module);
   Services.prefs.setCharPref("contacts.db.logging.dump", "All");
 }
 
-function test_init() {
-  let done = false;
-  let error = null;
-  SQLiteContactStore.init().then(function() {
-    done = true;
-  }, function(aError) {
-    done = true;
-    error = aError;
+let tasks;
+let Store = SQLiteContactStore;
+
+function test_setup_tasks() {
+  tasks = new TaskTest();
+
+  /**
+   * Tests that we can successfully initialize, teardown,
+   * and destroy a contact store.
+   */
+  tasks.addTask("Test initializing", function() {
+    yield Store.init();
+    let exists = yield Store.exists();
+    assert_true(exists, "Store should exist.");
+    yield Store.uninit();
+    assert_true(exists, "Store should still exist.");
+    yield Store.destroy();
+    exists = yield Store.exists();
+    assert_false(exists, "Store should not longer exist.");
   });
 
-  mc.waitFor(function() done, "Timed out waiting to init contact store.");
-
-  if (error) {
-    throw error;
-  }
-
-  done = false;
-
-  SQLiteContactStore.uninit().then(function() {
-    done = true;
-  }, function(aError) {
-    done = true;
-    error = aError;
-  });
-
-  mc.waitFor(function() done, "Timed out waiting to uninit contact store.");
-
-  if (error) {
-    throw error;
-  }
+  tasks.runTasks();
 }
+
