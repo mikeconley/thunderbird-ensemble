@@ -4,20 +4,17 @@
 
 let EXPORTED_SYMBOLS = ['SQLiteContactStore'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
-const Cr = Components.results;
+const {interfaces: Ci, utils: Cu, classes: Cc, results: Cr} = Components;
 
-const kSQLCallbacks = Ci.mozIStorageStatementCallback;
 const kDbFile = 'contacts.sqlite';
-const kDbFileDir = 'ProfD';
-
 const kDbCurrentVersion = 1;
 
 Cu.import("resource:///modules/gloda/log4moz.js");
+Cu.import("resource://gre/modules/osfile.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource://ensemble/JobQueue.jsm");
+Cu.import("resource://gre/modules/commonjs/promise/core.js");
+Cu.import("resource://gre/modules/Task.jsm");
+Cu.import("resource://gre/modules/Sqlite.jsm");
 
 let Common = {};
 Cu.import('resource://ensemble/Common.jsm', Common);
@@ -29,13 +26,12 @@ let SQLiteContactStore = {
   _initting: false,
   _db: null,
 
-  init: function SQLiteCS_init(aJobFinished) {
+  init: function SQLiteCS_init() {
     // First thing's first - let's make sure we're not re-entering.
     if (this._initted || this._initting) {
       Log.warn("Initialize called on SQLiteContactStore that was already"
                + " initializing or initialized.");
-      aJobFinished.jobSuccess(Cr.NS_OK);
-      return;
+      return Promise.reject();
     }
 
     Log.info("Initializing SQLiteContactStore.");
@@ -44,130 +40,51 @@ let SQLiteContactStore = {
     this._initting = true;
 
     // Grab a hold of the DB file we're going to be dealing with.
-    let dbFile = Services.dirsvc.get(kDbFileDir, Ci.nsIFile);
-    dbFile.append(kDbFile);
+    let self = this;
+    let dbFile = OS.Path.join(OS.Constants.Path.profileDir,
+                              kDbFile);
 
-    let db = Cc["@mozilla.org/storage/service;1"]
-               .getService(Ci.mozIStorageService)
-               .openDatabase(dbFile);
-
-    if (!db.connectionReady) {
-      let err = new Error("Could not establish connection to contacts.sqlite");
-      err.code = Common.Errors.NO_CONNECTION;
-      aJobFinished.jobError(err);
-      return;
-    }
-
-    // Not sure if these are smart numbers or not. Copied from the Thunderbird
-    // instant messaging DB code (which I believe is shared with InstantBird
-    // as well).
-    try {
-      db.setGrowthIncrement(512 * 1024, "");
-    } catch (e if e.result == Cr.NS_ERROR_FILE_TOO_BIG) {
-      Log.warn('Not setting growth increment on contacts.sqlite because the'
-               + ' available disk space is limited.');
-    }
-
-    let failed = function(aError) {
-      // We'll ignore the uninit's status right now - we just want to tell
-      // the caller that something went wrong.
+    return Task.spawn(function() {
+      self._db = yield Sqlite.openConnection({path: dbFile});
+//      yield self._migrateDb();
       this._initting = false;
-      this._initted = false;
-      aJobFinished.jobError(aError);
-    }.bind(this);
-
-
-    try {
-      // Ok, hold a reference to the db now. Even if we don't complete our
-      // migrations, we still need to hold on to tear down.
-      this._db = db;
-
-      let q = new JobQueue();
-
-      // Do we need to bump the db schema?
-      if (this._needsMigration(db.schemaVersion)) {
-        // Yep! Migrate, then run the finished function.
-        Log.info(kDbFile + ' is at outdated schema version '
-                 + db.schemaVersion + '. Migrating...');
-        q.addJob(function(aJobFinished) {
-          this._migrate(db, aJobFinished);
-        }.bind(this));
-      }
-      else {
-        Log.info(kDbFile + ' is up to date and requires no migration. Nice!');
-      }
-
-      let self = this;
-
-      q.start({
-        success: function(aResult) {
-          // Hooray! We're set up.
-          Log.info("SQLiteContactStore initialized.");
-          self._initting = false;
-          self._initted = true;
-          aJobFinished.jobSuccess(aResult);
-        },
-        error: function(aError) {
-          Log.error("Initialization failed with status: " + aResult);
-          self.uninit({
-            aJobSuccess: failed,
-            aJobError: failed,
-          });
-        },
-        complete: function() {},
-      });
-
-    } catch(aError) {
-      // Something went really wrong. Uninit and return an error.
-      this.uninit(function(aStatus) {
-        failed(aError);
-      });
-    }
+      this._initted = true;
+    });
   },
 
-  uninit: function SQLiteCS_uninit(aJobFinished) {
+  uninit: function SQLiteCS_uninit() {
     // Uninit'ing - we're either fully initted, or we failed during the initting
     // stage and are trying to clean up.
     if (!this._initted && !this._initting) {
       Log.warn("Uninitialize called on SQLiteContactStore that was not yet"
                + " initialized.");
-      return;
+      return Promise.reject();
     }
 
     Log.info("Uninitializing SQLiteContactStore.");
 
-    if (this._db) {
-      // Close the db connection.
-      this._db.asyncClose({
-        complete: function() {
-          Log.info("SQLiteContactStore db connection closed.");
-          this._initting = false;
-          this._initted = false;
-          // If we were passed a callback, fire back the all green.
-          if (aJobFinished) {
-            aJobFinished.jobSuccess(Cr.NS_OK);
-          }
-        }.bind(this)
-      });
-      this._db = null;
-    }
+    let self = this;
+    return Task.spawn(function() {
+      yield self._db.close();
+      self._initted = false;
+      self._db = null;
+    });
   },
 
   destroy: function SQLiteCS_destroy() {
     // We can't destroy if we're initted or in the process of being
     // initted.
     if (this._initted || this._initting)
-      return;
+      return Promise.reject();
+
     Log.info("Destroying database! I hope that's what you wanted...");
-    let dbFile = Services.dirsvc.get(kDbFileDir, Ci.nsIFile);
-    dbFile.append(kDbFile);
-    dbFile.remove(false);
+
+    let path = OS.Path.join(OS.Constants.Path.profileDir,
+                            kDbFile);
+    let dbFile = FileUtils.File.remove(path);
   },
 
-  _needsMigration: function SQLiteCS__needsMigration(aDbVersion) {
-    return (aDbVersion < kDbCurrentVersion);
-  },
-
+/*
   _migrate: function SQLiteCS__migrate(aDb, aJobFinished) {
     let dbVersion = aDb.schemaVersion;
 
@@ -293,121 +210,5 @@ let SQLiteContactStore = {
       }
     });
   },
-
+*/
 };
-
-
-/**
- * SQLiteMultistepTransaction
- *
- * A handy class for doing sequential asynchronous interactions on an
- * SQLite database where each step *must* be completed before the next.
- * We open a transaction before all steps are run, and commit if they are
- * completed successfully. We automatically rollback on failure.
- *
- * Note that this gives us a little more flexibility than just using
- * executeAsync([big collection of statements]) for a few reasons. For one,
- * we can't create a statement for CREATE INDEX unless the tables that the
- * index refers to has already been created. In this case, the tables could
- * be created in the first step (using executeAsync([big collection of
- * CREATE TABLE statements]), and then a second step to create indices.
- *
- * Simply instantiate an SQLiteMultistepTransaction, append functions to
- * the instance's steps Array in the desired order, and call run.
- *
- * Each step function gets two arguments when called - the first argument
- * is a reference to the SQLite database. The second is the object that must
- * be passed to executeAsync as the callback function. Without passing this,
- * SQLiteMultistepTransaction does not know when to progress to the next
- * step.
- *
- * NOTE: Each step is responsible for finalizing their own statements!
- *
- * @param aDb the SQLite database to interact with.
- */
-function SQLiteMultistepTransaction(aDb) {
-  this._db = aDb;
-  this.steps = [];
-}
-
-SQLiteMultistepTransaction.prototype = {
-
-  /**
-   * Open a transaction, and then execute each step, one after another,
-   * ensuring that each step executes correctly. If so, commit. If not,
-   * rollback.
-   *
-   * @param aCallback a callback function that receives a single argument,
-   *                  which is either Cr.NS_OK, or an Error explaining what
-   *                  went wrong.
-   */
-  run: function(aCallback) {
-    Log.info("Starting SQLiteMultistepTransaction");
-    this._db.beginTransaction();
-    this._callback = aCallback;
-    this._tick();
-  },
-
-  // Private functions
-
-  // Move forward a step (or commit, if we've run out of steps).
-  _tick: function() {
-    // Base case - we've run out of steps.
-    if (this.steps.length == 0) {
-      this._commitAndFinish();
-      return;
-    }
-
-    let step = this.steps.shift(1);
-    try {
-      step(this._db, this);
-    } catch(e) {
-      let err = new Error("Got error: " + e + " for step " + step);
-      err.code = Common.Errors.TRANSACTION_FAILED;
-      this._rollbackAndFinish(err);
-    }
-  },
-
-  // We're done here, commit the transaction and call the callback with
-  // NS_OK
-  _commitAndFinish: function() {
-    Log.info("Committing transaction.");
-    this._db.commitTransaction();
-    delete this._db;
-    this._callback(Cr.NS_OK);
-  },
-
-  // Something screwed up. Rollback the transaction, and report the error
-  // to the callback.
-  _rollbackAndFinish: function(aError) {
-    Log.info("Rolling back transaction.");
-    this._db.rollbackTransaction();
-    delete this._db;
-    this._callback(aError);
-  },
-
-  // mozIStorageCompletionCallback functions
-  handleResult: function(aResult) {},
-  handleError: function(aError) {
-    Log.error(aError.message);
-    let err = new Error(aError.message + " -- (" + aError.result + ")");
-    err.code = Common.Errors.TRANSACTION_FAILED;
-    this._rollbackAndFinish(err);
-  },
-
-  handleCompletion: function(aReason) {
-    // Three possible reasons - REASON_FINISHED,
-    // REASON_CANCELED, REASON_ERROR.
-    if (aReason === kSQLCallbacks.REASON_FINISHED) {
-      this._tick();
-      return;
-    }
-    else if (aReason === kSQLCallbacks.REASON_CANCELED) {
-      let err = new Error("Transaction was cancelled");
-      err.code = Common.Errors.TRANSACTION_CANCELLED;
-      this._rollbackAndFinish(err);
-    }
-    Log.error("SQLiteMultistepTransaction failed with reason: "
-              + aReason);
-  },
-}
