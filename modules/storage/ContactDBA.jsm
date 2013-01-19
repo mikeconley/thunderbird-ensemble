@@ -5,16 +5,28 @@
 const Cu = Components.utils;
 const Ci = Components.interfaces;
 const Cr = Components.results;
-const kSQLCallbacks = Ci.mozIStorageStatementCallback;
 
-let EXPORTED_SYMBOLS = ["ContactDBA"];
-
-Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-Cu.import("resource://ensemble/JobQueue.jsm");
+const EXPORTED_SYMBOLS = ["ContactDBA"];
 
 Cu.import("resource://gre/modules/commonjs/promise/core.js");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
+
+const kCreateContact =
+  "INSERT INTO contacts (" +
+    "id, attributes, popularity, display_name_family_given," +
+    "display_name_given_family" +
+  ") VALUES (" +
+    ":id, :attributes, :popularity, :display_name_family_given, " +
+    ":display_name_given_family" +
+  ")";
+
+const kCreateContactData =
+  "INSERT INTO contact_data (" +
+    "id, contact_id, data1, data2, data3, field_type" +
+  ") VALUES (" +
+    ":id, :contact_id, :data1, :data2, :data3, :field_type" +
+  ")";
 
 /**
  * ContactDBA is the abstraction layer between Contacts (Contact.jsm) and
@@ -23,6 +35,7 @@ Cu.import("resource://ensemble/Contact.jsm");
  *
  */
 const ContactDBA = {
+  _datastore: null,
   _db: null,
   _nextInsertID: {},
 
@@ -53,50 +66,25 @@ const ContactDBA = {
         let tableName = managedTable;
         // For each table that uses IDs, schedule a job to calculate the next
         // inserted ID value.
-        yield self._getNextInsertID(tableName);
+        let nextId = yield self._getNextInsertID(tableName);
+        self._nextInsertID[tableName] = nextId;
       }
-      self._defineStatements();
     });
   },
 
-  _getNextInsertID: function (aTableName) {
+  _getNextInsertID: function(aTableName) {
     // I'm not dealing with user input, so I'm not worried about
     // SQL injection here - plus, it doesn't appear as if mozStorage
     // will let me bind a table name as a parameter anyway.
-    let statement = this._db.createStatement(
-      "SELECT MAX(id) from " + aTableName);
-
-    let promise = Promise.defer();
-
-    statement.executeAsync({
-      handleResult: function(aResultSet) {
-        let row, id = 0;
-
-        while ((row = aResultSet.getNextRow())) {
-          // If the table is empty, we get null.
-          if (!row.getIsNull(0))
-            id = row.getInt64(0);
-        }
-        this._nextInsertID[aTableName] = id + 1;
-      }.bind(this),
-
-      handleError: function(aError) {
-        let e = new Error("Could not get MAX(id)! error #: " + aError);
-        promise.reject(e);
-      },
-
-      handleCompletion: function(aReason) {
-        if (aReason === kSQLCallbacks.REASON_FINISHED)
-          promise.resolve();
-        else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-          promise.reject(new Error("Getting MAX(id) was cancelled!"));
-        }
-        // We don't handle errors on completion, only in handleError.
-      },
+    let self = this;
+    return Task.spawn(function() {
+      let rows = yield self._db.execute("SELECT MAX(id) AS max from " + aTableName);
+      let max = rows[0].getResultByName("max");
+      if (max === null) {
+        throw new Task.Result(1);
+      }
+      throw new Task.Result(max + 1);
     });
-
-    statement.finalize();
-    return promise.promise;
   },
 
   /**
@@ -106,174 +94,57 @@ const ContactDBA = {
    * @returns a Promise that is resolved upon completion.
    */
   uninit: function() {
-    let promise = Promise.defer();
-    this._finalizeStatements();
-    promise.resolve();
-    return promise.promise;
+    return Promise.resolve();
   },
 
   createContact: function(aContact) {
     let self = this;
-    let promise = Promise.defer();
-
-    Task.spawn(function() {
-      self._db.beginTransaction();
+    return Task.spawn(function() {
+      dump("\n Creating contact row\n");
       let contactID = yield self._createContactRow(aContact);
+      dump("\nDone! Id = " + contactID + " - Creating rows\n");
       yield self._createContactDataRows(contactID, aContact);
-    }).then(function() {
-      self._db.commitTransaction();
-      promise.resolve();
-    }, function(aError) {
-      self._db.rollbackTransaction();
-      promise.reject(aError);
+      dump("\nDone!\n");
+      throw new Task.Result(contactID);
     });
-
-    return promise.promise;
   },
 
   _createContactRow: function(aContact) {
-    let promise = Promise.defer();
-
-    // The new row will have the ID we're storing in _nextInsertID.contacts.
-    let contactID = this._nextInsertID.contacts;
-
-    // First, jam the JSON blob into the contacts table
-    let statement = this._createContactStatement;
-    let array = statement.newBindingParamsArray();
-    let bp = array.newBindingParams();
-
-    bp.bindByName("id", contactID);
-    bp.bindByName("attributes", JSON.stringify(aContact));
-    bp.bindByName("popularity", aContact.get("popularity"));
-    bp.bindByName("display_name_family_given",
-                  "");  //TODO
-    bp.bindByName("display_name_given_family",
-                  "");  //TODO
-
-    array.addParams(bp);
-    statement.bindParameters(array);
-
-    statement.executeAsync({
-      handleResult: function(aResultSet) {},
-      handleError: function(aError) {
-        promise.reject(new Error("Could not insert contact into contacts "
-                                 + "database. Error: " + aError.message));
-      },
-      handleCompletion: function(aReason) {
-        if (aReason === kSQLCallbacks.REASON_FINISHED) {
-          promise.resolve(contactID);
-        } else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-          promise.reject(new Error("Inserting contact was cancelled."));
-        }
-      },
+    let self = this;
+    return Task.spawn(function() {
+      // The new row will have the ID we're storing in _nextInsertID.contacts.
+      let contactID = self._nextInsertID.contacts;
+      yield self._db.executeTransaction(function(aConn) {
+        yield aConn.executeCached(kCreateContact, {
+          id: contactID,
+          attributes: JSON.stringify(aContact),
+          popularity: aContact.get("popularity"),
+          display_name_family_given: "", // TODO
+          display_name_given_family: "", // TODO
+        });
+        self._nextInsertID.contacts++;
+      });
+      throw new Task.Result(contactID);
     });
-
-    this._nextInsertID.contacts++;
-    return promise.promise;
   },
 
   _createContactDataRows: function(aContactID, aContact) {
-    let promise = Promise.defer();
-    let contactDataID = this._nextInsertID.contact_data;
-    // Next, convert each field into something indexable / searchable
-    // for the contacts_data table.
-
-    // Go through each field we want to be able to search on this contact
-    // and jam it into the contacts_data table.
-    let statement = this._createContactDataStatement;
-    let array = statement.newBindingParamsArray();
-    for (let [, fieldType] in Iterator(["name"])) {
-      let field = aContact.get(fieldType);
-      if (!Array.isArray(field)) {
-        field = [field];
-      }
-
-      for (let [, fieldValue] in Iterator(field)) {
-        if (!fieldValue) {
-          continue;
-        }
-
-        let bp = array.newBindingParams();
-        bp.bindByName("id", contactDataID++);
-        bp.bindByName("contact_id", aContactID);
-        bp.bindByName("field_type", fieldType);
-
-        if (ContactsCommon.BasicFields.indexOf(fieldType) != -1) {
-          // We're dealing with a simple string here.
-          bp.bindByName("data1", fieldValue);
-          bp.bindByName("data2", "");
-          bp.bindByName("data3", "");
-        } else if (ContactsCommon.TypedFields.indexOf(fieldType) != -1) {
-          // We're dealing with an object that has type / value properties
-          //
-          // Ugh, we have to special-case the default fields, because
-          // of how we have to store them in the Contact model. They're
-          // Backbone.Models, so we have to use get.
-          if (ContactsCommon.TypedDefaultFields
-                            .indexOf(fieldType) != -1) {
-            bp.bindByName("data1", fieldValue.get("value"));
-            bp.bindByName("data2", fieldValue.get("type"));
-          } else {
-            bp.bindByName("data1", fieldValue.value);
-            bp.bindByName("data2", fieldValue.type);
-          }
-          bp.bindByName("data3", "");
-        } else {
-          // Hrm - what is this thing?
-          promise.reject(new Error("Didn't recognize fieldType " +
-                                   fieldType));
-          return;
-        }
-        array.addParams(bp);
-      }
-    }
-
-    statement.bindParameters(array);
-    statement.executeAsync({
-      handleResult: function(aResultSet) {},
-      handleError: function(aError) {
-        promise.reject(new Error("Could not insert row into contacts_data "
-                                 + "database. Error: " + aError.message));
-      },
-      handleCompletion: function(aReason) {
-        if (aReason === kSQLCallbacks.REASON_FINISHED) {
-          promise.resolve();
-        } else if (aReason === kSQLCallbacks.REASON_CANCELLED) {
-          promise.reject(new Error("Inserting contact_data was cancelled."));
-        }
-      },
+    let self = this;
+    return Task.spawn(function() {
+      // We'll start simple - we'll just store the name.
+      let dataID = self._nextInsertID.contact_data;
+      yield self._db.executeTransaction(function(aConn) {
+        dump("\nAbout to execute a transation, yo: " + kCreateContactData + " - id: " + dataID + " and contact_id: " + aContactID + " name: " + aContact.get("name"));
+        yield aConn.executeCached(kCreateContactData, {
+          id: dataID,
+          contact_id: aContactID,
+          field_type: "name",
+          data1: aContact.fields.get("name"), // Busted.
+          data2: "",
+          data3: ""
+        });
+        self._nextInsertID.contact_data++;
+      });
     });
-
-    return promise.promise;
-  },
-
-  // Statements
-  _finalizeStatements: function() {
-    const kStatements = [this._createContactStatement,
-                         this._createContactDataStatement];
-    for (let statement of kStatements) {
-      statement.finalize();
-    }
-  },
-
-  _defineStatements: function() {
-    XPCOMUtils.defineLazyGetter(this,
-                                "_createContactStatement",
-                                function() {
-      return this._db.createAsyncStatement(
-        "INSERT INTO contacts (id, attributes, popularity, "
-        + "display_name_family_given, display_name_given_family) VALUES ("
-        +   ":id, :attributes, :popularity, :display_name_family_given, "
-        +   ":display_name_given_family)");
-    }.bind(this));
-
-    XPCOMUtils.defineLazyGetter(this,
-                                "_createContactDataStatement",
-                                function() {
-      return this._db.createAsyncStatement(
-        "INSERT INTO contact_data (id, contact_id, data1, data2, data3, "
-        + "field_type) VALUES("
-        +   ":id, :contact_id, :data1, :data2, :data3, :field_type)");
-    }.bind(this));
-  },
+  }
 };

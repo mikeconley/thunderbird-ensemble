@@ -96,13 +96,12 @@ function assert_items_equal(aItemA, aItemB, aMsg) {
  * @param aCount the row count that we expect.
  */
 function assert_row_count(aTableName, aCount) {
-  let statement = SQLiteContactStore._db.createStatement(
-    "SELECT COUNT(*) FROM " + aTableName);
-  let count;
-  statement.executeStep();
-  count = statement.getInt64(0);
-  statement.finalize();
-  assert_equals(count, aCount);
+  return Task.spawn(function() {
+    let rows = yield SQLiteContactStore._db.execute(
+      "SELECT COUNT(*) AS count FROM " + aTableName);
+    let count = rows[0].getResultByName("count");
+    assert_equals(count, aCount);
+  });
 }
 
 /**
@@ -138,61 +137,44 @@ function get_all_rows(aTableName) {
   return results;
 }
 
+function initUtils() {
+  const kUtils = "./test-utils.js";
+  let utils = os.abspath(kUtils, os.getFileForPath(__file__));
+  collector.initTestModule(utils);
+}
+
 function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
-  let done = false;
-  Services.prefs.setCharPref("contacts.db.logging.dump", "All");
-  SQLiteContactStore.init({
-    jobSuccess: function(aResult) {
-      assert_equals(aResult, Cr.NS_OK);
+  initUtils();
+  collector.getModule('ensemble-test-utils').installInto(module);
 
-      ContactDBA.init(SQLiteContactStore) 
-                .then(function() {
-        dump("\n\nAll good! Let's roll!\n");
-        done = true;
-      }, function(aError) {
-        throw aError;
-      })
-    },
-    jobError: function(aError) {
-      throw aError;
-    },
+  let tasks = new TaskTest();
+  tasks.addTask("Setup test module", function() {
+    yield SQLiteContactStore.init();
+    yield ContactDBA.init(SQLiteContactStore);
   });
 
-  mc.waitFor(function() done);
+  tasks.runTasks();
 }
 
 function teardownModule(module) {
-  let done = false;
-  ContactDBA.uninit().then(function() {
-    SQLiteContactStore.uninit({
-      jobSuccess: function(aResult) {
-        assert_equals(aResult, Cr.NS_OK);
-        done = true;
-      },
-      jobError: function(aError) {
-        throw aError;
-      }
-    });
-  }, function(aError) {
-    throw aError;
+  let tasks = new TaskTest();
+  tasks.addTask("Teardown test module", function() {
+    yield ContactDBA.uninit();
+    yield SQLiteContactStore.uninit();
+    yield SQLiteContactStore.destroy();
   });
-  mc.waitFor(function() done);
-
-  SQLiteContactStore.destroy();
+  tasks.runTasks();
 }
 
-function test_get_insert_ids() {
-  assert_true(true);
-}
-
-function xtest_saves_contact() {
+function test_saves_contact() {
   const kExpectedRows = [
     {
       data1: "House",
       data2: "",
       field_type: "name",
-    },
+    }];
+/*
     {
       data1: "Dr.",
       data2: "",
@@ -293,26 +275,22 @@ function xtest_saves_contact() {
       data2: "ICQ",
       field_type: "impp",
     },
-  ]
+  ]*/
 
-
-  let done = false, error;
-  let contact = new Contact(kTestFields);
-  contact.save(null, {
-    success: function(aModel) {
-      done = true;
-    },
-    error: function(aModel, aResponse) {
-      done = true;
-      error = aResponse;
-    },
+  let tasks = new TaskTest();
+  tasks.addTask("Test creating and saving a contact", function() {
+    let contact = new Contact(kTestFields);
+    let contactId = yield ContactDBA.createContact(contact);
+    yield assert_row_count("contacts", 1);
   });
 
+  tasks.runTasks();
+
+/*
   mc.waitFor(function() done);
   if (error)
     throw new Error(error);
 
-  assert_row_count("contacts", 1);
   let rows = get_all_rows("contacts");
   let contactRow = rows[0];
   assert_items_equal(contactRow.attributes,
@@ -334,5 +312,5 @@ function xtest_saves_contact() {
 
   for (let expectedRow of kExpectedRows) {
     assert_true(_.objInclude(rows, expectedRow));
-  }
+  }*/
 }
