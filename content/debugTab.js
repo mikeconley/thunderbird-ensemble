@@ -14,7 +14,7 @@ Cu.import("resource://ensemble/Contact.jsm");
 Cu.import("resource://ensemble/Contacts.jsm");
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
 Cu.import("resource://ensemble/storage/ContactDBA.jsm");
-Cu.import("resource://ensemble/JobQueue.jsm");
+Cu.import("resource://gre/modules/Task.jsm");
 
 let kTestFields = {
   name: 'House',
@@ -210,48 +210,22 @@ let DebugTab = {
 
   _importOldTB: function DebugTab_importOldTB() {
     Cu.import("resource://ensemble/connectors/TBMorkConnector.jsm");
-    let mork = new TBMorkConnector();
-    let result = mork.getAllRecords(function(aRecords, aTags) {
-
-      let q = new JobQueue();
-/*
-      for each (let [tagID, tagPrettyName] in Iterator(aTags)) {
-        if (!Ensemble.hasTag(tagID)) {
-          q.addJob(function(aJobFinished) {
-            Ensemble.addTag(tagID, tagPrettyName, "user", aJobFinished);
-          });
-        }
+    Task.spawn(function() {
+      let mork = new TBMorkConnector();
+      dump("\nGetting records...\n");
+      let records = yield mork.readRecords();
+      dump("\nGot em! There are: " + records.length + " of them.\n");
+      for (let record of records) {
+        dump("\nCreating a new contact...\n");
+        let contact = new Contact(record);
+        dump("\nInserting: " + contact.fields.get("name") + "\n");
+        yield ContactDBA.create(contact);
+        dump("\nCreated!\n");
       }
-
-      q.start(function(aResult) {
-        dump("\n\nInsertion result: " + aResult + "\n\n");
-      });
-*/
-      let q = new JobQueue();
-      for (let contactRecord of aRecords) {
-        let record = contactRecord;
-
-        q.addJob(function(aJobFinished) {
-          let contact = new Contact(record.fields);
-          contact.save(null, {
-            success: function(aModel) {
-              aJobFinished.jobSuccess(Cr.NS_OK);
-            },
-            error: function(aModel, aMessage) {
-              aJobFinished.jobError(aMessage);
-            },
-          });
-        });
-      }
-      q.start({
-        success: function(aResult) {
-          dump("\nDone!\n");
-        },
-        error: function(aError) {
-          throw aError;
-        },
-        complete: function() {},
-      });
+    }).then(function() {
+      dump("\nALL DONE\n");
+    }, function(e) {
+      dump("\nRUH ROH: " + e + "\n\n");
     });
   },
 };

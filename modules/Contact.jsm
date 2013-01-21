@@ -21,4 +21,16 @@ let Contact = Record.extend({
       fields: new BaseRecord()
     };
   },
+
+  constructor: function(aFields, aMeta) {
+    if (aFields instanceof Record) {
+      Backbone.Model.prototype.constructor.call(this);
+      this.set("fields", aRecord.get("fields"));
+      this.set("popularity", aRecord.get("popularity"));
+      this.set("prefersText", aRecord.get("prefersText"));
+      this.set("prefersDisplayName", aRecord.get("prefersDisplayName"));
+    } else {
+      Record.prototype.constructor.call(this, aFields, aMeta);
+    }
+  }
 });

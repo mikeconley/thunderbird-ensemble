@@ -8,68 +8,51 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://ensemble/Logging.jsm");
-Cu.import("resource://ensemble/JobQueue.jsm");
 let Common = {};
 Cu.import("resource://ensemble/Common.jsm", Common);
 Cu.import("resource://ensemble/Backbone.jsm");
 Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 Cu.import("resource://ensemble/storage/ContactsDBA.jsm");
+Cu.import("resource://gre/modules/Task.jsm");
+
+const kDBAs = [ContactDBA];
 
 const Ensemble = {
   _initted: false,
   _initting: false,
   datastore: null,
 
-  init: function Ensemble_init(aDatastore, aJobFinished) {
+  init: function Ensemble_init(aDatastore) {
     if (this._initted || this._initting)
       return;
 
     Log.info("Starting up.");
     this._initting = true;
-
     this.datastore = aDatastore;
 
-    let q = new JobQueue();
-    q.addJob(this.datastore.init.bind(this.datastore));
-    q.addJob(this._initDBAs.bind(this));
-
     let self = this;
-    q.start({
-      success: function(aResult) {
-        self._initting = false;
-        self._initted = true;
-        Log.info("Startup complete.");
-        aJobFinished.jobSuccess(aResult);
-      },
-      error: function(aError) {
-        Log.error("Init failed with message: " + aResult.message);
-        self.uninit();
-        aJobFinished.jobError(aError);
-      },
-      complete: function() {},
+    return Task.spawn(function() {
+      yield self.datastore.init();
+      yield self._initDBAs();
+      self._initting = false;
+      self._initted = true;
+      Log.info("Startup complete.");
     });
   },
 
-  uninit: function Ensemble_uninit(aJobFinished) {
+  uninit: function Ensemble_uninit() {
     if (!this._initted && !this._initting) {
       Log.warn("Attempted to shutdown an uninitted Ensemble.");
-      aJobFinished.jobSuccess(Cr.NS_OK);
-      return;
+      return Promise.resolve();
     }
 
     Log.info("Shutting down.");
 
     let self = this;
-    this.datastore.uninit({
-      jobSuccess: function(aResult) {
-        self._initted = false;
-        Log.info("Shutdown complete.");
-        aJobFinished.jobSuccess(aResult);
-      },
-      jobError: function(aError) {
-        Log.error("Uninit failed with message: " + aResult.message);
-        aJobFinished.jobError(aError);
-      },
+    return Task.spawn(function() {
+      yield self._uninitDBAs();
+      yield self.datastore.uninit();
+      Log.info("Shutdown complete.");
     });
   },
 
@@ -110,35 +93,21 @@ const Ensemble = {
     Log.info("Contact list tab should be open now.");
   },
 
-  _initDBAs: function Ensemble_fillCaches(aOuterJobFinished) {
-    const kDBAs = [ContactDBA];
-    let q = new JobQueue();
+  _initDBAs: function Ensemble__initDBAs() {
     let self = this;
-
-    kDBAs.forEach(function(aDBA) {
-      q.addJob(function(aJobFinished) {
-        aDBA.init(self.datastore)
-            .then(function() {
-              aJobFinished(Cr.NS_OK);
-            });
-      });
-    });
-
-    q.start({
-      success: aOuterJobFinished.jobSuccess,
-      error: aOuterJobFinished.jobError,
-      complete: function() {},
+    Task.spawn(function() {
+      for (let dba of kDBAs) {
+        yield dba.init(self.datastore);
+      }
     });
   },
 
-  get contacts() ContactsManager
+  _uninitDBAs: function Ensemble__uninitDBAs() {
+    let self = this;
+    Task.spawn(function() {
+      for (let dba of kDBAs) {
+        yield dba.uninit();
+      }
+    });
+  }
 }
-
-const ContactsManager = {
-  save: function CM_save(aContacts) {
-    // TODO: Here's where we might ask the connected records for each contact to
-    // update themselves. Then we attempt to write to them. When we're finally
-    // all set there, we write to the contacts store.
-    ContactDBA.save(aContacts);
-  },
-};

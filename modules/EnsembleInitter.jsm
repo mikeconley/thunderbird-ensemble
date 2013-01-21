@@ -15,32 +15,29 @@ let EnsembleInitter = {
   init: function() {
     if (!this._initted) {
       let self = this;
-      Ensemble.init(SQLiteContactStore, {
-        jobSuccess: function(aResult) {
-          Services.obs
-                  .addObserver(self, "quit-application-granted",
-                               false);
-        },
-        jobError: function(aError) {
-          self._initted = false;
-        },
+      Ensemble.init(SQLiteContactStore).then(function() {
+        self._initted = true;
+        Services.obs
+                .addObserver(self, "quit-application-granted",
+                             false);
+      }, function(aError) {
+        Components.utils.reportError(aError);
       });
-      this._initted = true;
     }
   },
+
   uninit: function() {
     if (this._initted) {
-      Ensemble.uninit({
-        jobSuccess: function(aResult) {
-        },
-        jobError: function(aError) {
-          // TODO
-        }
+      let self = this;
+      Ensemble.uninit().then(function() {
+        Services.obs.removeObserver(self, "quit-application-granted");
+        self._initted = false;
+      }, function(aError) {
+        Components.utils.reportError(aError);
       });
-      Services.obs.removeObserver(this, "quit-application-granted");
-      this._initted = false;
     }
   },
+
   observe: function(aSubject, aTopic, aData) {
     if (aTopic != "quit-application-granted")
       return;

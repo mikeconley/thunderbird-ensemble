@@ -152,6 +152,7 @@ TBMorkConnector.prototype = {
     let directories = MailServices.ab.directories;
 
     let self = this;
+    let i = 0;
 
     Task.spawn(function() {
       let results = [];
@@ -205,10 +206,15 @@ TBMorkConnector.prototype = {
       }
 
       // Ok, let's get the results!
+      try {
       for (let [, mapping] of mappings) {
         let [fields, meta] = yield mapping.deriveRecord();
+        dump("\n" + (++i) + " -- " + JSON.stringify(fields));
+        dump("\n" + JSON.stringify(meta) + "\n");
         let record = new Record(fields, meta);
         results.push(record);
+      }} catch(e) {
+        dump("\nBOO: " + e + " -- " + e.fileName + ": " + e.lineNumber + "\n");
       }
 
       throw new Task.Result(results);

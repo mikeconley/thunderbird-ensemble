@@ -27,6 +27,6 @@ let Record = Backbone.Model.extend({
 
   constructor: function(aFields, aMeta) {
     Backbone.Model.prototype.constructor.call(this, aMeta);
-    this.set("fields", new BaseRecord(aFields));
+    this.set("fields", new BaseRecord(aFields), {silent: true});
   },
 });
