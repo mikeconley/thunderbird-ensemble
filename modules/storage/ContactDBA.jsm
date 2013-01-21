@@ -28,6 +28,17 @@ const kCreateContactData =
     ":id, :contact_id, :data1, :data2, :data3, :field_type" +
   ")";
 
+const kClearContactData =
+  "DELETE FROM contact_data WHERE contact_id = :contact_id";
+
+const kUpdateContact =
+  "UPDATE contacts SET " +
+    "attributes = :attributes, " +
+    "popularity = :popularity, " +
+    "display_name_family_given = :display_name_family_given, " +
+    "display_name_given_family = :display_name_given_family " +
+  "WHERE id = :id";
+
 /**
  * ContactDBA is the abstraction layer between Contacts (Contact.jsm) and
  * SQLiteContactStore.jsm. This layer takes care of forming and
@@ -97,15 +108,33 @@ const ContactDBA = {
     return Promise.resolve();
   },
 
-  createContact: function(aContact) {
+  create: function(aContact) {
     let self = this;
     return Task.spawn(function() {
-      dump("\n Creating contact row\n");
       let contactID = yield self._createContactRow(aContact);
-      dump("\nDone! Id = " + contactID + " - Creating rows\n");
       yield self._createContactDataRows(contactID, aContact);
-      dump("\nDone!\n");
-      throw new Task.Result(contactID);
+      aContact.id = contactID;
+      throw new Task.Result(aContact);
+    });
+  },
+
+  update: function(aContact) {
+    let self = this;
+    return Task.spawn(function() {
+      if (aContact.id === undefined) {
+        throw new Error("Cannot update a contact with no ID");
+      }
+      yield self._db.executeTransaction(function(aConn) {
+        yield aConn.executeCached(kUpdateContact, {
+          id: aContact.id,
+          attributes: JSON.stringify(aContact),
+          popularity: aContact.get("popularity"),
+          display_name_family_given: "", // TODO
+          display_name_given_family: ""
+        });
+      });
+      yield self._createContactDataRows(aContact.id, aContact);
+      throw new Task.Result(aContact);
     });
   },
 
@@ -120,7 +149,7 @@ const ContactDBA = {
           attributes: JSON.stringify(aContact),
           popularity: aContact.get("popularity"),
           display_name_family_given: "", // TODO
-          display_name_given_family: "", // TODO
+          display_name_given_family: "" // TODO
         });
         self._nextInsertID.contacts++;
       });
@@ -134,15 +163,23 @@ const ContactDBA = {
       // We'll start simple - we'll just store the name.
       let dataID = self._nextInsertID.contact_data;
       yield self._db.executeTransaction(function(aConn) {
-        yield aConn.executeCached(kCreateContactData, {
-          id: dataID,
-          contact_id: aContactID,
-          field_type: "name",
-          data1: aContact.fields.get("name").toString(), // Busted.
-          data2: "",
-          data3: ""
+        yield aConn.executeCached(kClearContactData, {
+          contact_id: aContactID
         });
-        self._nextInsertID.contact_data++;
+
+        for (let name of aContact.fields.get("name")) {
+          yield aConn.executeCached(kCreateContactData, {
+            id: dataID,
+            contact_id: aContactID,
+            field_type: "name",
+            data1: name,
+            data2: "",
+            data3: ""
+          });
+          dataID++;
+        }
+
+        self._nextInsertID.contact_data = dataID;
       });
     });
   }

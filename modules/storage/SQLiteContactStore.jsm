@@ -68,6 +68,7 @@ let SQLiteContactStore = {
     return Task.spawn(function() {
       yield self._db.close();
       self._initted = false;
+      self._initting = false;
       self._db = null;
     });
   },
@@ -126,10 +127,11 @@ let SQLiteContactStore = {
         "popularity INTEGER NOT NULL DEFAULT (0), " +
         "attributes TEXT NOT NULL DEFAULT ('{}'), " +
         "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
-        "display_name_given_family TEXT NOT NULL DEFAULT (''), " +
+        "display_name_given_family TEXT NOT NULL DEFAULT ('')",
+/*
         "created DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), " +
         "modified DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP)",
-
+*/
       contact_records:
         "id INTEGER PRIMARY KEY, " +
         "contact_id INTEGER NOT NULL, " +

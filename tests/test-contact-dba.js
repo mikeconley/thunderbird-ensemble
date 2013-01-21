@@ -94,6 +94,8 @@ function assert_items_equal(aItemA, aItemB, aMsg) {
  *
  * @param aTableName the table to get the row count from
  * @param aCount the row count that we expect.
+ * @returns Promise that simply resolves if the row count
+ *          matches expectations.
  */
 function assert_row_count(aTableName, aCount) {
   return Task.spawn(function() {
@@ -106,35 +108,20 @@ function assert_row_count(aTableName, aCount) {
 
 /**
  * Retrieves all rows for a table and returns them.
+ *
+ * @param aTableName the table to get all rows from.
+ * @returns Promise that resolves to the rows.
  */
 function get_all_rows(aTableName) {
-  let statement = SQLiteContactStore._db.createStatement(
-    "SELECT * FROM " + aTableName);
-  let results = [];
-  while (statement.executeStep()) {
-    let item = {};
-    for (let i = 0; i < statement.numEntries; ++i) {
-      let type = statement.getTypeOfIndex(i);
-      let name = statement.getColumnName(i);
-      switch(type) {
-        case Ci.mozIStorageStatement.VALUE_TYPE_INTEGER:
-          item[name] = statement.getInt64(i);
-          break;
-        case Ci.mozIStorageStatement.VALUE_TYPE_FLOAT:
-          item[name] = statement.getDouble(i);
-          break;
-        case Ci.mozIStorageStatement.VALUE_TYPE_TEXT:
-          item[name] = statement.getString(i);
-          break;
-        case Ci.mozIStorageStatement.VALUE_TYPE_BLOB:
-          item[name] = statement.getBlob(i);
-          break;
-      }
-    }
-    results.push(item);
-  }
-  statement.finalize();
-  return results;
+  return Task.spawn(function() {
+    let rows = yield SQLiteContactStore._db.execute(
+      "SELECT * FROM " + aTableName);
+    throw new Task.Result(rows);
+  });
+}
+
+function attributes_from_contact_row(aRow) {
+  return JSON.parse(aRow.getResultByName("attributes"));
 }
 
 function initUtils() {
@@ -147,19 +134,20 @@ function setupModule(module) {
   collector.getModule('folder-display-helpers').installInto(module);
   initUtils();
   collector.getModule('ensemble-test-utils').installInto(module);
+}
 
+function setupTest() {
   let tasks = new TaskTest();
-  tasks.addTask("Setup test module", function() {
+  tasks.addTask("Setup clear contact store", function() {
     yield SQLiteContactStore.init();
     yield ContactDBA.init(SQLiteContactStore);
   });
-
   tasks.runTasks();
 }
 
-function teardownModule(module) {
+function teardownTest() {
   let tasks = new TaskTest();
-  tasks.addTask("Teardown test module", function() {
+  tasks.addTask("Destroy contact store", function() {
     yield ContactDBA.uninit();
     yield SQLiteContactStore.uninit();
     yield SQLiteContactStore.destroy();
@@ -278,39 +266,85 @@ function test_saves_contact() {
   ]*/
 
   let tasks = new TaskTest();
+  let contact = new Contact(kTestFields);
+
   tasks.addTask("Test creating and saving a contact", function() {
-    let contact = new Contact(kTestFields);
-    let contactId = yield ContactDBA.createContact(contact);
+    contact = yield ContactDBA.create(contact);
     yield assert_row_count("contacts", 1);
   });
 
-  tasks.runTasks();
-
-/*
-  mc.waitFor(function() done);
-  if (error)
-    throw new Error(error);
-
-  let rows = get_all_rows("contacts");
-  let contactRow = rows[0];
-  assert_items_equal(contactRow.attributes,
-                     JSON.stringify(new Contact(kTestFields)));
-
-  rows = get_all_rows("contact_data");
-
-  // We don't care about IDs, so strip those out.
-  rows = _.map(rows, function(row) {
-    assert_equals(row.contact_id, contact.id);
-    delete row.id;
-    delete row.contact_id;
-    // Not sure if we even need data3 in the table - this might get axed.
-    delete row.data3;
-    return row;
+  tasks.addTask("Test that the contact rows were created properly.", function() {
+    let rows = yield get_all_rows("contacts");
+    assert_equals(1, rows.length,
+                  "Should only be 1 row in the contacts table.");
+    let contactRow = rows[0];
+    assert_items_equal(contactRow.getResultByName("attributes"),
+                       JSON.stringify(new Contact(kTestFields)));
   });
 
-  assert_row_count("contact_data", kExpectedRows.length);
+  tasks.addTask("Test that the contact data rows were created properly.", function() {
+    let rows = yield get_all_rows("contact_data");
+    // We don't care about IDs, so strip those out.
+    rows = _.map(rows, function(row) {
+      assert_equals(row.getResultByName("contact_id"), contact.id);
+      return {
+        data1: row.getResultByName("data1"),
+        data2: row.getResultByName("data2"),
+        field_type: row.getResultByName("field_type")
+      }
+    });
 
-  for (let expectedRow of kExpectedRows) {
-    assert_true(_.objInclude(rows, expectedRow));
-  }*/
+    yield assert_row_count("contact_data", kExpectedRows.length);
+    for (let expectedRow of kExpectedRows) {
+      assert_true(_.objInclude(rows, expectedRow));
+    }
+  });
+
+  tasks.runTasks();
+}
+
+function test_updating() {
+  const kNewName = ["Chase"];
+  let tasks = new TaskTest();
+
+  let contact = new Contact(kTestFields);
+  tasks.addTask("Creating a contact to update.", function() {
+    contact = yield ContactDBA.create(contact);
+    assert_not_equals(contact.id, undefined,
+                      "Should have been assigned an id.");
+  });
+
+  tasks.addTask("Updating the newly inserted contact.", function() {
+    contact.fields.set("name", kNewName);
+    contact = yield ContactDBA.update(contact);
+    let rows = yield get_all_rows("contacts");
+    assert_equals(1, rows.length,
+                  "Should only be 1 row in the contacts table.");
+    let contactRow = rows[0];
+    let attributes = attributes_from_contact_row(contactRow);
+    assert_items_equal(attributes.fields.name, kNewName);
+  });
+
+  tasks.addTask("Make sure the contact data was updated.", function() {
+    let rows = yield get_all_rows("contact_data");
+    // We don't care about IDs, so strip those out.
+    rows = _.map(rows, function(row) {
+      assert_equals(row.getResultByName("contact_id"), contact.id);
+      return {
+        data1: row.getResultByName("data1"),
+        data2: row.getResultByName("data2"),
+        field_type: row.getResultByName("field_type")
+      }
+    });
+
+    // Linear search isn't the greatest right now, but it'll
+    // do until I start fleshing this test out more.
+    for (let row of rows) {
+      if (row.field_type == "name") {
+        assert_items_equal(row.data1, kNewName[0]);
+      }
+    }
+  });
+
+  tasks.runTasks();
 }
