@@ -134,12 +134,11 @@ const ContactDBA = {
       // We'll start simple - we'll just store the name.
       let dataID = self._nextInsertID.contact_data;
       yield self._db.executeTransaction(function(aConn) {
-        dump("\nAbout to execute a transation, yo: " + kCreateContactData + " - id: " + dataID + " and contact_id: " + aContactID + " name: " + aContact.get("name"));
         yield aConn.executeCached(kCreateContactData, {
           id: dataID,
           contact_id: aContactID,
           field_type: "name",
-          data1: aContact.fields.get("name"), // Busted.
+          data1: aContact.fields.get("name").toString(), // Busted.
           data2: "",
           data3: ""
         });
