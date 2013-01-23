@@ -216,16 +216,13 @@ let DebugTab = {
       let records = yield mork.readRecords();
       dump("\nGot em! There are: " + records.length + " of them.\n");
       for (let record of records) {
-        dump("\nCreating a new contact...\n");
         let contact = new Contact(record);
-        dump("\nInserting: " + contact.fields.get("name") + "\n");
         yield ContactDBA.create(contact);
-        dump("\nCreated!\n");
       }
     }).then(function() {
-      dump("\nALL DONE\n");
+      dump("\nAll done!\n");
     }, function(e) {
-      dump("\nRUH ROH: " + e + "\n\n");
+      dump("\nExplosion!: " + e + " -- " + e.fileName + ":" + e.lineNumber + "\n\n");
     });
   },
 };

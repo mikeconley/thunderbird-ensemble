@@ -206,15 +206,10 @@ TBMorkConnector.prototype = {
       }
 
       // Ok, let's get the results!
-      try {
       for (let [, mapping] of mappings) {
         let [fields, meta] = yield mapping.deriveRecord();
-        dump("\n" + (++i) + " -- " + JSON.stringify(fields));
-        dump("\n" + JSON.stringify(meta) + "\n");
         let record = new Record(fields, meta);
         results.push(record);
-      }} catch(e) {
-        dump("\nBOO: " + e + " -- " + e.fileName + ": " + e.lineNumber + "\n");
       }
 
       throw new Task.Result(results);
@@ -392,7 +387,10 @@ CardMapping.prototype = {
         result[field] = this._fields[field];
     }
 
-    this._promise.resolve([this._fields, this._meta]);
+    let self = this;
+    Common.Utils.executeSoon(function() {
+      self._promise.resolve([self._fields, self._meta]);
+    });
   },
 
   _handleString: function CardMapping__handleString(aName, aValue) {

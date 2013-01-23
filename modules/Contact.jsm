@@ -24,11 +24,12 @@ let Contact = Record.extend({
 
   constructor: function(aFields, aMeta) {
     if (aFields instanceof Record) {
+      let record = aFields;
       Backbone.Model.prototype.constructor.call(this);
-      this.set("fields", aRecord.get("fields"));
-      this.set("popularity", aRecord.get("popularity"));
-      this.set("prefersText", aRecord.get("prefersText"));
-      this.set("prefersDisplayName", aRecord.get("prefersDisplayName"));
+      this.set("fields", record.get("fields"));
+      this.set("popularity", record.get("popularity"));
+      this.set("prefersText", record.get("prefersText"));
+      this.set("prefersDisplayName", record.get("prefersDisplayName"));
     } else {
       Record.prototype.constructor.call(this, aFields, aMeta);
     }
