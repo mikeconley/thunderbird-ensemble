@@ -108,23 +108,14 @@ let DebugTab = {
   },
 
   _resetDb: function DebugTab__resetDb() {
-    Ensemble.uninit({
-      jobSuccess: function(aResult) {
-        // Now delete the database...
-        SQLiteContactStore.destroy();
-        // Now init a new one.
-        Ensemble.init(SQLiteContactStore, {
-          jobSuccess: function(aResult) {
-            dump("\nDatabase reset.\n");
-          },
-          jobError: function(aError) {
-            throw aError;
-          }
-        });
-      },
-      jobError: function(aError) {
-        throw aError;
-      }
+    return Task.spawn(function() {
+      dump("\nUn-initing Ensemble...\n");
+      yield Ensemble.uninit();
+      dump("\nDestroying database.\n");
+      yield SQLiteContactStore.destroy();
+      dump("\nReinitting Ensemble.\n");
+      yield Ensemble.init(SQLiteContactStore);
+      dump("\nReset complete.\n");
     });
   },
 
@@ -217,7 +208,7 @@ let DebugTab = {
       dump("\nGot em! There are: " + records.length + " of them.\n");
       for (let record of records) {
         let contact = new Contact(record);
-        yield ContactDBA.create(contact);
+        yield Ensemble.contacts.save(contact);
       }
     }).then(function() {
       dump("\nAll done!\n");

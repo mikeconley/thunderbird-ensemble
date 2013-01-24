@@ -22,7 +22,7 @@ const Ensemble = {
   _initting: false,
   datastore: null,
 
-  init: function Ensemble_init(aDatastore) {
+  init: function(aDatastore) {
     if (this._initted || this._initting)
       return;
 
@@ -40,7 +40,7 @@ const Ensemble = {
     });
   },
 
-  uninit: function Ensemble_uninit() {
+  uninit: function() {
     if (!this._initted && !this._initting) {
       Log.warn("Attempted to shutdown an uninitted Ensemble.");
       return Promise.resolve();
@@ -56,7 +56,7 @@ const Ensemble = {
     });
   },
 
-  _get3PaneTabmail: function Ensemble__get3Pane() {
+  _get3PaneTabmail: function() {
     let mail3Pane = Services.wm.getMostRecentWindow("mail:3pane");
     if (!mail3Pane) {
       Log.error("No mail3pane found - bailing!");
@@ -72,7 +72,7 @@ const Ensemble = {
     return tabmail;
   },
 
-  openDebugTab: function Ensemble_openOrFocusDebugTab() {
+  openDebugTab: function() {
     Log.info("Opening or focusing debug tab");
     let tabmail = this._get3PaneTabmail();
     if (tabmail) {
@@ -83,7 +83,7 @@ const Ensemble = {
     Log.info("Debug tab should be open now.");
   },
 
-  openContactsTab: function Ensemble_openContactsTab() {
+  openContactsTab: function() {
     Log.info("Opening or focusing contact list tab");
 
     let tabmail = this._get3PaneTabmail();
@@ -93,7 +93,7 @@ const Ensemble = {
     Log.info("Contact list tab should be open now.");
   },
 
-  _initDBAs: function Ensemble__initDBAs() {
+  _initDBAs: function() {
     let self = this;
     Task.spawn(function() {
       for (let dba of kDBAs) {
@@ -102,12 +102,35 @@ const Ensemble = {
     });
   },
 
-  _uninitDBAs: function Ensemble__uninitDBAs() {
+  _uninitDBAs: function() {
     let self = this;
     Task.spawn(function() {
       for (let dba of kDBAs) {
         yield dba.uninit();
       }
     });
+  },
+
+  get contacts() ContactsStorage
+}
+
+const ContactsStorage = {
+  save: function(aContacts) {
+    if (!Array.isArray(aContacts)) {
+      aContacts = [aContacts];
+    }
+
+    return Task.spawn(function() {
+      for (let contact of aContacts) {
+        if (contact.id !== undefined) {
+          yield ContactDBA.update(contact);
+        } else {
+          yield ContactDBA.create(contact);
+        }
+      }
+    });
+  },
+
+  all: function () {
   }
 }
