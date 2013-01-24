@@ -124,7 +124,7 @@ const ContactDBA = {
       if (aContact.id === undefined) {
         throw new Error("Cannot update a contact with no ID");
       }
-      yield self._db.executeTransaction(function(aConn) {
+      yield self._datastore.ensureTransaction(function(aConn) {
         yield aConn.executeCached(kUpdateContact, {
           id: aContact.id,
           attributes: JSON.stringify(aContact),
@@ -143,7 +143,7 @@ const ContactDBA = {
     return Task.spawn(function() {
       // The new row will have the ID we're storing in _nextInsertID.contacts.
       let contactID = self._nextInsertID.contacts;
-      yield self._db.executeTransaction(function(aConn) {
+      yield self._datastore.ensureTransaction(function(aConn) {
         yield aConn.executeCached(kCreateContact, {
           id: contactID,
           attributes: JSON.stringify(aContact),
@@ -162,7 +162,7 @@ const ContactDBA = {
     return Task.spawn(function() {
       // We'll start simple - we'll just store the name.
       let dataID = self._nextInsertID.contact_data;
-      yield self._db.executeTransaction(function(aConn) {
+      yield self._datastore.ensureTransaction(function(aConn) {
         yield aConn.executeCached(kClearContactData, {
           contact_id: aContactID
         });

@@ -88,6 +88,13 @@ let SQLiteContactStore = {
     return OS.File.exists(kPath);
   },
 
+  ensureTransaction: function (aFunc, aType) {
+    if (this._db.transactionInProgress) {
+      return aFunc(this._db);
+    } else {
+      return this._db.executeTransaction(aFunc, aType);
+    }
+  },
 
   _migrateDb: function SQLiteCS__migrateDb() {
     let dbVersion = this._db.schemaVersion;
