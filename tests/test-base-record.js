@@ -471,3 +471,34 @@ function test_can_do_simple_merge() {
   haddock.merge(wilson);
   assert_items_equal(haddock.toJSON(), kExpectedMerge);
 }
+
+function test_can_get_previous_attributes_and_diff() {
+  let kDiff = {
+    added: {
+      impp: [{
+        type: ['ICQ', 'Somethin'],
+        value: '15215125'
+      }, {
+        type: ['MSN', 'Hotmail'],
+        value: 'haddock@msn.com'
+      }]
+    },
+    removed: {
+      impp: [{
+        type: ['ICQ'],
+        value: '15215125'
+      }]
+    },
+    changed: {}
+  };
+
+  let haddock = new BaseRecord(kTestFields2);
+  haddock.set({
+    impp: [{type: ['ICQ', 'Somethin'], value: '15215125'},
+           {type: ['MSN', 'Hotmail'], value: 'haddock@msn.com'}]  }, {silent: true});
+
+  let previous = new BaseRecord(haddock.previousAttributes());
+  let diff = haddock.diff(previous);
+
+  assert_items_equal(diff, kDiff);
+}
