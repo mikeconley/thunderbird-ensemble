@@ -494,11 +494,14 @@ function test_can_get_previous_attributes_and_diff() {
 
   let haddock = new BaseRecord(kTestFields2);
   haddock.set({
-    impp: [{type: ['ICQ', 'Somethin'], value: '15215125'},
-           {type: ['MSN', 'Hotmail'], value: 'haddock@msn.com'}]  }, {silent: true});
+    impp: [{
+        type: ['ICQ', 'Somethin'], value: '15215125'
+      }, {
+        type: ['MSN', 'Hotmail'], value: 'haddock@msn.com'
+      }]
+  }, {silent: true});
 
-  let previous = new BaseRecord(haddock.previousAttributes());
-  let diff = haddock.diff(previous);
+  let diff = haddock.selfDiff();
 
   assert_items_equal(diff, kDiff);
 }

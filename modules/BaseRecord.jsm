@@ -74,7 +74,7 @@ let TypedCollection = Backbone.Collection.extend({
 
 let BaseRecord = Backbone.Model.extend({
 
-  defaults: function BaseRecord_defaults() {
+  defaults: function() {
     return {
       name: [],
       honorificPrefix: [],
@@ -182,7 +182,7 @@ let BaseRecord = Backbone.Model.extend({
    *
    * @param aBaseRecord the other BaseRecord to diff against.
    */
-  diff: function BaseRecord_diff(aBaseRecord) {
+  diff: function(aBaseRecord) {
     let otherRecord = aBaseRecord.toJSON();
     let selfRecord = this.toJSON();
 
@@ -209,6 +209,19 @@ let BaseRecord = Backbone.Model.extend({
       removed: removed,
       changed: changed
     };
+  },
+
+  /**
+   * Return a the changes that have occurred to this instance of a record since
+   * it was last retrieved.
+   *
+   * @return
+   *   A diff representing the changes that have happened to this record.
+   */
+  selfDiff: function() {
+    let previous = this.previousAttributes();
+    let record = new BaseRecord(previous);
+    return this.diff(record);
   },
 
   /**
@@ -280,7 +293,7 @@ let BaseRecord = Backbone.Model.extend({
    *
    * @param aDiff the diff to apply to this BaseRecord.
    */
-  applyDiff: function BaseRecord_applyDiff(aDiff, aOptions) {
+  applyDiff: function(aDiff, aOptions) {
     if (typeof(aDiff) !== 'object')
       throw new Error("Expected a diff object");
     if (!(aDiff.hasOwnProperty('added')))
@@ -333,7 +346,7 @@ let BaseRecord = Backbone.Model.extend({
    *
    * @param aBaseRecord the BaseRecord to merge in.
    */
-  merge: function BaseRecord_merge(aBaseRecord) {
+  merge: function(aBaseRecord) {
     // Calculate the diff between aBaseRecord and this BaseRecord.
     let diff = aBaseRecord.diff(this);
 
