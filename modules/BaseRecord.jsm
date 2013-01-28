@@ -112,8 +112,9 @@ let BaseRecord = Backbone.Model.extend({
       aAttributes[key] = value;
     }
 
-    for (let key in aAttributes)
+    for (let key in aAttributes) {
       wrapped[key] = this._prepareField(key, aAttributes[key]);
+    }
 
     return Backbone.Model.prototype.set.call(this, wrapped, aOptions);
   },

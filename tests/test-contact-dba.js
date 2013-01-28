@@ -120,8 +120,8 @@ function get_all_rows(aTableName) {
   });
 }
 
-function attributes_from_contact_row(aRow) {
-  return JSON.parse(aRow.getResultByName("attributes"));
+function fields_from_contact_row(aRow) {
+  return JSON.parse(aRow.getResultByName("fields"));
 }
 
 function initUtils() {
@@ -278,8 +278,8 @@ function test_saves_contact() {
     assert_equals(1, rows.length,
                   "Should only be 1 row in the contacts table.");
     let contactRow = rows[0];
-    assert_items_equal(contactRow.getResultByName("attributes"),
-                       JSON.stringify(new Contact(kTestFields)));
+    assert_items_equal(contactRow.getResultByName("fields"),
+                       JSON.stringify(new Contact(kTestFields).fields));
   });
 
   tasks.addTask("Test that the contact data rows were created properly.", function() {
@@ -321,8 +321,8 @@ function test_updating() {
     assert_equals(1, rows.length,
                   "Should only be 1 row in the contacts table.");
     let contactRow = rows[0];
-    let attributes = attributes_from_contact_row(contactRow);
-    assert_items_equal(attributes.fields.name, kNewName);
+    let fields = fields_from_contact_row(contactRow);
+    assert_items_equal(fields.name, kNewName);
   });
 
   tasks.addTask("Make sure the contact data was updated.", function() {
@@ -344,6 +344,23 @@ function test_updating() {
         assert_items_equal(row.data1, kNewName[0]);
       }
     }
+  });
+
+  tasks.runTasks();
+}
+
+function test_get_one() {
+  let tasks = new TaskTest();
+  let contact = new Contact(kTestFields);
+  tasks.addTask("Creating and saving a contact.", function() {
+    contact = yield ContactDBA.create(contact);
+  });
+
+  tasks.addTask("Retrieving all contacts.", function() {
+    let contacts = yield ContactDBA.all();
+    let gottenContact = contacts.next();
+    assert_items_equal(JSON.stringify(gottenContact),
+                       JSON.stringify(contact));
   });
 
   tasks.runTasks();

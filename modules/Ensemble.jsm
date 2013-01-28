@@ -131,6 +131,11 @@ const ContactsStorage = {
     });
   },
 
-  all: function () {
+  /**
+   * Returns a promise that resolves to a Contact generator
+   * for all contacts in the store.
+   */
+  all: function (aOrderBy) {
+    return ContactDBA.all(aOrderBy);
   }
 }

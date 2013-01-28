@@ -14,10 +14,10 @@ Cu.import("resource://ensemble/Contact.jsm");
 
 const kCreateContact =
   "INSERT INTO contacts (" +
-    "id, attributes, popularity, display_name_family_given," +
+    "id, fields, meta, popularity, display_name_family_given," +
     "display_name_given_family" +
   ") VALUES (" +
-    ":id, :attributes, :popularity, :display_name_family_given, " +
+    ":id, :fields, :meta, :popularity, :display_name_family_given, " +
     ":display_name_given_family" +
   ")";
 
@@ -33,11 +33,15 @@ const kClearContactData =
 
 const kUpdateContact =
   "UPDATE contacts SET " +
-    "attributes = :attributes, " +
+    "fields = :fields, " +
+    "meta = :meta, " +
     "popularity = :popularity, " +
     "display_name_family_given = :display_name_family_given, " +
     "display_name_given_family = :display_name_given_family " +
   "WHERE id = :id";
+
+const kAllContacts =
+  "SELECT * from contacts ORDER BY :order_by";
 
 /**
  * ContactDBA is the abstraction layer between Contacts (Contact.jsm) and
@@ -108,6 +112,23 @@ const ContactDBA = {
     return Promise.resolve();
   },
 
+  all: function(aOrderBy="id") {
+    let self = this;
+    return Task.spawn(function() {
+      let rows = yield self._db.executeCached(kAllContacts, {
+        order_by: aOrderBy
+      });
+      let generator = function() {
+        for (let row of rows) {
+          let fields = JSON.parse(row.getResultByName("fields"));
+          let meta = JSON.parse(row.getResultByName("meta"));
+          yield new Contact(fields, meta);
+        }
+      }
+      throw new Task.Result(generator());
+    });
+  },
+
   create: function(aContact) {
     let self = this;
     return Task.spawn(function() {
@@ -127,7 +148,8 @@ const ContactDBA = {
       yield self._datastore.ensureTransaction(function(aConn) {
         yield aConn.executeCached(kUpdateContact, {
           id: aContact.id,
-          attributes: JSON.stringify(aContact),
+          fields: JSON.stringify(aContact.fields),
+          meta: "{}", // TODO
           popularity: aContact.get("popularity"),
           display_name_family_given: "", // TODO
           display_name_given_family: ""
@@ -146,7 +168,8 @@ const ContactDBA = {
       yield self._datastore.ensureTransaction(function(aConn) {
         yield aConn.executeCached(kCreateContact, {
           id: contactID,
-          attributes: JSON.stringify(aContact),
+          fields: JSON.stringify(aContact.fields),
+          meta: "{}", // TODO
           popularity: aContact.get("popularity"),
           display_name_family_given: "", // TODO
           display_name_given_family: "" // TODO

@@ -132,7 +132,8 @@ let SQLiteContactStore = {
       contacts:
         "id INTEGER PRIMARY KEY, " +
         "popularity INTEGER NOT NULL DEFAULT (0), " +
-        "attributes TEXT NOT NULL DEFAULT ('{}'), " +
+        "fields TEXT NOT NULL DEFAULT ('{}'), " +
+        "meta TEXT NOT NULL DEFAULT ('{}'), " +
         "display_name_family_given TEXT NOT NULL DEFAULT (''), " +
         "display_name_given_family TEXT NOT NULL DEFAULT ('')",
 /*
