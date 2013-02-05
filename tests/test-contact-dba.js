@@ -10,7 +10,6 @@ const Cr = Components.results;
 
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
-Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
 
 const kTestFields = {
@@ -269,7 +268,7 @@ function test_saves_contact() {
   let contact = new Contact(kTestFields);
 
   tasks.addTask("Test creating and saving a contact", function() {
-    contact = yield ContactDBA.create(contact);
+    contact = yield ContactDBA._create(contact);
     yield assert_row_count("contacts", 1);
   });
 
@@ -309,14 +308,14 @@ function test_updating() {
 
   let contact = new Contact(kTestFields);
   tasks.addTask("Creating a contact to update.", function() {
-    contact = yield ContactDBA.create(contact);
+    contact = yield ContactDBA._create(contact);
     assert_not_equals(contact.id, undefined,
                       "Should have been assigned an id.");
   });
 
   tasks.addTask("Updating the newly inserted contact.", function() {
     contact.fields.set("name", kNewName);
-    contact = yield ContactDBA.update(contact);
+    contact = yield ContactDBA._update(contact);
     let rows = yield get_all_rows("contacts");
     assert_equals(1, rows.length,
                   "Should only be 1 row in the contacts table.");
@@ -353,7 +352,7 @@ function test_get_one() {
   let tasks = new TaskTest();
   let contact = new Contact(kTestFields);
   tasks.addTask("Creating and saving a contact.", function() {
-    contact = yield ContactDBA.create(contact);
+    contact = yield ContactDBA._create(contact);
   });
 
   tasks.addTask("Retrieving all contacts.", function() {

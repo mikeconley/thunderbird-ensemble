@@ -13,7 +13,6 @@ Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
 Cu.import("resource://ensemble/Contacts.jsm");
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
-Cu.import("resource://ensemble/storage/ContactDBA.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
 let kTestFields = {
@@ -208,7 +207,8 @@ let DebugTab = {
       dump("\nGot em! There are: " + records.length + " of them.\n");
       for (let record of records) {
         let contact = new Contact(record);
-        yield Ensemble.contacts.save(contact);
+        yield contact.save();
+        dump("\nSaved a record.");
       }
     }).then(function() {
       dump("\nAll done!\n");

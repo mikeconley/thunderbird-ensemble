@@ -46,7 +46,9 @@ let SQLiteContactStore = {
     let self = this;
 
     return Task.spawn(function() {
+      Log.info("Opening SQLite connection.");
       self._db = yield Sqlite.openConnection({path: kPath});
+      Log.info("Running migrations.");
       yield self._migrateDb();
       this._initting = false;
       this._initted = true;
@@ -98,14 +100,8 @@ let SQLiteContactStore = {
 
   _migrateDb: function SQLiteCS__migrateDb() {
     let dbVersion = this._db.schemaVersion;
-
     // Preliminaries - make sure we were passed a database in a sane state.
     if (dbVersion == kDbCurrentVersion) {
-      Log.warn('Attempted to migrate a db at version ' + dbVersion + ' but'
-               + ' we can only migrate from versions ' + (kDbCurrentVersion - 1)
-               + ' and lower.');
-      // It's weird that we got here, but we should still be OK because we
-      // can grok this db version.
       return Promise.resolve();
     }
 
@@ -195,6 +191,8 @@ let SQLiteContactStore = {
         yield self._db.execute("CREATE INDEX IF NOT EXISTS " + k + " ON " + v);
         Log.info("Index " + k + " created.");
       }
+
+      self._db.schemaVersion = kDbCurrentVersion;
     });
   }
 };

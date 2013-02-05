@@ -2,29 +2,34 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 // Note that we don't import Backbone.jsm or Underscore.jsm here.
 // This is because
+Cu.import("resource://ensemble/Ensemble.jsm");
 Cu.import("resource://ensemble/Contacts.jsm");
 
 let ContactItemView = Backbone.View.extend({
   tagName: "li",
+  initialize: function() {
+    this._template = _.template($("#contactItemTemplate").html());
+  },
+
   render: function() {
-    let template = _.template($("#contactItemTemplate").html());
-    this.$el.html(template(this.model.toJSON()));
+    this.$el.html(this._template(this.model.fields.toJSON()));
     return this;
   },
 });
 
 let ContactsView = Backbone.View.extend({
   initialize: function() {
+    dump("\nInitting contact view!\n");
     this.el = document.getElementById("contactsList");
-    this.collection = new Contacts();
     let self = this;
-    this.collection.fetch({
-      success: function(aContacts) {
-        self.render();
-      },
-      error: function(aContacts, aError) {
-        dump("\n\nHit an error: " + aError);
+    let contacts = Ensemble.contacts.all().then(function(aContacts) {
+      dump("\nGot contacts! Let's roll!\n");
+      for (let contact in aContacts) {
+        setTimeout(function() {
+          self.renderContact(contact);
+        }, 10);
       }
+      dump("\nDone iterating.\n");
     });
   },
   render: function() {
@@ -36,7 +41,9 @@ let ContactsView = Backbone.View.extend({
     return this;
   },
   renderContact: function(aContact) {
+    dump("\nRendering a contact: " + aContact + "\n");
     let contactView = new ContactItemView({model: aContact});
+    dump("\nRendering contact view\n");
     this.el.appendChild(contactView.render().el);
     return this;
   },

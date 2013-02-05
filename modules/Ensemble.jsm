@@ -11,7 +11,7 @@ Cu.import("resource://ensemble/Logging.jsm");
 let Common = {};
 Cu.import("resource://ensemble/Common.jsm", Common);
 Cu.import("resource://ensemble/Backbone.jsm");
-Cu.import("resource://ensemble/storage/ContactDBA.jsm");
+Cu.import("resource://ensemble/Contact.jsm");
 Cu.import("resource://ensemble/storage/ContactsDBA.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
@@ -115,25 +115,9 @@ const Ensemble = {
 }
 
 const ContactsStorage = {
-  save: function(aContacts) {
-    if (!Array.isArray(aContacts)) {
-      aContacts = [aContacts];
-    }
-
-    return Task.spawn(function() {
-      for (let contact of aContacts) {
-        if (contact.id !== undefined) {
-          yield ContactDBA.update(contact);
-        } else {
-          yield ContactDBA.create(contact);
-        }
-      }
-    });
-  },
-
   /**
-   * Returns a promise that resolves to a Contact generator
-   * for all contacts in the store.
+   * Returns a promise that resolves to a Contacts Backbone
+   * collection for all contacts in the store.
    */
   all: function (aOrderBy) {
     return ContactDBA.all(aOrderBy);

@@ -21,7 +21,7 @@ let EnsembleInitter = {
                 .addObserver(self, "quit-application-granted",
                              false);
       }, function(aError) {
-        Components.utils.reportError(aError);
+        Components.utils.reportError(aError + " -- " + aError.fileName + ":" + aError.lineNumber);
       });
     }
   },

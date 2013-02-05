@@ -13,5 +13,5 @@ loader.loadSubScript("resource://ensemble/lib/backbone-0.9.2.js");
 
 Backbone.sync = function(aMethod, aModelOrCollection, aOptions) {
   // Delegate to the database abstraction (DBA) of the model or collection.
-  aModelOrCollection.dba.handleSync(aMethod, aModelOrCollection, aOptions);
+  return aModelOrCollection.dba.handleSync(aMethod, aModelOrCollection, aOptions);
 };
