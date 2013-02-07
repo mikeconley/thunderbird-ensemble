@@ -4,7 +4,7 @@
 
 const Cu = Components.utils;
 
-let EXPORTED_SYMBOLS = ["Contact", "ContactDBA"];
+let EXPORTED_SYMBOLS = ["Contact", "Contacts", "ContactDBA"];
 
 Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
@@ -12,6 +12,8 @@ Cu.import("resource://ensemble/Record.jsm");
 Cu.import("resource://ensemble/BaseRecord.jsm");
 Cu.import("resource://gre/modules/commonjs/promise/core.js");
 Cu.import("resource://gre/modules/Task.jsm");
+let Common = {};
+Cu.import("resource://ensemble/Common.jsm", Common);
 
 const kCreateContact =
   "INSERT INTO contacts (" +
@@ -114,40 +116,56 @@ const ContactDBA = {
   },
 
   all: function(aOrderBy="id") {
+  },
+
+  handleSync: function(aMethod, aContact, aOptions) {
+    let resp;
+    try {
+      switch(aMethod) {
+        case "create":
+          return this._create(aContact, aOptions);
+        case "update":
+          return this._update(aContact, aOptions);
+        case "read":
+          return this._read(aContact, aOptions);
+        case "delete":
+          return this._delete(aContact, aOptions);
+        default:
+          throw new Error("Did not recognize method: " + aMethod);
+      }
+    } catch(e) {
+      aOptions.error(e);
+    }
+  },
+
+  _read: function(aContactOrCollection, aOptions) {
+    let aOrderBy = "id";
+
     let self = this;
     return Task.spawn(function() {
       let rows = yield self._db.executeCached(kAllContacts, {
         order_by: aOrderBy
       });
-      let generator = function() {
-        for (let row of rows) {
-          let fields = JSON.parse(row.getResultByName("fields"));
-          let meta = JSON.parse(row.getResultByName("meta"));
-          yield new Contact(fields, meta);
-        }
+
+      let contacts = [];
+      for (let row of rows) {
+        let fields = JSON.parse(row.getResultByName("fields"));
+        let meta = JSON.parse(row.getResultByName("meta"));
+        let contact = yield self._create_contact(fields, meta);
+        contacts.push(contact);
       }
-      throw new Task.Result(generator());
+      aOptions.success(contacts);
     });
   },
 
-  handleSync: function(aMethod, aContact, aOptions) {
-    switch(aMethod) {
-      case "create":
-        return this._create(aContact);
-      case "update":
-        return this._update(aContact);
-      case "read":
-        return this._read(aContact);
-      case "delete":
-        return this._delete(aContact);
-      default:
-        throw new Error("Did not recognize method: " + aMethod);
-    }
+  _create_contact: function(aFields, aMeta) {
+    let promise = Promise.defer();
+    Common.Utils.executeSoon(function() {
+      promise.resolve(new Contact(aFields, aMeta));
+    });
+    return promise.promise;
   },
 
-  _read: function(aContact) {
-    throw new Error("Not yet implemented.");
-  },
   _delete: function(aContact) {
     throw new Error("Not yet implemented.");
   },
@@ -254,4 +272,9 @@ let Contact = Record.extend({
       Record.prototype.constructor.call(this, aFields, aMeta);
     }
   }
+});
+
+let Contacts = Backbone.Collection.extend({
+  dba: ContactDBA,
+  model: Contact,
 });

@@ -34,6 +34,11 @@ let TypedValue = Backbone.Model.extend({
     value: "",
   },
 
+  initialize: function() {
+    this.__defineGetter__("type", function() this.get("type"));
+    this.__defineGetter__("value", function() this.get("value"));
+  },
+
   set: function(aAttributes, aOptions) {
     let wrapped = {};
 
