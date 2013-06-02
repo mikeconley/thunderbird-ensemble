@@ -154,7 +154,7 @@ function teardownTest() {
   tasks.runTasks();
 }
 
-function test_saves_contact() {
+function xtest_saves_contact() {
   const kExpectedRows = [
     {
       data1: "House",
@@ -302,7 +302,7 @@ function test_saves_contact() {
   tasks.runTasks();
 }
 
-function test_updating() {
+function xtest_updating() {
   const kNewName = ["Chase"];
   let tasks = new TaskTest();
 
@@ -348,7 +348,7 @@ function test_updating() {
   tasks.runTasks();
 }
 
-function test_get_one() {
+function xtest_get_one() {
   let tasks = new TaskTest();
   let contact = new Contact(kTestFields);
   tasks.addTask("Creating and saving a contact.", function() {
