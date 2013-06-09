@@ -10,9 +10,9 @@ const MODULE_REQUIRES = ['folder-display-helpers',
 const Cr = Components.results;
 
 Cu.import("resource:///modules/mailServices.js");
-Cu.import("resource://ensemble/connectors/CardDAV.jsm");
+// Cu.import("resource://ensemble/connectors/CardDAV.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
-// -- Here's where the actual testing begins --
+// -- Here's a blank test --
 function test_something() {
 }
