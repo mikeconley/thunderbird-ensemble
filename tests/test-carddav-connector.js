@@ -16,3 +16,17 @@ Cu.import("resource://gre/modules/Task.jsm");
 // -- Here's a blank test --
 function test_something() {
 }
+
+const radicaleLocalServerHTTP = "http://localhost:5232/";
+
+function test_server_connection_success() {
+  let connector = new CardDAVConnector();
+  let promise = connector.testServerConnection(radicaleLocalServerHTTP);
+  let done = false;
+
+  promise.then(function() {
+    done = true;
+  }, function(aError) {
+    throw aError;
+  });
+}
