@@ -63,19 +63,29 @@ testConnection: function CardDAV_testConnection() {
     return promise.promise;
   },
 
+// Testing a server connection by OPTIONS requesting a given URI.
+// An example for a successful OPTIONS response would look like:
+// 
+// Allow: DELETE, HEAD, GET, MKCALENDAR, MKCOL, MOVE, OPTIONS, PROPFIND, PROPPATCH, PUT, REPORT
+// Content-Length: 0
+// DAV: 1, 2, 3, calendar-access, addressbook, extended-mkcol
+// Date: Fri, 14 Jun 2013 18:54:46 GMT
+// Server: WSGIServer/0.1 Python/2.7.3
+//
+// This would produce a response status of 200. 
 
 testServerConnection: function connect(url) {
   let http = null;
   let promise = Promise.defer();
   let task = Common.Utils.executeSoon(function() {
     http = new XMLHttpRequest();
-    http.open("HEAD", url, false);
+    http.open("OPTIONS", url, false);
     http.send(null);
-    promise.resolve();
-    if (http.responseText !== null) {
+  
+    if (http.status == 200) {
         promise.resolve();
       } else {
-        let e = new Error("The server cannot connect!");
+        let e = new Error("There is something wrong with the connection!");
         promise.reject(e);
       }
   });
