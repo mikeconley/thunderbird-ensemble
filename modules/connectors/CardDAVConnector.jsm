@@ -9,14 +9,6 @@ const Cr = Components.results;
 
 let EXPORTED_SYMBOLS = ['CardDAVConnector'];
 let Common = {};
-let http = null;
-
-// allow for JS modules to access XMLHttpRequest
-// See: http://mdn.beonex.com/en/DOM/XMLHttpRequest/Using_XMLHttpRequest.html
-//      #Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM.C2.A0components
-let XMLHttpRequest = Components.classes["@mozilla.org/appshell/appShellService;1"]
-                               .getService(Components.interfaces.nsIAppShellService)
-                               .hiddenDOMWindow.XMLHttpRequest;
 
 Cu.import("resource://ensemble/Common.jsm", Common);
 Cu.import("resource://gre/modules/Services.jsm");
@@ -85,7 +77,7 @@ testConnection: function CardDAV_testConnection() {
   testServerConnection: function connect(url) {
     let promise = Promise.defer();
 
-    http = new XMLHttpRequest();
+    let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].createInstance(Ci.nslXMLHttpRequest);
     http.open("OPTIONS", url, true); // (method, url, async, user, password)
 
     http.onload = function(event){
