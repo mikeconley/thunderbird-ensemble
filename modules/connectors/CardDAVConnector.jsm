@@ -89,6 +89,7 @@ testConnection: function CardDAV_testConnection() {
     http.open("OPTIONS", url, true); // (method, url, async, user, password)
 
     http.onload = function(event){
+      dump("Onload handler called! http.readyState = " + http.readyState + " and http.status = " + http.status + "\n\n");
       if (http.readyState === 4) {
         if (http.status === 200) {
           promise.resolve();

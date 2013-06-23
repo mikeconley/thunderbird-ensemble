@@ -13,6 +13,10 @@ Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/connectors/CardDAVConnector.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
+function setupModule(module) {
+  collector.getModule("folder-display-helpers").installInto(module);
+}
+
 // -- Here's a blank test --
 function test_something() {
 }
@@ -29,4 +33,6 @@ function test_server_connection_success() {
   }, function(aError) {
     throw aError;
   });
+
+   mc.waitFor(function() done, "Timed out waiting for promise to resolve.");
 }
