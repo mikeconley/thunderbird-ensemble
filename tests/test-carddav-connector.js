@@ -9,6 +9,8 @@ const MODULE_REQUIRES = ['folder-display-helpers',
 
 const Cr = Components.results;
 
+const radicaleLocalServerHTTP = "http://localhost:5232/";
+
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/connectors/CardDAVConnector.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
@@ -16,12 +18,6 @@ Cu.import("resource://gre/modules/Task.jsm");
 function setupModule(module) {
   collector.getModule("folder-display-helpers").installInto(module);
 }
-
-// -- Here's a blank test --
-function test_something() {
-}
-
-const radicaleLocalServerHTTP = "http://localhost:5232/";
 
 function test_server_connection_success() {
   let connector = new CardDAVConnector();
