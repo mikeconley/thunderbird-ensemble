@@ -171,7 +171,8 @@ function test_read_records() {
     response.write('<?xml version="1.0" encoding="utf-8" ?>' +
    '<D:multistatus xmlns:D="DAV:"' +
                   'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
-      kCardDAVXMLContactA +
+      kCardDAVXMLContactA + 
+      kCardDAVXMLContactB + 
    '</D:multistatus>');
   }
 
@@ -179,6 +180,29 @@ function test_read_records() {
   let connector = new CardDAVConnector();
   connector.setPrefs(testReadRecordsPrefsJSON);
   let promise = connector.readRecords();
+  
+  wait_for_promise_resolved(promise);
+}
+
+
+function test_filtered_read_records() {
+  function connectionResponder(request, response) {
+    response.setStatusLine(request.httpVersion, 
+                           kMultiStatusHeader.statusCode, 
+                           kMultiStatusHeader.statusString);
+    response.setHeader("Content-Type", kMultiStatusHeader.contentType, false);
+    response.write('<?xml version="1.0" encoding="utf-8" ?>' +
+   '<D:multistatus xmlns:D="DAV:"' +
+                  'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
+      kCardDAVXMLContactA + 
+   '</D:multistatus>');
+  }
+
+  let UIDfilter = ["34222-232@example.com"];
+  setupCardDAVServer(kPort, "/", connectionResponder);
+  let connector = new CardDAVConnector();
+  connector.setPrefs(testReadRecordsPrefsJSON);
+  let promise = connector.readRecords(UIDfilter);
   
   wait_for_promise_resolved(promise);
 }

@@ -105,24 +105,55 @@ CardDAVConnector.prototype = {
 
     http.open('REPORT', url, true);
     let host = Services.io.newURI(url, null, null).hostPort;
+    let requestXML = null;
 
     http.setRequestHeader('Host', host);
     http.setRequestHeader('Depth', '1');
     http.setRequestHeader('Content-Type', 'text/xml; charset="utf-8"');
 
-    let requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
-                     '<C:addressbook-query xmlns:D="DAV:" ' + 
-                     'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
-                         '<D:prop>' +
-                           '<C:address-data>' +
-                             '<C:prop name="VERSION"/>' +
-                             '<C:prop name="UID"/>' +
-                             '<C:prop name="NICKNAME"/>' +
-                             '<C:prop name="EMAIL"/>' +
-                             '<C:prop name="FN"/>' +
-                           '</C:address-data>' +
-                         '</D:prop>' +
-                     '</C:addressbook-query>';
+    if(aIDCollection == null) {
+      requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
+                       '<C:addressbook-query xmlns:D="DAV:" ' + 
+                       'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
+                           '<D:prop>' +
+                             '<C:address-data>' +
+                               '<C:prop name="VERSION"/>' +
+                               '<C:prop name="UID"/>' +
+                               '<C:prop name="NICKNAME"/>' +
+                               '<C:prop name="EMAIL"/>' +
+                               '<C:prop name="FN"/>' +
+                             '</C:address-data>' +
+                           '</D:prop>' +
+                       '</C:addressbook-query>';
+    } else {
+      let UIDXML = '';
+
+      for (let i = 0; i < aIDCollection.length; i++) {
+        UIDXML = UIDXML + '<C:prop-filter name="UID">' +
+                            '<C:text-match collation="i;unicode-casemap"' +
+                               'match-type="contains>' +
+                                  aIDCollection[i] +
+                            '</C:text-match>' +
+                          '</C:prop-filter>';     
+      }
+
+      requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
+                       '<C:addressbook-query xmlns:D="DAV:" ' + 
+                       'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
+                           '<D:prop>' +
+                             '<C:address-data>' +
+                               '<C:prop name="VERSION"/>' +
+                               '<C:prop name="UID"/>' +
+                               '<C:prop name="NICKNAME"/>' +
+                               '<C:prop name="EMAIL"/>' +
+                               '<C:prop name="FN"/>' +
+                             '</C:address-data>' +
+                           '</D:prop>' +
+                           '<C:filter test="anyof">' +
+                              UIDXML +
+                           '</C:filter>' +
+                         '</C:addressbook-query>';
+    }
 
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
@@ -158,11 +189,6 @@ CardDAVConnector.prototype = {
 
 
   createTags: function(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
-  readTags: function() {
     return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
 
