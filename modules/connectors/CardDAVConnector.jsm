@@ -15,6 +15,15 @@ Cu.import("resource://gre/modules/Services.jsm");
 let CardDAVConnector = function(aAccountKey, aRecordChangesCbObj) {};
 
 CardDAVConnector.prototype = {
+  get accountKey() "", // Will this be given in constructor?
+  get supportsTags() false, // I don't believe CardDAV supports tags in the needed context
+  get isSyncable() false, 
+  get isWritable() false,
+  get shouldPoll() true, 
+  get displayName() "CardDAV Address Book",
+  get prefs() null, // need to add prefs
+  set prefs(aValue) {}, // need to add prefs
+
 
   testConnection: function(url) {
     let deferred = Promise.defer();
@@ -45,6 +54,21 @@ CardDAVConnector.prototype = {
 
     http.send(null);
     return deferred.promise;
+  },
+
+
+  authorize: function() {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  poll: function() {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  createRecords: function(aRecordsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
 
 
@@ -96,5 +120,45 @@ CardDAVConnector.prototype = {
 
     http.send(requestXML);
     return deferred.promise;
+  },
+
+
+  // readRecords: function(aIDCollection) {
+  //   return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  // },
+
+
+  updateRecords: function(aRecordsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  deleteRecords: function(aIDCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  createTags: function(aTagsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  readTags: function() {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  readTags: function(aTagsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  updateTags: function(aTagsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  deleteTags: function(aTagsCollection) {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
 }
