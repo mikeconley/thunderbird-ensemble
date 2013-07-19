@@ -41,7 +41,7 @@ CardDAVConnector.prototype = {
                  .createInstance(Ci.nsIXMLHttpRequest);
 
     let prefs = this.getPrefs();
-    if (prefs === null) {
+    if (prefs.address === null) {
       let e = new Error("The connector function requires an Address preference to be set.");
       return deferred.reject(e);
     }
@@ -95,7 +95,7 @@ CardDAVConnector.prototype = {
                  .createInstance(Ci.nsIXMLHttpRequest);
 
     let prefs = this.getPrefs();
-    if (prefs === null) {
+    if (prefs.address === null) {
       let e = new Error("The connector function requires an Address preference to be set.");
       return deferred.reject(e);
     }
