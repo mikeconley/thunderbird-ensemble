@@ -5,6 +5,7 @@
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 const Cu = Components.utils;
+const Cr = Components.results;
 
 let EXPORTED_SYMBOLS = ['CardDAVConnector'];
 
@@ -89,7 +90,7 @@ CardDAVConnector.prototype = {
   },
 
 
-  readRecords: function() {
+  readRecords: function(aIDCollection) {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
@@ -103,13 +104,11 @@ CardDAVConnector.prototype = {
 
 
     http.open('REPORT', url, true);
-    // http.responseType = 'json';
     let host = Services.io.newURI(url, null, null).hostPort;
 
     http.setRequestHeader('Host', host);
     http.setRequestHeader('Depth', '1');
     http.setRequestHeader('Content-Type', 'text/xml; charset="utf-8"');
-    // http.setRequestHeader('Content-Length', 'xxxx');
 
     let requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
                      '<C:addressbook-query xmlns:D="DAV:" ' + 
@@ -128,7 +127,7 @@ CardDAVConnector.prototype = {
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
         if (http.status === 207) { // Status 207 is "multi-status"
-          deferred.resolve(http.response); // Needs to convert to a RecordsCollection
+          deferred.resolve(http.response); // Needs to be converted to a RecordsCollection
         } else {
           let e = new Error("The readRecord attempt errored with status " + 
                             http.status + " during the onload event");
@@ -146,11 +145,6 @@ CardDAVConnector.prototype = {
     http.send(requestXML);
     return deferred.promise;
   },
-
-
-  // readRecords: function(aIDCollection) {
-  //   return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  // },
 
 
   updateRecords: function(aRecordsCollection) {
