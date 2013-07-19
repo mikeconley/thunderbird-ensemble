@@ -128,7 +128,7 @@ CardDAVConnector.prototype = {
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
         if (http.status === 207) { // Status 207 is "multi-status"
-          deferred.resolve(http.response);
+          deferred.resolve(http.response); // Needs to convert to a RecordsCollection
         } else {
           let e = new Error("The readRecord attempt errored with status " + 
                             http.status + " during the onload event");
