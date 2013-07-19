@@ -15,21 +15,38 @@ Cu.import("resource://gre/modules/Services.jsm");
 let CardDAVConnector = function(aAccountKey, aRecordChangesCbObj) {};
 
 CardDAVConnector.prototype = {
+  _prefs: null,
+
   get accountKey() "", // Will this be given in constructor?
   get supportsTags() false, // I don't believe CardDAV supports tags in the needed context
   get isSyncable() false, 
   get isWritable() false,
   get shouldPoll() true, 
   get displayName() "CardDAV Address Book",
-  get prefs() null, // need to add prefs
-  set prefs(aValue) {}, // need to add prefs
 
 
-  testConnection: function(url) {
+  getPrefs: function() { 
+    return this._prefs
+  },
+
+
+  setPrefs: function(aValue) {
+    this._prefs = aValue;
+  },
+
+
+  testConnection: function() {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
-                 
+
+    let prefs = this.getPrefs();
+    if (prefs === null) {
+      let e = new Error("The connector function requires an Address preference to be set.");
+      return deferred.reject(e);
+    }
+    let url = prefs.address;
+
     http.open("OPTIONS", url, true);
 
     http.onload = function(aEvent) {
@@ -72,10 +89,18 @@ CardDAVConnector.prototype = {
   },
 
 
-  readRecords: function(url) {
+  readRecords: function() {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
+
+    let prefs = this.getPrefs();
+    if (prefs === null) {
+      let e = new Error("The connector function requires an Address preference to be set.");
+      return deferred.reject(e);
+    }
+    let url = prefs.address;
+
 
     http.open('REPORT', url, true);
     // http.responseType = 'json';

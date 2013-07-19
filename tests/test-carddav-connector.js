@@ -11,9 +11,15 @@ Cu.import("resource://gre/modules/Task.jsm");
 Cu.import('resource://mozmill/stdlib/httpd.js');
 
 const Cr = Components.results;
-const kPort = 8080;
 
 let gServer = null;
+
+const kProtocol = 'http';
+const kHost = 'localhost';
+const kPort = 8080;
+
+const testConnectionPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
+const testReadRecordsPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
 
 const kSuccessHeader = {
   statusCode: 200,
@@ -111,9 +117,10 @@ function test_server_connection_success() {
     response.setHeader("Content-Length", kCardDAVReturnHeader.contentLength, false);
   }
 
-  setupCardDAVServer(kPort, "/test", connectionResponder);
+  setupCardDAVServer(kPort, "/", connectionResponder);
   let connector = new CardDAVConnector();
-  let promise = connector.testConnection("http://localhost:" + kPort + "/test");
+  connector.setPrefs(testConnectionPrefsJSON);
+  let promise = connector.testConnection();
 
   wait_for_promise_resolved(promise);
 }
@@ -129,7 +136,8 @@ function test_read_records() {
 
   setupCardDAVServer(kPort, "/", connectionResponder);
   let connector = new CardDAVConnector();
-  let promise = connector.readRecords("http://localhost:" + kPort);
+  connector.setPrefs(testReadRecordsPrefsJSON);
+  let promise = connector.readRecords();
   
   wait_for_promise_resolved(promise);
 }
