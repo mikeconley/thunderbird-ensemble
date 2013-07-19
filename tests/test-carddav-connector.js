@@ -21,6 +21,28 @@ const kPort = 8080;
 const testConnectionPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
 const testReadRecordsPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
 
+const kTestReadRecordsReturnXML = '<?xml version="1.0" encoding="utf-8" ?>' +
+   '<D:multistatus xmlns:D="DAV:"' +
+                  'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
+     '<D:response>' +
+       '<D:href>/home/bernard/addressbook/v102.vcf</D:href>' +
+       '<D:propstat>' +
+         '<D:prop>' +
+           '<C:address-data>' +
+             'BEGIN:VCARD' +
+             'VERSION:3.0' +
+             'NICKNAME:me' +
+             'UID:34222-232@example.com' +
+             'FN:Cyrus Daboo' +
+             'EMAIL:daboo@example.com' +
+             'END:VCARD' +
+           '</C:address-data>' +
+         '</D:prop>' +
+         '<D:status>HTTP/1.1 200 OK</D:status>' +
+       '</D:propstat>' +
+     '</D:response>' +
+   '</D:multistatus>';
+
 const kSuccessHeader = {
   statusCode: 200,
   statusString: "OK",
@@ -132,6 +154,7 @@ function test_read_records() {
                            kMultiStatusHeader.statusCode, 
                            kMultiStatusHeader.statusString);
     response.setHeader("Content-Type", kMultiStatusHeader.contentType, false);
+    response.write(kTestReadRecordsReturnXML);
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
