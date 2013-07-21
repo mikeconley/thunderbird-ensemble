@@ -13,26 +13,60 @@ Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
-let CardDAVConnector = function(aAccountKey, aRecordChangesCbObj) {};
+let CardDAVConnector = function(aAccountKey, aListener, aCache) {};
 
 CardDAVConnector.prototype = {
+  _accountKey: "",
   _prefs: null,
+  _isSyncable: false,
+  _isWritable: false,
+  _shouldPoll: true,
+  _displayName: "",
+  _initialized: false,
+  _initializing: false,
 
-  get accountKey() "", // Will this be given in constructor?
-  get supportsTags() false, // I don't believe CardDAV supports tags in the needed context
-  get isSyncable() false, 
-  get isWritable() false,
-  get shouldPoll() true, 
-  get displayName() "CardDAV Address Book",
+  getAccountKey: function() {
+    return this._accountKey;
+  },
+
+
+  getIsSyncable: function() {
+    return this._isSyncable;
+  },
+
+
+  getIsWritable: function() {
+    return this._isWritable;
+  },
+
+
+  getShouldPoll: function() {
+    return this._shouldPoll;
+  },
+
+
+  getDisplayName: function() {
+    return this._displayName;
+  },
 
 
   getPrefs: function() { 
-    return this._prefs
+    return this._prefs;
   },
 
 
   setPrefs: function(aValue) {
     this._prefs = aValue;
+  },
+
+
+  getInitialized: function() {
+    return this._initialized;
+  },
+
+
+  getInitializing: function() {
+    return this._initializing;
   },
 
 
@@ -80,17 +114,12 @@ CardDAVConnector.prototype = {
   },
 
 
-  poll: function() {
+  init: function() {
     return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
 
 
-  createRecords: function(aRecordsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
-  readRecords: function(aIDCollection) {
+  read: function() {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
@@ -111,49 +140,19 @@ CardDAVConnector.prototype = {
     http.setRequestHeader('Depth', '1');
     http.setRequestHeader('Content-Type', 'text/xml; charset="utf-8"');
 
-    if(aIDCollection == null) {
-      requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
-                       '<C:addressbook-query xmlns:D="DAV:" ' + 
-                       'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
-                           '<D:prop>' +
-                             '<C:address-data>' +
-                               '<C:prop name="VERSION"/>' +
-                               '<C:prop name="UID"/>' +
-                               '<C:prop name="NICKNAME"/>' +
-                               '<C:prop name="EMAIL"/>' +
-                               '<C:prop name="FN"/>' +
-                             '</C:address-data>' +
-                           '</D:prop>' +
-                       '</C:addressbook-query>';
-    } else {
-      let UIDXML = '';
-
-      for (let i = 0; i < aIDCollection.length; i++) {
-        UIDXML = UIDXML + '<C:prop-filter name="UID">' +
-                            '<C:text-match collation="i;unicode-casemap"' +
-                               'match-type="contains>' +
-                                  aIDCollection[i] +
-                            '</C:text-match>' +
-                          '</C:prop-filter>';     
-      }
-
-      requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
-                       '<C:addressbook-query xmlns:D="DAV:" ' + 
-                       'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
-                           '<D:prop>' +
-                             '<C:address-data>' +
-                               '<C:prop name="VERSION"/>' +
-                               '<C:prop name="UID"/>' +
-                               '<C:prop name="NICKNAME"/>' +
-                               '<C:prop name="EMAIL"/>' +
-                               '<C:prop name="FN"/>' +
-                             '</C:address-data>' +
-                           '</D:prop>' +
-                           '<C:filter test="anyof">' +
-                              UIDXML +
-                           '</C:filter>' +
-                         '</C:addressbook-query>';
-    }
+    requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
+                   '<C:addressbook-query xmlns:D="DAV:" ' + 
+                   'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
+                       '<D:prop>' +
+                         '<C:address-data>' +
+                           '<C:prop name="VERSION"/>' +
+                           '<C:prop name="UID"/>' +
+                           '<C:prop name="NICKNAME"/>' +
+                           '<C:prop name="EMAIL"/>' +
+                           '<C:prop name="FN"/>' +
+                         '</C:address-data>' +
+                       '</D:prop>' +
+                   '</C:addressbook-query>';
 
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
@@ -178,32 +177,8 @@ CardDAVConnector.prototype = {
   },
 
 
-  updateRecords: function(aRecordsCollection) {
+  poll: function() {
     return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
 
-
-  deleteRecords: function(aIDCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
-  createTags: function(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
-  readTags: function(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
-  updateTags: function(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
-  deleteTags: function(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
 }
