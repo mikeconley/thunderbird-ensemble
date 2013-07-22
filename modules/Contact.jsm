@@ -10,7 +10,7 @@ Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Backbone.jsm");
 Cu.import("resource://ensemble/Record.jsm");
 Cu.import("resource://ensemble/BaseRecord.jsm");
-Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
+Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 let Common = {};
 Cu.import("resource://ensemble/Common.jsm", Common);

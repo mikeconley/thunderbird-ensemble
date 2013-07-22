@@ -8,7 +8,7 @@ const Cu = Components.utils;
 
 let EXPORTED_SYMBOLS = ['CardDAVConnector'];
 
-Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
+Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
