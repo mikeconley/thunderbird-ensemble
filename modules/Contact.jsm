@@ -256,6 +256,7 @@ let Contact = Record.extend({
       popularity: 0,
       prefersText: false,
       preferDisplayName: true,
+      allowRemoteContent: false,
       fields: new BaseRecord()
     };
   },
