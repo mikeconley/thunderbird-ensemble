@@ -49,6 +49,7 @@ TaskTest.prototype = {
     fdr.mc.waitFor(function() self._done,
                    "Failed to complete tests!");
     if (self._error) {
+      dump("\nError: " + self._error + " -- " + self._error.stack + "\n");
       throw self._error;
     }
   },
