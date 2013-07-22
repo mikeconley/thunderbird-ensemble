@@ -13,10 +13,25 @@ Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
-let CardDAVConnector = function(aAccountKey, aListener, aCache) {};
+let CardDAVConnector = function(aAccountKey, aListener, aCache) {
+  if(aAccountKey != null) {
+    this._accountKey = aAccountKey;
+  }
+
+  if(aListener != null) {
+    this._listener = aListener;
+  }
+
+  if(aCache != null) {
+    this._cache = aCache;
+  }
+};
 
 CardDAVConnector.prototype = {
   _accountKey: "",
+  _listener: null,
+  _cache: null,
+
   _prefs: null,
   _isSyncable: false,
   _isWritable: false,
