@@ -130,7 +130,11 @@ CardDAVConnector.prototype = {
 
 
   init: function() {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+    if (this._cache == null) { // if there's no previous cache
+      this.read();
+    } else {
+
+    }
   },
 
 
@@ -172,6 +176,7 @@ CardDAVConnector.prototype = {
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
         if (http.status === 207) { // Status 207 is "multi-status"
+          dump("\n\n" + http.response + "\n\n");
           deferred.resolve(http.response); // Needs to be converted to a RecordsCollection
         } else {
           let e = new Error("The readRecord attempt errored with status " + 
