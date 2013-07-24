@@ -184,18 +184,23 @@ CardDAVConnector.prototype = {
 
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
-        if (http.status === 207) { // Status 207 is "multi-status"
+        if (http.status === 207) {
           let XMLresponse = http.response;
           let parser = new VCardParser();
 
+          // Remove unneeded XML buffers and trim whitespace, 
+          // then split each vCard into a seperate array position.
           XMLresponse = XMLresponse.replace(/<(.*)>/gm, '').trim();
           vCardArray = XMLresponse.split(/\s{2,}/);
 
+          // For each of the produced vCards, convert them into
+          // a usable JSON object to build a Record object.
           for (let i = 0; i < vCardArray.length; i++) {
             let tempJSONvCard = parser.fromVCard(vCardArray[i]);
             vCardArray[i] = new Record(tempJSONvCard);
           }
 
+          // Resolve the promise as an array collection of Records.
           deferred.resolve(vCardArray);
         } else {
           let e = new Error("The readRecord attempt errored with status " + 
