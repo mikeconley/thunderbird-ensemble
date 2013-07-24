@@ -25,6 +25,7 @@ const kCardDAVXMLContactA = '<D:response>\n' +
        '<D:href>/love.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
+           '<D:getetag>"34fd5t-df33ht"</D:getetag>' +
            '<C:address-data>\n' +
               'BEGIN:VCARD\n' +
               'N:Lovelace;Ada\n' +
@@ -53,6 +54,7 @@ const kCardDAVXMLContactB = '<D:response>\n' +
        '<D:href>/bobster.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
+           '<D:getetag>"23ba4d-ff11fb"</D:getetag>' +
            '<C:address-data>\n' +
               'BEGIN:VCARD\n' +
               'N:Tester;Bob\n' +

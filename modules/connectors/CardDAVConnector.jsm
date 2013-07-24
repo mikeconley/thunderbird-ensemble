@@ -1,4 +1,4 @@
-/* This Source Code Form issubject to the terms of the Mozilla Public
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
@@ -166,6 +166,7 @@ CardDAVConnector.prototype = {
                    '<C:addressbook-query xmlns:D="DAV:" ' + 
                    'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
                        '<D:prop>' +
+                       '<D:getetag/>' + 
                          '<C:address-data>' +
                            '<C:prop name="N"/>' +                        
                            '<C:prop name="FN"/>' +
