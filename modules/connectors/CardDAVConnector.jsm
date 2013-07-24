@@ -14,6 +14,7 @@ Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 Cu.import("resource://ensemble/lib/VCardParser.jsm");
+Cu.import("resource://ensemble/Record.jsm");
 
 let CardDAVConnector = function(aAccountKey, aListener, aCache) {
   if(aAccountKey != null) {
@@ -166,11 +167,17 @@ CardDAVConnector.prototype = {
                    'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
                        '<D:prop>' +
                          '<C:address-data>' +
-                           '<C:prop name="VERSION"/>' +
-                           '<C:prop name="UID"/>' +
-                           '<C:prop name="NICKNAME"/>' +
-                           '<C:prop name="EMAIL"/>' +
+                           '<C:prop name="N"/>' +                        
                            '<C:prop name="FN"/>' +
+                           '<C:prop name="ORG"/>' +
+                           '<C:prop name="EMAIL"/>' +
+                           '<C:prop name="TEL"/>' +
+                           '<C:prop name="ADR"/>' +
+                           '<C:prop name="URL"/>' +
+                           '<C:prop name="NOTE"/>' +
+                           '<C:prop name="CATEGORIES"/>' +
+                           '<C:prop name="UID"/>' +
+                           '<C:prop name="REV"/>' +
                          '</C:address-data>' +
                        '</D:prop>' +
                    '</C:addressbook-query>';
@@ -183,13 +190,13 @@ CardDAVConnector.prototype = {
 
           XMLresponse = XMLresponse.replace(/<(.*)>/gm, '').trim();
           vCardArray = XMLresponse.split(/\s{2,}/);
+
           for (let i = 0; i < vCardArray.length; i++) {
-            dump("\nPRE:\n" + vCardArray[i] + "\n\n");
-            vCardArray[i] = parser.fromVCard(vCardArray[i]);
-            dump("\nPOST:\n" + JSON.stringify(vCardArray[i]) + "\n\n");
+            let tempJSONvCard = parser.fromVCard(vCardArray[i]);
+            vCardArray[i] = new Record(tempJSONvCard);
           }
 
-          deferred.resolve(XMLresponse); // Needs to be converted to a RecordsCollection
+          deferred.resolve(vCardArray);
         } else {
           let e = new Error("The readRecord attempt errored with status " + 
                             http.status + " during the onload event");
