@@ -7,10 +7,13 @@
 //  Some parts of the code are based in the vcard.js from Matt Thomson released also under the MIT Licence
 //  (Specificaly the regexp and the javascript 1.6 compatibility).
 //
+let EXPORTED_SYMBOLS = ['VCardParser'];
+let VCardParser = function() {};
 
-VCardParser = {
+VCardParser.prototype = {
 
     fromVCard: function(vcardString) {
+        
         var fields, regexps, notParsed, lines, n, line, dirtyParamsArr, params, paramsSplit, valueSplit, paramObj, paramString,
             encodedLine, x, item, results, key, value;
         fields = {};

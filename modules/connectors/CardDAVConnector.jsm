@@ -13,6 +13,8 @@ Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
+Cu.import("resource://ensemble/lib/VCardParser.jsm");
+
 let CardDAVConnector = function(aAccountKey, aListener, aCache) {
   if(aAccountKey != null) {
     this._accountKey = aAccountKey;
@@ -176,8 +178,15 @@ CardDAVConnector.prototype = {
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
         if (http.status === 207) { // Status 207 is "multi-status"
-          dump("\n\n" + http.response + "\n\n");
-          deferred.resolve(http.response); // Needs to be converted to a RecordsCollection
+          let XMLresponse = http.response;
+          let parser = new VCardParser();
+
+          XMLresponse = XMLresponse.replace(/<(.*)>/gm, '').trim();
+          vCardArray = XMLresponse.split(/\s{2,}/);
+
+          let parsed = parser.fromVCard(XMLresponse);
+
+          deferred.resolve(XMLresponse); // Needs to be converted to a RecordsCollection
         } else {
           let e = new Error("The readRecord attempt errored with status " + 
                             http.status + " during the onload event");
@@ -200,5 +209,6 @@ CardDAVConnector.prototype = {
   poll: function() {
     return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
+
 
 }

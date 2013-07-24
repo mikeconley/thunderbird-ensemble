@@ -21,40 +21,40 @@ const kPort = 8080;
 const testConnectionPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
 const testReadRecordsPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
 
-const kCardDAVXMLContactA = '<D:response>' +
-       '<D:href>/waters.vcf</D:href>' +
-       '<D:propstat>' +
-         '<D:prop>' +
-           '<C:address-data>' +
-             'BEGIN:VCARD' +
-             'VERSION:3.0' +
-             'NICKNAME:me' +
-             'UID:34222-232@example.com' +
-             'FN:Fire Waters' +
-             'EMAIL:waters@example.com' +
-             'END:VCARD' +
-           '</C:address-data>' +
-         '</D:prop>' +
-         '<D:status>HTTP/1.1 200 OK</D:status>' +
-       '</D:propstat>' +
-     '</D:response>';
+const kCardDAVXMLContactA = '<D:response>\n' +
+       '<D:href>/waters.vcf</D:href>\n' +
+       '<D:propstat>\n' +
+         '<D:prop>\n' +
+           '<C:address-data>\n' +
+             'BEGIN:VCARD\n' +
+             'VERSION:3.0\n' +
+             'NICKNAME:me\n' +
+             'UID:34222-232@example.com\n' +
+             'FN:Fire Waters\n' +
+             'EMAIL:waters@example.com\n' +
+             'END:VCARD\n' +
+           '</C:address-data>\n' +
+         '</D:prop>\n' +
+         '<D:status>HTTP/1.1 200 OK</D:status>\n' +
+       '</D:propstat>\n' +
+     '</D:response>\n';
 
-const kCardDAVXMLContactB = '<D:response>' +
-       '<D:href>/waters.vcf</D:href>' +
-       '<D:propstat>' +
-         '<D:prop>' +
-           '<C:address-data>' +
-             'BEGIN:VCARD' +
-             'VERSION:3.0' +
-             'NICKNAME:you' +
-             'UID:45645-552@example.com' +
-             'FN:Super Man' +
-             'EMAIL:sm@example.com' +
-             'END:VCARD' +
-           '</C:address-data>' +
-         '</D:prop>' +
-         '<D:status>HTTP/1.1 200 OK</D:status>' +
-       '</D:propstat>' +
+const kCardDAVXMLContactB = '<D:response>\n' +
+       '<D:href>/waters.vcf</D:href>\n' +
+       '<D:propstat>\n' +
+         '<D:prop>\n' +
+           '<C:address-data>\n' +
+             'BEGIN:VCARD\n' +
+             'VERSION:3.0\n' +
+             'NICKNAME:you\n' +
+             'UID:45645-552@example.com\n' +
+             'FN:Super Man\n' +
+             'EMAIL:sm@example.com\n' +
+             'END:VCARD\n' +
+           '</C:address-data>\n' +
+         '</D:prop>\n' +
+         '<D:status>HTTP/1.1 200 OK</D:status>\n' +
+       '</D:propstat>\n' +
      '</D:response>';
 
 const kSuccessHeader = {
@@ -168,9 +168,8 @@ function test_read_records() {
                            kMultiStatusHeader.statusCode, 
                            kMultiStatusHeader.statusString);
     response.setHeader("Content-Type", kMultiStatusHeader.contentType, false);
-    response.write('<?xml version="1.0" encoding="utf-8" ?>' +
-   '<D:multistatus xmlns:D="DAV:"' +
-                  'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
+    response.write('<?xml version="1.0" encoding="utf-8" ?>\n' +
+   '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">\n' +
       kCardDAVXMLContactA + 
       kCardDAVXMLContactB + 
    '</D:multistatus>');
