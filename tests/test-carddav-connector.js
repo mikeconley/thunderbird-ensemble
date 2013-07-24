@@ -22,36 +22,56 @@ const testConnectionPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kP
 const testReadRecordsPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
 
 const kCardDAVXMLContactA = '<D:response>\n' +
-       '<D:href>/waters.vcf</D:href>\n' +
+       '<D:href>/love.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
            '<C:address-data>\n' +
-             'BEGIN:VCARD\n' +
-             'VERSION:3.0\n' +
-             'NICKNAME:me\n' +
-             'UID:34222-232@example.com\n' +
-             'FN:Fire Waters\n' +
-             'EMAIL:waters@example.com\n' +
-             'END:VCARD\n' +
-           '</C:address-data>\n' +
+              'BEGIN:VCARD\n' +
+              'N:Lovelace;Ada\n' +
+              'FN:Ada;Lovelace\n' +
+              'ORG:Babbage\n' +
+              'EMAIL;type=INTERNET;type=Work:ada.lovelace@babbage.org\n' +
+              'EMAIL;type=INTERNET,Personal;LANGUAGE=En:ada@gmail.com\n' +
+              'TEL;type=Home:932435434\n' +
+              'TEL;type=Work:645324315\n' +
+              'ADR;type=Home:32 Leicester Square, London\n' +
+              'ADR;type=Work:12 Halsmere Road, London\n' +
+              'URL;type=Blog:lovelace.org\n' +
+              'URL;type=Twitter:twitter.com/ada\n' +
+              'NOTE:Countess of Lovelace.\n' +
+              'CATEGORIES:Developers,Mathematicians\n' +
+              'UID:352D8E36-ECCF-4966-9060-15625008A10C\n' +
+              'REV:20120720T014035Z\n' +
+              'END:VCARD' +
+            '</C:address-data>\n' +
          '</D:prop>\n' +
          '<D:status>HTTP/1.1 200 OK</D:status>\n' +
        '</D:propstat>\n' +
-     '</D:response>\n';
+     '</D:response>';
 
 const kCardDAVXMLContactB = '<D:response>\n' +
-       '<D:href>/waters.vcf</D:href>\n' +
+       '<D:href>/bobster.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
            '<C:address-data>\n' +
-             'BEGIN:VCARD\n' +
-             'VERSION:3.0\n' +
-             'NICKNAME:you\n' +
-             'UID:45645-552@example.com\n' +
-             'FN:Super Man\n' +
-             'EMAIL:sm@example.com\n' +
-             'END:VCARD\n' +
-           '</C:address-data>\n' +
+              'BEGIN:VCARD\n' +
+              'N:Tester;Bob\n' +
+              'FN:Bob;Tester\n' +
+              'ORG:Bobster\n' +
+              'EMAIL;type=INTERNET;type=Work:bob.tester@bobster.org\n' +
+              'EMAIL;type=INTERNET,Personal;LANGUAGE=En:bob@gmail.com\n' +
+              'TEL;type=Home:434234234\n' +
+              'TEL;type=Work:567657567\n' +
+              'ADR;type=Home:6767 Street Road, Toronto\n' +
+              'ADR;type=Work:333 Lobster Street, Ottawa\n' +
+              'URL;type=Blog:bobster.org\n' +
+              'URL;type=Twitter:twitter.com/bobster\n' +
+              'NOTE:Lord of Bobster.\n' +
+              'CATEGORIES:Woodworker,Catcher\n' +
+              'UID:555D8F36-ECCF-3454-7878-34536334A10C\n' +
+              'REV:24350720T015555Z\n' +
+              'END:VCARD' +
+            '</C:address-data>\n' +
          '</D:prop>\n' +
          '<D:status>HTTP/1.1 200 OK</D:status>\n' +
        '</D:propstat>\n' +

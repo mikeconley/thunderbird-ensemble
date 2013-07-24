@@ -183,8 +183,11 @@ CardDAVConnector.prototype = {
 
           XMLresponse = XMLresponse.replace(/<(.*)>/gm, '').trim();
           vCardArray = XMLresponse.split(/\s{2,}/);
-
-          let parsed = parser.fromVCard(XMLresponse);
+          for (let i = 0; i < vCardArray.length; i++) {
+            dump("\nPRE:\n" + vCardArray[i] + "\n\n");
+            vCardArray[i] = parser.fromVCard(vCardArray[i]);
+            dump("\nPOST:\n" + JSON.stringify(vCardArray[i]) + "\n\n");
+          }
 
           deferred.resolve(XMLresponse); // Needs to be converted to a RecordsCollection
         } else {
