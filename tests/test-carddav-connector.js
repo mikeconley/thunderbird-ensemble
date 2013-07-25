@@ -204,3 +204,24 @@ function test_read_records() {
   
   wait_for_promise_resolved(promise);
 }
+
+function test_init() {
+  function connectionResponder(request, response) {
+    response.setStatusLine(request.httpVersion, 
+                           kMultiStatusHeader.statusCode, 
+                           kMultiStatusHeader.statusString);
+    response.setHeader("Content-Type", kMultiStatusHeader.contentType, false);
+    response.write('<?xml version="1.0" encoding="utf-8" ?>\n' +
+   '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">\n' +
+      kCardDAVXMLContactA + 
+      kCardDAVXMLContactB + 
+   '</D:multistatus>');
+  }
+
+  setupCardDAVServer(kPort, "/", connectionResponder);
+  let connector = new CardDAVConnector();
+  connector.setPrefs(testReadRecordsPrefsJSON);
+  let promise = connector.init();
+  
+  wait_for_promise_resolved(promise);
+}

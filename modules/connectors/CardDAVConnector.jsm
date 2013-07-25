@@ -27,7 +27,7 @@ Cu.import("resource://ensemble/Record.jsm");
 let CardDAVCacheObj = function(etag, location) {
   this._etag = etag;
   this._serverLocation = location;
-}
+};
 
 CardDAVCacheObj.prototype = {
   _etag: "",
@@ -152,11 +152,17 @@ CardDAVConnector.prototype = {
 
 
   init: function() {
-    if (this._cache == null) { // if there's no previous cache
-      this.read();
-    } else {
+    let deferred = Promise.defer();
+    let promise = null;
+    this._initializing = true;
 
-    }
+    if (this._cache == null) {
+      promise = this.read();
+    } 
+    this._initialized = true;
+
+    deferred.resolve(promise);
+    return deferred.promise;
   },
 
 
@@ -218,7 +224,7 @@ CardDAVConnector.prototype = {
             etag[i] = etag[i].replace(/<D:getetag>/, "");
           }
 
-          // The same is done for each of the vCard server location.
+          // The same is done for each of the vCard server locations.
           let href = XMLresponse.match(/<D:href>(.*?)(?=<\/D:href>)/g);
           for (let i = 0; i < href.length; i++) {
             href[i] = href[i].replace(/<D:href>/, "");
@@ -230,7 +236,8 @@ CardDAVConnector.prototype = {
           vCardArray = XMLresponse.split(/\s{2,}/);
 
           // For each of the produced vCards, convert them into
-          // a usable JSON object to build a Record object.
+          // a usable JSON object to build a Record object. Also,
+          // each creation is tracked in the cache. 
           for (let i = 0; i < vCardArray.length; i++) {
             let tempJSONvCard = parser.fromVCard(vCardArray[i]);
             vCardArray[i] = new Record(tempJSONvCard);
