@@ -23,6 +23,7 @@ Cu.import("resource://ensemble/Record.jsm");
 // to compare, as well as the state of the server-side vCard. 
 //
 // Server Location is the server path of the vCard in question.
+
 let CardDAVCacheObj = function(etag, location) {
   this._etag = etag;
   this._serverLocation = location;
@@ -206,6 +207,22 @@ CardDAVConnector.prototype = {
         if (http.status === 207) {
           let XMLresponse = http.response;
           let parser = new VCardParser();
+          this._cache = new Array();
+
+          // To grab the imported ETags before they are removed, 
+          // each is stripped using RegExp. However, because JS
+          // does not support RegExp Look-behind, each ETag must
+          // also have its opening tag removed manually.
+          let etag = XMLresponse.match(/<D:getetag>(.*?)(?=<\/D:getetag>)/g);
+          for (let i = 0; i < etag.length; i++) {
+            etag[i] = etag[i].replace(/<D:getetag>/, "");
+          }
+
+          // The same is done for each of the vCard server location.
+          let href = XMLresponse.match(/<D:href>(.*?)(?=<\/D:href>)/g);
+          for (let i = 0; i < href.length; i++) {
+            href[i] = href[i].replace(/<D:href>/, "");
+          }
 
           // Remove unneeded XML buffers and trim whitespace, 
           // then split each vCard into a seperate array position.
@@ -217,6 +234,8 @@ CardDAVConnector.prototype = {
           for (let i = 0; i < vCardArray.length; i++) {
             let tempJSONvCard = parser.fromVCard(vCardArray[i]);
             vCardArray[i] = new Record(tempJSONvCard);
+
+            this._cache.push(new CardDAVCacheObj(etag[i], href[i]));
           }
 
           // Resolve the promise as an array collection of Records.
