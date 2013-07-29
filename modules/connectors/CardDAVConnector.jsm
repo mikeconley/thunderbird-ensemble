@@ -15,6 +15,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 Cu.import("resource://ensemble/lib/VCardParser.jsm");
 Cu.import("resource://ensemble/Record.jsm");
+Cu.import("resource://ensemble/connectors/Cache.jsm");
 
 
 let CardDAVConnector = function(aAccountKey, aListener, aCache) {
@@ -198,9 +199,7 @@ CardDAVConnector.prototype = {
       requestXML = requestXML + '<C:prop name="' + properties[i] + '"/>';
     }
 
-    requestXML = requestXML + '</D:prop>' +
-                   '</C:addressbook-query>';
-
+    requestXML = requestXML + '</D:prop></C:addressbook-query>';
 
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
@@ -208,7 +207,7 @@ CardDAVConnector.prototype = {
           let XMLresponse = http.response;
           let parser = new VCardParser();
           let etag = null;
-          this._cache = new Array();
+          this._cache = new Cache();
 
           // To grab the imported ETags before they are removed, 
           // each is stripped using RegExp. However, because JS
@@ -238,7 +237,7 @@ CardDAVConnector.prototype = {
             let tempRecord = new Record(tempJSONvCard);
             
             vCardArray[i] = tempRecord;
-            this._cache.push(tempRecord);
+            this._cache.setRecord(tempJSONvCard["UID"], tempRecord);
           }
 
           // Resolve the promise as an array collection of Records.
