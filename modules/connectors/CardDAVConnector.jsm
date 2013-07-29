@@ -16,24 +16,6 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://ensemble/lib/VCardParser.jsm");
 Cu.import("resource://ensemble/Record.jsm");
 
-// Etag is used to compare with server-side ETag for changes, 
-// because if the server ETag is different, that signals that there 
-// has been a change to the vCard's content, and a sync is needed. 
-// Therefore, the ETag is both used to find the proper cache Record 
-// to compare, as well as the state of the server-side vCard. 
-//
-// Server Location is the server path of the vCard in question.
-
-let CardDAVCacheObj = function(etag, location) {
-  this._etag = etag;
-  this._serverLocation = location;
-};
-
-CardDAVCacheObj.prototype = {
-  _etag: "",
-  _serverLocation: "",
-}
-
 
 let CardDAVConnector = function(aAccountKey, aListener, aCache) {
   if(aAccountKey != null) {
@@ -240,9 +222,10 @@ CardDAVConnector.prototype = {
           // each creation is tracked in the cache. 
           for (let i = 0; i < vCardArray.length; i++) {
             let tempJSONvCard = parser.fromVCard(vCardArray[i]);
-            vCardArray[i] = new Record(tempJSONvCard);
-
-            this._cache.push(new CardDAVCacheObj(etag[i], href[i]));
+            let tempRecord = new Record(tempJSONvCard);
+            
+            vCardArray[i] = tempRecord;
+            this._cache.push(tempRecord);
           }
 
           // Resolve the promise as an array collection of Records.
