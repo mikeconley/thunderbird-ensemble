@@ -149,6 +149,20 @@ CardDAVConnector.prototype = {
 
 
   read: function() {
+    let properties = new Array('N', 'FN', 'ORG', 'EMAIL',
+                               'TEL', 'ADR', 'URL', 'NOTE', 
+                               'CATEGORIES', 'UID', 'REV');
+    let promise = this._read(true, properties);
+    return promise;
+  },
+
+
+  poll: function() {
+    return Cr.NS_ERROR_NOT_IMPLEMENTED;
+  },
+
+
+  _read: function(getETag, properties) {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
@@ -172,44 +186,39 @@ CardDAVConnector.prototype = {
     requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
                    '<C:addressbook-query xmlns:D="DAV:" ' + 
                    'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
-                       '<D:prop>' +
-                       '<D:getetag/>' + 
-                         '<C:address-data>' +
-                           '<C:prop name="N"/>' +                        
-                           '<C:prop name="FN"/>' +
-                           '<C:prop name="ORG"/>' +
-                           '<C:prop name="EMAIL"/>' +
-                           '<C:prop name="TEL"/>' +
-                           '<C:prop name="ADR"/>' +
-                           '<C:prop name="URL"/>' +
-                           '<C:prop name="NOTE"/>' +
-                           '<C:prop name="CATEGORIES"/>' +
-                           '<C:prop name="UID"/>' +
-                           '<C:prop name="REV"/>' +
-                         '</C:address-data>' +
-                       '</D:prop>' +
+                       '<D:prop>';
+    
+    if (getETag === true) {                  
+      requestXML = requestXML + '<D:getetag/>';
+    }
+
+    requestXML = requestXML + '<C:address-data>';
+
+    for (let i = 0; i < properties.length; i++) {
+      requestXML = requestXML + '<C:prop name="' + properties[i] + '"/>';
+    }
+
+    requestXML = requestXML + '</D:prop>' +
                    '</C:addressbook-query>';
+
 
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
         if (http.status === 207) {
           let XMLresponse = http.response;
           let parser = new VCardParser();
+          let etag = null;
           this._cache = new Array();
 
           // To grab the imported ETags before they are removed, 
           // each is stripped using RegExp. However, because JS
           // does not support RegExp Look-behind, each ETag must
           // also have its opening tag removed manually.
-          let etag = XMLresponse.match(/<D:getetag>(.*?)(?=<\/D:getetag>)/g);
-          for (let i = 0; i < etag.length; i++) {
-            etag[i] = etag[i].replace(/<D:getetag>/, "");
-          }
-
-          // The same is done for each of the vCard server locations.
-          let href = XMLresponse.match(/<D:href>(.*?)(?=<\/D:href>)/g);
-          for (let i = 0; i < href.length; i++) {
-            href[i] = href[i].replace(/<D:href>/, "");
+          if (getETag === true) {
+            etag = XMLresponse.match(/<D:getetag>(.*?)(?=<\/D:getetag>)/g);
+            for (let i = 0; i < etag.length; i++) {
+              etag[i] = etag[i].replace(/<D:getetag>/, "");
+            }
           }
 
           // Remove unneeded XML buffers and trim whitespace, 
@@ -222,6 +231,10 @@ CardDAVConnector.prototype = {
           // each creation is tracked in the cache. 
           for (let i = 0; i < vCardArray.length; i++) {
             let tempJSONvCard = parser.fromVCard(vCardArray[i]);
+            if (getETag === true) {
+              tempJSONvCard.ETAG = etag[i];
+            }
+
             let tempRecord = new Record(tempJSONvCard);
             
             vCardArray[i] = tempRecord;
@@ -247,11 +260,4 @@ CardDAVConnector.prototype = {
     http.send(requestXML);
     return deferred.promise;
   },
-
-
-  poll: function() {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
 }
