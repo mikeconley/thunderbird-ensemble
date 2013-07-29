@@ -11,9 +11,73 @@ Cu.import("resource://gre/modules/Task.jsm");
 Cu.import('resource://mozmill/stdlib/httpd.js');
 
 const Cr = Components.results;
-const kPort = 8080;
 
 let gServer = null;
+
+const kProtocol = 'http';
+const kHost = 'localhost';
+const kPort = 8080;
+
+const testConnectionPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
+const testReadRecordsPrefsJSON = {"address": kProtocol + "://" + kHost + ":" + kPort};
+
+const kCardDAVXMLContactA = '<D:response>\n' +
+       '<D:href>/love.vcf</D:href>\n' +
+       '<D:propstat>\n' +
+         '<D:prop>\n' +
+           '<D:getetag>"34fd5t-df33ht"</D:getetag>' +
+           '<C:address-data>\n' +
+              'BEGIN:VCARD\n' +
+              'N:Lovelace;Ada\n' +
+              'FN:Ada;Lovelace\n' +
+              'ORG:Babbage\n' +
+              'EMAIL;type=INTERNET;type=Work:ada.lovelace@babbage.org\n' +
+              'EMAIL;type=INTERNET,Personal;LANGUAGE=En:ada@gmail.com\n' +
+              'TEL;type=Home:932435434\n' +
+              'TEL;type=Work:645324315\n' +
+              'ADR;type=Home:32 Leicester Square, London\n' +
+              'ADR;type=Work:12 Halsmere Road, London\n' +
+              'URL;type=Blog:lovelace.org\n' +
+              'URL;type=Twitter:twitter.com/ada\n' +
+              'NOTE:Countess of Lovelace.\n' +
+              'CATEGORIES:Developers,Mathematicians\n' +
+              'UID:352D8E36-ECCF-4966-9060-15625008A10C\n' +
+              'REV:20120720T014035Z\n' +
+              'END:VCARD' +
+            '</C:address-data>\n' +
+         '</D:prop>\n' +
+         '<D:status>HTTP/1.1 200 OK</D:status>\n' +
+       '</D:propstat>\n' +
+     '</D:response>';
+
+const kCardDAVXMLContactB = '<D:response>\n' +
+       '<D:href>/bobster.vcf</D:href>\n' +
+       '<D:propstat>\n' +
+         '<D:prop>\n' +
+           '<D:getetag>"23ba4d-ff11fb"</D:getetag>' +
+           '<C:address-data>\n' +
+              'BEGIN:VCARD\n' +
+              'N:Tester;Bob\n' +
+              'FN:Bob;Tester\n' +
+              'ORG:Bobster\n' +
+              'EMAIL;type=INTERNET;type=Work:bob.tester@bobster.org\n' +
+              'EMAIL;type=INTERNET,Personal;LANGUAGE=En:bob@gmail.com\n' +
+              'TEL;type=Home:434234234\n' +
+              'TEL;type=Work:567657567\n' +
+              'ADR;type=Home:6767 Street Road, Toronto\n' +
+              'ADR;type=Work:333 Lobster Street, Ottawa\n' +
+              'URL;type=Blog:bobster.org\n' +
+              'URL;type=Twitter:twitter.com/bobster\n' +
+              'NOTE:Lord of Bobster.\n' +
+              'CATEGORIES:Woodworker,Catcher\n' +
+              'UID:555D8F36-ECCF-3454-7878-34536334A10C\n' +
+              'REV:24350720T015555Z\n' +
+              'END:VCARD' +
+            '</C:address-data>\n' +
+         '</D:prop>\n' +
+         '<D:status>HTTP/1.1 200 OK</D:status>\n' +
+       '</D:propstat>\n' +
+     '</D:response>';
 
 const kSuccessHeader = {
   statusCode: 200,
@@ -111,9 +175,10 @@ function test_server_connection_success() {
     response.setHeader("Content-Length", kCardDAVReturnHeader.contentLength, false);
   }
 
-  setupCardDAVServer(kPort, "/test", connectionResponder);
+  setupCardDAVServer(kPort, "/", connectionResponder);
   let connector = new CardDAVConnector();
-  let promise = connector.testConnection("http://localhost:" + kPort + "/test");
+  connector.setPrefs(testConnectionPrefsJSON);
+  let promise = connector.testConnection();
 
   wait_for_promise_resolved(promise);
 }
@@ -125,11 +190,38 @@ function test_read_records() {
                            kMultiStatusHeader.statusCode, 
                            kMultiStatusHeader.statusString);
     response.setHeader("Content-Type", kMultiStatusHeader.contentType, false);
+    response.write('<?xml version="1.0" encoding="utf-8" ?>\n' +
+   '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">\n' +
+      kCardDAVXMLContactA + 
+      kCardDAVXMLContactB + 
+   '</D:multistatus>');
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
   let connector = new CardDAVConnector();
-  let promise = connector.readRecords("http://localhost:" + kPort);
+  connector.setPrefs(testReadRecordsPrefsJSON);
+  let promise = connector.read();
+  
+  wait_for_promise_resolved(promise);
+}
+
+function test_init() {
+  function connectionResponder(request, response) {
+    response.setStatusLine(request.httpVersion, 
+                           kMultiStatusHeader.statusCode, 
+                           kMultiStatusHeader.statusString);
+    response.setHeader("Content-Type", kMultiStatusHeader.contentType, false);
+    response.write('<?xml version="1.0" encoding="utf-8" ?>\n' +
+   '<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">\n' +
+      kCardDAVXMLContactA + 
+      kCardDAVXMLContactB + 
+   '</D:multistatus>');
+  }
+
+  setupCardDAVServer(kPort, "/", connectionResponder);
+  let connector = new CardDAVConnector();
+  connector.setPrefs(testReadRecordsPrefsJSON);
+  let promise = connector.init();
   
   wait_for_promise_resolved(promise);
 }
