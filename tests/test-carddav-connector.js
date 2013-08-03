@@ -7,6 +7,7 @@ const RELATIVE_ROOT = '../shared-modules';
 const MODULE_REQUIRES = ['folder-display-helpers'];
 
 Cu.import("resource://ensemble/connectors/CardDAVConnector.jsm");
+Cu.import("resource://ensemble/connectors/Cache.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import('resource://mozmill/stdlib/httpd.js');
 
@@ -176,7 +177,8 @@ function test_server_connection_success() {
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
-  let connector = new CardDAVConnector();
+  let aCache = new Cache();
+  let connector = new CardDAVConnector(null, null, aCache);
   connector.setPrefs(testConnectionPrefsJSON);
   let promise = connector.testConnection();
 
@@ -198,7 +200,8 @@ function test_read_records() {
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
-  let connector = new CardDAVConnector();
+  let aCache = new Cache();
+  let connector = new CardDAVConnector(null, null, aCache);
   connector.setPrefs(testReadRecordsPrefsJSON);
   let promise = connector.read();
   
@@ -219,7 +222,8 @@ function test_init() {
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
-  let connector = new CardDAVConnector();
+  let aCache = new Cache();
+  let connector = new CardDAVConnector(null, null, aCache);
   connector.setPrefs(testReadRecordsPrefsJSON);
   let promise = connector.init();
   

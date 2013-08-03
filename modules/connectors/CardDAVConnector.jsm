@@ -17,26 +17,14 @@ Cu.import("resource://ensemble/lib/VCardParser.jsm");
 Cu.import("resource://ensemble/Record.jsm");
 Cu.import("resource://ensemble/connectors/Cache.jsm");
 
-
 let CardDAVConnector = function(aAccountKey, aListener, aCache) {
-  if(aAccountKey != null) {
     this._accountKey = aAccountKey;
-  }
-
-  if(aListener != null) {
     this._listener = aListener;
-  }
-
-  if(aCache != null) {
     this._cache = aCache;
-  }
+    dump("\n\n" + this._cache + "\n\n");
 };
 
 CardDAVConnector.prototype = {
-  _accountKey: "",
-  _listener: null,
-  _cache: null,
-
   _prefs: null,
   _isSyncable: false,
   _isWritable: false,
@@ -44,6 +32,7 @@ CardDAVConnector.prototype = {
   _displayName: "",
   _initialized: false,
   _initializing: false,
+
 
   getAccountKey: function() {
     return this._accountKey;
@@ -139,11 +128,11 @@ CardDAVConnector.prototype = {
     let promise = null;
     this._initializing = true;
 
-    if (this._cache == null) {
+    if(this._cache.isEmpty()) {
       promise = this.read();
-    } 
-    this._initialized = true;
+    }
 
+    this._initialized = true;
     deferred.resolve(promise);
     return deferred.promise;
   },
@@ -208,6 +197,7 @@ CardDAVConnector.prototype = {
           let parser = new VCardParser();
           let etag = null;
           this._cache = new Cache();
+          dump("\n\n" + this._getCache() + "\n\n");
 
           // To grab the imported ETags before they are removed, 
           // each is stripped using RegExp. However, because JS
@@ -259,4 +249,12 @@ CardDAVConnector.prototype = {
     http.send(requestXML);
     return deferred.promise;
   },
-}
+};
+
+CardDAVConnector.isSingleton = true;
+CardDAVConnector.iconURL = "TBD!";
+CardDAVConnector.serviceName = "CardDAV Connector";
+CardDAVConnector.createConnectionURI = "TBD!";
+CardDAVConnector.managementURI = "TBD!";
+CardDAVConnector.defaultPrefs = {};
+CardDAVConnector.uniqueID = "carddav-connector";
