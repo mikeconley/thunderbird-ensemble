@@ -21,7 +21,6 @@ let CardDAVConnector = function(aAccountKey, aListener, aCache) {
     this._accountKey = aAccountKey;
     this._listener = aListener;
     this._cache = aCache;
-    dump("\n\n" + this._cache + "\n\n");
 };
 
 CardDAVConnector.prototype = {
@@ -130,10 +129,14 @@ CardDAVConnector.prototype = {
 
     if(this._cache.isEmpty()) {
       promise = this.read();
+      deferred.resolve(promise);
+    } else {
+      let e = new Error("The cache is not empty and therefore" + 
+                        "the cache does not need to be initiated.");
+      deferred.reject(e);
     }
 
     this._initialized = true;
-    deferred.resolve(promise);
     return deferred.promise;
   },
 
@@ -196,8 +199,7 @@ CardDAVConnector.prototype = {
           let XMLresponse = http.response;
           let parser = new VCardParser();
           let etag = null;
-          this._cache = new Cache();
-          dump("\n\n" + this._getCache() + "\n\n");
+          // this._cache = new Cache();
 
           // To grab the imported ETags before they are removed, 
           // each is stripped using RegExp. However, because JS
