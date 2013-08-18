@@ -7,6 +7,10 @@
 //  Some parts of the code are based in the vcard.js from Matt Thomson released also under the MIT Licence
 //  (Specificaly the regexp and the javascript 1.6 compatibility).
 //
+//  This parser was used from https://github.com/FerCa/VCardParser.js
+//  and converted into a jsm for the uses of https://github.com/mikeconley/thunderbird-ensemble
+//  by Jonathan Demelo (demelode@gmail.com)
+//
 let EXPORTED_SYMBOLS = ['VCardParser'];
 let VCardParser = function() {};
 
