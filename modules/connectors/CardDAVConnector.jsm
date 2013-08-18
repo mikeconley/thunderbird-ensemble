@@ -9,13 +9,13 @@ const Cr = Components.results;
 
 let EXPORTED_SYMBOLS = ['CardDAVConnector'];
 
-Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
+Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 Cu.import("resource://ensemble/lib/VCardParser.jsm");
 Cu.import("resource://ensemble/Record.jsm");
-Cu.import("resource://ensemble/connectors/RecordCache.jsm");
+Cu.import("resource://ensemble/connectors/MemoryRecordCache.jsm");
 
 let CardDAVConnector = function(aAccountKey, aListener, aCache) {
   this._accountKey = aAccountKey;
@@ -29,28 +29,34 @@ CardDAVConnector.prototype = {
   _initialized: false,
   _initializing: false,
 
-  get accountKey() { return this._accountKey; },
-  get isSyncable() { return true; },
-  get isWritable() { return false; },
-  get shouldPoll() { return true; },
-  get displayName() { return this._displayName; },
-  get prefs() { return this._prefs },
-  get initializing() { return this._initializing },
-  get initialized() { return this._initialized },
-  set prefs(aValue) { this._prefs = aValue; }, 
-
+  get accountKey() this._accountKey,
+  get isSyncable() true,
+  get isWritable() false,
+  get shouldPoll() true,
+  get displayName() this._displayName,
+  get initializing() this._initializing,
+  get initialized() this._initialized,
 
   testConnection: function() {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
 
-    let prefs = this.prefs;
+    let prefs = this._prefs;
     if (prefs.address === null) {
       let e = new Error("The connector function requires an Address preference to be set.");
       return deferred.reject(e);
     }
     let url = prefs.address;
+
+    if (Services.io.newURI(url, null, null).scheme === "https") {
+      Task.spawn(function () {
+        let authPromise = this.authorize(); // get Base64 user:pass
+        let authString = yield authPromise;
+        http.setRequestHeader('Authorization', 'Basic ' + authString);
+        // See http://en.wikipedia.org/wiki/Basic_access_authentication
+      });
+    }
 
     http.open("OPTIONS", url, true);
 
@@ -78,32 +84,34 @@ CardDAVConnector.prototype = {
     return deferred.promise;
   },
 
-
+  /*
+  This should return a promise that holds a string value of a Base64
+  conversion of the following pattern 'username:password', where 
+  'username is the client's inputted username and 'password' is
+  the clients inputted password. Both these values are seperated by 
+  a colon ':'.
+  */
   authorize: function() {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
-  init: function() {
     let deferred = Promise.defer();
-    this._initializing = true;
-
-    let promise = this.read();
-    deferred.resolve(promise);
-
-    this._initialized = true;
+    let username = "";
+    let password = "";
+    // TODO: get username and password from UI.
+    let authString = username + ":" + password;
+    deferred.resolve(btoa(authString));
     return deferred.promise;
   },
 
+  init: function() {
+    return Task.spawn(function() {
+      this._initializing = true;
+      yield this.read();
+      this._initialized = true;
+    }.bind(this));
+  },
 
   read: function() {
-    let deferred = Promise.defer();
-    let properties = new Array('N', 'FN', 'ORG', 'EMAIL',
-                               'TEL', 'ADR', 'URL', 'NOTE', 
-                               'CATEGORIES', 'UID', 'REV');
-
-    Task.spawn(function () {
-      let getPromise = this._getvCardsFromServer(true, properties, null);
+    return Task.spawn(function () {
+      let getPromise = this._getvCardsFromServer(true, null);
       let aRecordArray = yield getPromise;
 
       for (let i = 0; i < aRecordArray.length; i++) {
@@ -113,22 +121,12 @@ CardDAVConnector.prototype = {
         this._cache.setRecord(tempUID, tempRecord);
         this._listener.onImport(tempRecord);
       }
-    });
-
-    deferred.resolve(true);
-    return deferred.promise;
+    }.bind(this));
   },
 
-
   poll: function() {
-    let deferred = Promise.defer();
-    let properties = new Array("UID");
-    let fullProperties = new Array('N', 'FN', 'ORG', 'EMAIL',
-                               'TEL', 'ADR', 'URL', 'NOTE', 
-                               'CATEGORIES', 'UID', 'REV');
-
-    Task.spawn(function () {
-      let getPromise = this._getvCardsFromServer(true, properties, null);
+    return Task.spawn(function () {
+      let getPromise = this._getvCardsFromServer(true, null);
       let tempRecordArray = yield getPromise;
 
       let cacheMapPromise = this._cache.getAllRecords();
@@ -141,7 +139,7 @@ CardDAVConnector.prototype = {
         let filter = new Map();
         filter.set("UID", tempUID);
 
-        let getPromise = this._getvCardsFromServer(true, fullProperties, filter);
+        let getPromise = this._getvCardsFromServer(true, filter);
         let aRecordArray = yield getPromise;
 
         if(!map.has(tempUID)) { // New Record
@@ -171,10 +169,7 @@ CardDAVConnector.prototype = {
           this._cache.removeRecord(key);
         }
       }
-    });
-
-    deferred.resolve(true);
-    return deferred.promise;
+    }.bind(this));
   },
 
   // This function collects all vCards off a server and returns them as an array of
@@ -190,12 +185,12 @@ CardDAVConnector.prototype = {
   // I.e. {"EMAIL":"test@test.com"} would filter for the EMAIL property of test@test.com, 
   // whereas in {"EMAIL":test@test.com, "UID":123} would do the same, but also include 
   // an additonal filter of the UID being 123.
-  _getvCardsFromServer: function(getETag, properties, filter) {
+  _getvCardsFromServer: function(aGetETag, aFilter) {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
 
-    let prefs = this.prefs;
+    let prefs = this._prefs;
     if (prefs.address === null) {
       let e = new Error("The connector function requires an Address preference to be set.");
       return deferred.reject(e);
@@ -210,28 +205,31 @@ CardDAVConnector.prototype = {
     http.setRequestHeader('Depth', '1');
     http.setRequestHeader('Content-Type', 'text/xml; charset="utf-8"');
 
+    if (Services.io.newURI(url, null, null).scheme === "https") {
+      Task.spawn(function () {
+        let authPromise = this.authorize(); // get Base64 user:pass
+        let authString = yield authPromise;
+        http.setRequestHeader('Authorization', 'Basic ' + authString);
+        // See http://en.wikipedia.org/wiki/Basic_access_authentication
+      });
+    }
+
     requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
                    '<C:addressbook-query xmlns:D="DAV:" ' + 
                    'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
                        '<D:prop>';
 
-    if (getETag === true) {                  
-      requestXML = requestXML + '<D:getetag/>';
+    if (aGetETag) {                  
+      requestXML += '<D:getetag/>';
     }
 
-    requestXML = requestXML + '<C:address-data>';
+    requestXML += '<C:address-data></C:address-data></D:prop>';
 
-    for (let i = 0; i < properties.length; i++) {
-      requestXML = requestXML + '<C:prop name="' + properties[i] + '"/>';
-    }
+    if (aFilter) {
+      requestXML += '<C:filter test="anyof">';
 
-    requestXML = requestXML + '</D:prop>';
-
-    if (filter != null) {
-      requestXML = requestXML + '<C:filter test="anyof">';
-
-      for (let [key, value] of filter) {
-        requestXML = requestXML + '<C:prop-filter name="'+ key +'">' +
+      for (let [key, value] of aFilter) {
+        requestXML += '<C:prop-filter name="'+ key +'">' +
             '<C:text-match collation="i;unicode-casemap"' +
               'match-type="contains">' +
                        value + 
@@ -239,10 +237,10 @@ CardDAVConnector.prototype = {
          '</C:prop-filter>';
       }
 
-      requestXML = requestXML + '</C:filter>';
+      requestXML += '</C:filter>';
     }
 
-    requestXML = requestXML + '</C:addressbook-query>';
+    requestXML += '</C:addressbook-query>';
 
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
@@ -255,36 +253,35 @@ CardDAVConnector.prototype = {
           // each is stripped using RegExp. However, because JS
           // does not support RegExp Look-behind, each ETag must
           // also have its opening tag removed manually.
-          if (getETag === true) {
-            etag = XMLresponse.match(/<D:getetag>(.*?)(?=<\/D:getetag>)/g);
+          if (aGetETag) {
+            etag = XMLresponse.match(/<getetag>(.*?)(?=<\/getetag>)/g);
+
             for (let i = 0; i < etag.length; i++) {
-              etag[i] = etag[i].replace(/<D:getetag>/, "");
+              etag[i] = etag[i].replace(/<getetag>/, "");
             }
-          }
+          } 
 
           // Remove unneeded XML buffers and trim whitespace, 
           // then split each vCard into a seperate array position.
           XMLresponse = XMLresponse.replace(/<(.*)>/gm, '').trim();
-          vCardArray = XMLresponse.split(/\s{2,}/);
+          let vCardArray = XMLresponse.split(/\s{2,}/);
 
           // For each of the produced vCards, convert them into
           // a usable JSON object to build a Record object.
           for (let i = 0; i < vCardArray.length; i++) {
             let tempJSONvCard = parser.fromVCard(vCardArray[i]);
-            if (getETag === true) {
+            if (aGetETag) {
               tempJSONvCard.ETAG = etag[i];
             }
-
             vCardArray[i] = new Record(tempJSONvCard);
           }
-
           // Resolve the promise as an array collection of Records.
           deferred.resolve(vCardArray);
         } else {
           let e = new Error("The _getvCardsFromServer attempt errored with status " + 
                             http.status + " during the onload event");
           deferred.reject(e);
-        }
+        } 
       }
     }.bind(this);
     
