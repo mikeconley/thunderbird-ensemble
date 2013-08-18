@@ -7,7 +7,7 @@ const RELATIVE_ROOT = '../shared-modules';
 const MODULE_REQUIRES = ['folder-display-helpers'];
 
 Cu.import("resource://ensemble/connectors/CardDAVConnector.jsm");
-Cu.import("resource://ensemble/connectors/RecordCache.jsm");
+Cu.import("resource://ensemble/connectors/MemoryRecordCache.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import('resource://mozmill/stdlib/httpd.js');
 
@@ -238,14 +238,12 @@ function setupModule(module) {
   collector.getModule("folder-display-helpers").installInto(module);
 }
 
-
 function setupCardDAVServer(port, location, responder) {
   gServer = new MockCardDAVServer();
   gServer.init(port);
   gServer.registerPathHandler(location, responder);
   gServer.start();   
 }
-
 
 function wait_for_promise_resolved(promise) {
   let done = false;
@@ -266,7 +264,6 @@ function wait_for_promise_resolved(promise) {
   mc.waitFor(function() done, "Timed out waiting for promise to resolve.");
 }
 
-
 function test_server_connection_success() {
   function connectionResponder(request, response) {
     response.setStatusLine(request.httpVersion, 
@@ -279,15 +276,14 @@ function test_server_connection_success() {
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
-  let aCache = new RecordCache();
+  let aCache = new MemoryRecordCache();
   let aListener = new MockListener();
   let connector = new CardDAVConnector(null, aListener, aCache);
-  connector.prefs = testConnectionPrefsJSON;
+  connector._prefs = testConnectionPrefsJSON;
   let promise = connector.testConnection();
 
   wait_for_promise_resolved(promise);
 }
-
 
 function test_read_records() {
   function connectionResponder(request, response) {
@@ -303,10 +299,10 @@ function test_read_records() {
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
-  let aCache = new RecordCache();
+  let aCache = new MemoryRecordCache();
   let aListener = new MockListener();
   let connector = new CardDAVConnector(null, aListener, aCache);
-  connector.prefs = testReadRecordsPrefsJSON;
+  connector._prefs = testReadRecordsPrefsJSON;
   let promise = connector.read();
   
   wait_for_promise_resolved(promise);
@@ -326,14 +322,13 @@ function test_init_records() {
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
-  let aCache = new RecordCache();
+  let aCache = new MemoryRecordCache();
   let aListener = new MockListener();
   let connector = new CardDAVConnector(null, aListener, aCache);
-  connector.prefs = testReadRecordsPrefsJSON;
+  connector._prefs = testReadRecordsPrefsJSON;
   let promise = connector.init();
   wait_for_promise_resolved(promise);
 }
-
 
 function test_poll_records() {
   function connectionResponder(request, response) {
@@ -350,10 +345,10 @@ function test_poll_records() {
   }
 
   setupCardDAVServer(kPort, "/", connectionResponder);
-  let aCache = new RecordCache();
+  let aCache = new MemoryRecordCache();
   let aListener = new MockListener();
   let connector = new CardDAVConnector(null, aListener, aCache);
-  connector.prefs = testReadRecordsPrefsJSON;
+  connector._prefs = testReadRecordsPrefsJSON;
   let promiseInit = connector.init();
   
   wait_for_promise_resolved(promiseInit);
@@ -373,6 +368,5 @@ function test_poll_records() {
 
   setupCardDAVServer(kPort, "/", changedConnectionResponder);
   let promise = connector.poll();
-
   wait_for_promise_resolved(promise);
 }
