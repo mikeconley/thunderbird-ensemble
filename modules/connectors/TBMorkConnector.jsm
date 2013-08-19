@@ -8,30 +8,20 @@
 // add-ons, and see what fields they add and what if anything we can do
 // with them.
 
-let EXPORTED_SYMBOLS = ['TBMorkConnector'];
+const EXPORTED_SYMBOLS = ['TBMorkConnector'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
-const Cr = Components.results;
+const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
 const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/iteratorUtils.jsm");
-
-Cu.import("resource://gre/modules/commonjs/promise/core.js");
-
+Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
-
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://gre/modules/NetUtil.jsm");
 Cu.import("resource://ensemble/Record.jsm");
-Cu.import("resource://ensemble/Tag.jsm");
-
-let Common = {};
-Cu.import("resource://ensemble/Common.jsm", Common);
 
 const kStrings = ["FirstName", "LastName", "DisplayName", "NickName",
                   "JobTitle", "Department", "Company", "Notes"];
@@ -56,21 +46,20 @@ const kOthers = ["PhoneticFirstName", "PhoneticLastName", "SpouseName",
 // Photos
 const kPhotos = ["PhotoName"];
 
-// Simple boolean tags...
-const kBooleanTags = ["AllowRemoteContent"];
-
 // Meta stuff
-const kMeta = ["PopularityIndex", "PreferMailFormat", "PreferDisplayName"];
+const kMeta = ["AllowRemoteContent", "PopularityIndex", "PreferMailFormat",
+               "PreferDisplayName"];
 
 // Stuff we don't need
 const kDiscards = ["RecordKey", "DbRowID", "LowercasePrimaryEmail",
                    "LastModifiedDate", "PhotoType", "PhotoURI"];
 
-let TBMorkConnector = function(aAccountKey, aRecordChangesCbObj) {};
+let TBMorkConnector = function(aAccountKey, aListener, aCache) {
+  this.listener = aListener;
+};
 
 TBMorkConnector.prototype = {
   get accountKey() "",
-  get supportsTags() false,
   get isSyncable() false,
   get isWritable() false,
   get shouldPoll() false,
@@ -78,29 +67,25 @@ TBMorkConnector.prototype = {
   get prefs() null,
   set prefs(aValue) {},
 
-  testConnection: function TBMC_testConnection() {
-    let promise = Promise.defer();
-    let task = Common.Utils.executeSoon(function() {
-      let enumerator = MailServices.ab.directories;
-      if (enumerator.hasMoreElements()) {
-        promise.resolve();
-      } else {
-        let e = new Error("There are no directories in the address book!");
-        promise.reject(e);
-      }
-    });
-    return promise.promise;
+  testConnection: function() {
+    let deferred = Promise.defer();
+    let enumerator = MailServices.ab.directories;
+    if (enumerator.hasMoreElements()) {
+      deferred.resolve();
+    } else {
+      let e = new Error("There are no directories in the address book!");
+      deferred.reject(e);
+    }
+    return deferred.promise;
   },
 
-  authorize: function TBMC_authorize() {
+  authorize: function() {
     return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
 
-  poll: function TBMC_poll() {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
+  init: function() {},
 
-  createRecords: function TBMC_createRecords(aRecordsCollection) {
+  poll: function() {
     return Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
 
@@ -133,28 +118,21 @@ TBMorkConnector.prototype = {
   },
 
   _deferredCardConversion: function(aCard, aDirectory) {
-    let promise = Promise.defer();
-    let self = this;
-    Common.Utils.executeSoon(function() {
-      try {
-        let mapping = self._getMapping(aCard, aDirectory);
-        promise.resolve(mapping);
-      } catch(e) {
-        promise.reject(e);
-      }
-    });
-    return promise.promise;
+    let deferred = Promise.defer();
+    try {
+      let mapping = this._getMapping(aCard, aDirectory);
+      deferred.resolve(mapping);
+    } catch(e) {
+      deferred.reject(e);
+    }
+    return deferred.promise;
   },
 
-  readRecords: function TBMC_readRecords(aIDCollection) {
-    let promise = Promise.defer();
+  read: function() {
     let cardEnums = [];
     let directories = MailServices.ab.directories;
 
-    let self = this;
-    let i = 0;
-
-    Task.spawn(function() {
+    return Task.spawn(function() {
       let results = [];
       let mappings = new Map();
       let mailingLists = [];
@@ -162,7 +140,7 @@ TBMorkConnector.prototype = {
       while (directories.hasMoreElements()) {
         let directory = directories.getNext();
         if ((!(directory instanceof Ci.nsIAbDirectory))
-            || !self._shouldConsider(directory)) {
+            || !this._shouldConsider(directory)) {
           continue;
         }
 
@@ -182,7 +160,7 @@ TBMorkConnector.prototype = {
             continue;
           }
 
-          let mapping = yield self._deferredCardConversion(card, directory);
+          let mapping = yield this._deferredCardConversion(card, directory);
           mappings.set(directory.URI + card.localId, mapping);
         }
 
@@ -209,104 +187,10 @@ TBMorkConnector.prototype = {
       for (let [, mapping] of mappings) {
         let [fields, meta] = yield mapping.deriveRecord();
         let record = new Record(fields, meta);
-        results.push(record);
+        yield this.listener.onImport(record);
       }
-
-      throw new Task.Result(results);
-
-    }).then(function(aResults) {
-      promise.resolve(aResults);
-    }, function(aError) {
-      promise.reject(aError);
-    });
-
-    return promise.promise;
-  },
-
-  updateRecords: function TBMC_updateRecords(aRecordsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-  deleteRecords: function TBMC_deleteRecords(aIDCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-  createTags: function TBMC_createTags(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-  readTags: function TBMC_readTags(aTagIDCollection) {
-    let promise = Promise.defer();
-    let results = [];
-    let directories = MailServices.ab.directories;
-    let self = this;
-
-    return Task.spawn(function() {
-      while (directories.hasMoreElements()) {
-        let directory = directories.getNext();
-
-        if (!(directory instanceof Ci.nsIAbDirectory)
-            || !self._shouldConsider(directory)) {
-          continue;
-        }
-
-        let attrs = yield self._getTagAttrs(directory);
-        let tag = new Tag(attrs);
-        results.push(tag);
-
-        let mailingLists = directory.childNodes;
-        while (mailingLists.hasMoreElements()) {
-          let list = mailingLists.getNext();
-          if (!(list instanceof Ci.nsIAbDirectory)) {
-            continue;
-          }
-          let attrs = yield self._getTagAttrs(list);
-          let tag = new Tag(attrs);
-          results.push(tag);
-        }
-      }
-
-      throw new Task.Result(results);
-    });
-  },
-
-  _getTagAttrs: function(aDirectory) {
-    let promise = Promise.defer();
-    Common.Utils.executeSoon(function() {
-      let displayName = aDirectory.dirName,
-          exportName = aDirectory.dirName;
-      let originator = "user";
-
-      if (aDirectory.URI == kPersonalAddressbookURI) {
-        displayName = "Personal";
-        exportName = "system:personal";
-        originator = "system";
-      }
-      else if (aDirectory.URI == kCollectedAddressbookURI) {
-        displayName = "Collected";
-        exportName = "system:collected";
-        originator = "system";
-      }
-
-      promise.resolve({
-        displayName: displayName,
-        originator: originator,
-        exportName: exportName,
-        idCollection: []
-      });
-    });
-    return promise.promise;
-  },
-
-  updateTags: function TBMC_updateTags(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-  deleteTags: function TBMC_deleteTags(aTagsCollection) {
-    return Cr.NS_ERROR_NOT_IMPLEMENTED;
-  },
-
-
+    }.bind(this));
+  }
 };
 
 TBMorkConnector.isSingleton = true;
@@ -332,7 +216,6 @@ function CardMapping() {
   this._handlers.set(kDates, this._handleDate);
   this._handlers.set(kOthers, this._handleOther);
   this._handlers.set(kPhotos, this._handlePhoto);
-  this._handlers.set(kBooleanTags, this._handleBooleanTags);
   this._handlers.set(kMeta, this._handleMeta);
   this._handlers.set(kDiscards, this._handleDiscard);
 
@@ -387,10 +270,7 @@ CardMapping.prototype = {
         result[field] = this._fields[field];
     }
 
-    let self = this;
-    Common.Utils.executeSoon(function() {
-      self._promise.resolve([self._fields, self._meta]);
-    });
+    this._promise.resolve([this._fields, this._meta]);
   },
 
   _handleString: function CardMapping__handleString(aName, aValue) {
@@ -566,22 +446,9 @@ CardMapping.prototype = {
     // This one's easy...we just don't add it.
   },
 
-  _handleBooleanTags: function CardMapping__handleBooleanTags
-    (aName, aValue) {
-
-    const kTagMap = {
-      "AllowRemoteContent": "system:allow-remote-content",
-    };
-
-    if (!(aName in kTagMap))
-      throw new Error("Unexpected tag name: " + aName);
-
-    if (aValue)
-      this.addCategory(kTagMap[aName]);
-  },
-
   _handleMeta: function CardMapping__handleMeta(aName, aValue) {
     const kMetaMap = {
+      "AllowRemoteContent": "allowRemoteContent",
       "PopularityIndex": "popularity",
       "PreferMailFormat": "prefersText",
       "PreferDisplayName": "preferDisplayName",
@@ -594,7 +461,7 @@ CardMapping.prototype = {
       aValue = (parseInt(aValue) == Ci.nsIAbPreferMailFormat.plaintext);
     }
 
-    if (aName == "PreferDisplayName") {
+    if (aName == "PreferDisplayName" || aName == "AllowRemoteContent") {
       aValue = (parseInt(aValue) == 1);
     }
 

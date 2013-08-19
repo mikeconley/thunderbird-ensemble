@@ -11,6 +11,7 @@ const Cr = Components.results;
 
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://ensemble/connectors/TBMorkConnector.jsm");
+Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
 let gPAB, gCAB, gBonevilleAB, gValleyAB, gHarvestarsML, gBarrelhavenML;
@@ -20,8 +21,6 @@ const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 
 const kPersonalTagID = "system:personal";
 const kCollectedTagID = "system:collected";
-const kPrefersDisplayNameTagID = "system:prefers-display-name";
-const kAllowRemoteContentTagID = "system:allow-remote-content";
 
 // We need some fake contacts. What better universe than Jeff Smith's
 // Bone comics?
@@ -456,9 +455,8 @@ function assert_any_field_has_type_and_value(aCollection, aType, aValue) {
                   " with value: " + aValue);
 }
 
-// TODO: Use Harmony's startsWith instead
 function string_has_prefix(aTarget, aPrefix) {
-  return (aTarget.substring(0, aPrefix.length) == aPrefix);
+  return aTarget.startsWith(aPrefix);
 }
 
 function assert_prefix(aTarget, aPrefix) {
@@ -467,7 +465,7 @@ function assert_prefix(aTarget, aPrefix) {
 
 // TODO: Use Harmony's endsWith instead
 function string_has_suffix(aTarget, aSuffix) {
-  return (aTarget.substring(aTarget.length - aSuffix.length) == aSuffix);
+  return aTarget.endsWith(aSuffix);
 }
 
 function assert_suffix(aTarget, aSuffix) {
@@ -486,76 +484,10 @@ function assert_contacts_exist_and_match(aCollection, aContacts) {
   return matches;
 }
 
-function assert_all_contacts_have_tags(aResults, aTags) {
-  for each (let [, result] in Iterator(aResults)) {
-    for each (let [, tag] in Iterator(aTags)) {
-      if (result.fields.get("category").indexOf(tag) == -1) {
-        throw new Error("Expected contact to have tag " + tag);
-      }
-    }
-  }
-}
-
-function assert_has_n_tags(aTags, aNum) {
-  assert_equals(Object.keys(aTags).length, aNum,
-                "Should have " + aNum + " tags");
-
-}
-
-function assert_tags_contain(aTags, aTagIDs) {
-  for each (let [, tagID] in Iterator(aTagIDs)) {
-    assert_true(aTags.some(function(aTag) {
-      return aTag.get("exportName") == tagID;
-    }));
-  }
-}
-
 function assert_has_n_contacts(aResults, aNum) {
   assert_equals(aResults.length, aNum,
                 "Should have " + aNum + " contacts.");
 }
-
-function call_process_directory_and_wait(aAddressBook) {
-  let results = [];
-  let tags = {};
-  let done = false;
-
-  let onFinished = {
-    jobSuccess: function(aResult) {
-      done = true;
-    },
-    jobError: function(aError) {
-      throw aError;
-    },
-  };
-
-  let connector = new TBMorkConnector();
-  connector._processDirectory(aAddressBook, results, tags, onFinished);
-
-  mc.waitFor(function() done);
-  return [results, tags];
-}
-
-function get_records_and_tags(aAddressBook) {
-  let done = false;
-  let tuple = null;
-
-  Task.spawn(function() {
-    let connector = new TBMorkConnector();
-    let results = yield connector.readRecords();
-    let tags = yield connector.readTags();
-    throw new Task.Result([results, tags]);
-  }).then(function(aTuple) {
-    tuple = aTuple;
-    done = true;
-  }, function(aError) {
-    throw aError;
-  });
-
-  mc.waitFor(function() done);
-  return tuple;
-}
-
 
 function assert_contact_matches_map(aContact, aMap) {
   const kStringsMap = {
@@ -622,10 +554,6 @@ function assert_contact_matches_map(aContact, aMap) {
   const kOtherFields = ["PhoneticFirstName", "PhoneticLastName", "SpouseName",
                         "FamilyName", "Custom1", "Custom2", "Custom3",
                         "Custom4"];
-
-  const kTagMap = {
-    "AllowRemoteContent": kAllowRemoteContentTagID,
-  };
 
   for each (let [property, value] in Iterator(aMap)) {
 
@@ -737,10 +665,13 @@ function assert_contact_matches_map(aContact, aMap) {
       continue;
     }
 
-    if (property in kTagMap) {
+    if (property == "AllowRemoteContent") {
       if (value) {
-        let tagID = kTagMap[property];
-        assert_all_contacts_have_tags([aContact], [tagID]);
+        assert_true(aContact.get("allowRemoteContent"),
+                    "Contact should be allowing remote content.");
+      } else {
+        assert_false(aContact.get("allowRemoteContent"),
+                     "Contact should not be allowing remote content.");
       }
       continue;
     }
@@ -751,75 +682,77 @@ function assert_contact_matches_map(aContact, aMap) {
   }
 }
 
-// -- Here's where the actual testing begins --
-function test_connection_success() {
-  let connector = new TBMorkConnector();
-  let promise = connector.testConnection();
+function wait_for_promise_resolved(promise) {
+
+  let error = null;
   let done = false;
 
   promise.then(function() {
     done = true;
   }, function(aError) {
-    throw aError;
+    error = aError;
+    done = true;
   });
 
-  mc.waitFor(function() done, "Timed out waiting for connection success");
+  mc.waitFor(function() done, "Timed out waiting for promise to resolve.");
+  if (error) {
+    assert_true(false, "Promise failed with error: " + error +
+                " -- stack: " + error.stack);
+  }
+}
+
+
+
+// -- Here's where the actual testing begins --
+function test_connection_success() {
+  let connector = new TBMorkConnector();
+  let promise = connector.testConnection();
+
+  wait_for_promise_resolved(promise);
 }
 
 // -- Here's where the actual testing begins --
 function test_read_records() {
-  let connector = new TBMorkConnector();
-  let promise = connector.readRecords();
-  let done = false;
+  let receivedRecords = false;
 
-  promise.then(function(aRecords) {
-    done = true;
-  }, function(aError) {
-    throw aError;
-  });
+  let listener = {
+    onImport: function(aRecord) {
+      let deferred = Promise.defer();
+      receivedRecords = true;
+      deferred.resolve();
+      return deferred.promise;
+    }
+  };
 
-  mc.waitFor(function() done, "Timed out waiting to read records.");
-}
-
-function test_read_tags() {
-  let connector = new TBMorkConnector();
-  let promise = connector.readTags();
-  let done = false;
-
-  promise.then(function(aTags) {
-    done = true;
-  }, function(aError) {
-    throw aError;
-  });
-
-  mc.waitFor(function() done, "Timed out waiting for tags.");
+  let connector = new TBMorkConnector("", listener);
+  let promise = connector.read();
+  wait_for_promise_resolved(promise);
+  assert_true(receivedRecords, "Expected to have read at least one record.");
 }
 
 /**
  * Test processing the entire address book.
  */
+
 function test_process_entire_ab() {
-  let [results, tags] = get_records_and_tags();
+  let results = [];
+  let listener = {
+    onImport: function(aRecord) {
+      results.push(aRecord);
+
+      let deferred = Promise.defer();
+      deferred.resolve();
+      return deferred.promise;
+    }
+  };
+
+  let connector = new TBMorkConnector("", listener);
+  wait_for_promise_resolved(connector.read());
+
   const kEverybody = kBones.concat(kHarvestars)
                            .concat(kBarrelhaven)
                            .concat(kBeings)
                            .concat(kOtherBeings);
 
   assert_contacts_exist_and_match(results, kEverybody);
-  assert_has_n_tags(tags, 6);
-
-  assert_tags_contain(tags, [kPersonalTagID, kCollectedTagID,
-                             kBonevilleABName, kValleyABName,
-                             kHarvestarsMLName, kBarrelhavenMLName]);
-
-  const kTagMap = {};
-  kTagMap[kBonevilleABName] = kBones;
-  kTagMap[kValleyABName] = kValley;
-  kTagMap[kHarvestarsMLName] = kHarvestars;
-  kTagMap[kBarrelhavenMLName] = kBarrelhaven;
-
-  for each (let [tagID, contactsToQuery] in Iterator(kTagMap)) {
-    let contacts = assert_contacts_exist_and_match(results, contactsToQuery);
-    assert_all_contacts_have_tags(contacts, [tagID]);
-  }
 }

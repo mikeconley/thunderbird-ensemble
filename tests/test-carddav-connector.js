@@ -214,7 +214,7 @@ MockCardDAVServer.prototype = {
 
   stop: function MCDS_stop(stopFunc) {
     this._server.stop(stopFunc);
-  }, 
+  },
 }
 
 
@@ -304,7 +304,7 @@ function test_read_records() {
   let connector = new CardDAVConnector(null, aListener, aCache);
   connector._prefs = testReadRecordsPrefsJSON;
   let promise = connector.read();
-  
+
   wait_for_promise_resolved(promise);
 }
 
@@ -350,7 +350,7 @@ function test_poll_records() {
   let connector = new CardDAVConnector(null, aListener, aCache);
   connector._prefs = testReadRecordsPrefsJSON;
   let promiseInit = connector.init();
-  
+
   wait_for_promise_resolved(promiseInit);
 
   function changedConnectionResponder(request, response) {

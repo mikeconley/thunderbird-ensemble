@@ -10,6 +10,9 @@ Cu.import("resource://ensemble/Underscore.jsm");
 Cu.import("resource://ensemble/Contact.jsm");
 Cu.import("resource://ensemble/storage/SQLiteContactStore.jsm");
 
+let os = {};
+Cu.import('resource://mozmill/stdlib/os.js', os);
+
 let kTestFields = {
   name: 'House',
   honorificPrefix: 'Dr.',

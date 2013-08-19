@@ -12,7 +12,7 @@ const kDbCurrentVersion = 1;
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource://gre/modules/osfile.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource://gre/modules/commonjs/promise/core.js");
+Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Sqlite.jsm");
 
@@ -99,28 +99,30 @@ let SQLiteContactStore = {
   },
 
   _migrateDb: function SQLiteCS__migrateDb() {
-    let dbVersion = this._db.schemaVersion;
-    // Preliminaries - make sure we were passed a database in a sane state.
-    if (dbVersion == kDbCurrentVersion) {
-      return Promise.resolve();
-    }
+    return Task.spawn(function() {
+      let dbVersion = yield this._db.getSchemaVersion();
+      // Preliminaries - make sure we were passed a database in a sane state.
+      if (dbVersion == kDbCurrentVersion) {
+        return;
+      }
 
-    if (dbVersion > kDbCurrentVersion) {
-      Log.error('The database appears to be from the future... cannot deal with'
-                + ' it. Bailing.');
-      return Promise.reject(new Error("The database version appears to be from the future."));
-    }
+      if (dbVersion > kDbCurrentVersion) {
+        Log.error('The database appears to be from the future... cannot deal with'
+                  + ' it. Bailing.');
 
-    // Ok, so dbVersion < kDbCurrentVersion. That's good.
-    // So are we starting from nothing? If so, skip migrations
-    // and just create the current table schema from scratch.
-    if (dbVersion == 0) {
-      return this._createDb();
-    }
+        throw new Error("The database version appears to be from the future.");
+      }
 
-    // This is where migrations should go... but I don't have
-    // any yet, so I'll just resolve the returned promise.
-    return Promise.resolve();
+      // Ok, so dbVersion < kDbCurrentVersion. That's good.
+      // So are we starting from nothing? If so, skip migrations
+      // and just create the current table schema from scratch.
+      if (dbVersion == 0) {
+        yield this._createDb();
+      }
+
+      // This is where migrations should go... but I don't have
+      // any yet, so I'll just resolve the returned promise.
+    }.bind(this));
   },
 
   _createDb: function SQLiteCS__createDb() {

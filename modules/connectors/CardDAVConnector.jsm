@@ -73,7 +73,7 @@ CardDAVConnector.prototype = {
         }
       }
     }
-    
+
     http.onerror = function(aEvent) {
       let e = new Error("The connection errored with status " + 
                         http.status + " during the onerror event");
@@ -230,7 +230,7 @@ CardDAVConnector.prototype = {
                    'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
                        '<D:prop>';
 
-    if (aGetETag) {                  
+    if (aGetETag) {
       requestXML += '<D:getetag/>';
     }
 
@@ -300,7 +300,7 @@ CardDAVConnector.prototype = {
         } 
       }
     }.bind(this);
-    
+
     http.onerror = function(aEvent) {
       let e = new Error("The _getvCardsFromServer attempt errored with status " + 
                         http.status + " during the onerror event");
