@@ -12,7 +12,7 @@ const kDbCurrentVersion = 1;
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource://gre/modules/osfile.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource://gre/modules/commonjs/promise/core.js");
+Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Sqlite.jsm");
 
