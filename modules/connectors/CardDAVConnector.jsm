@@ -93,11 +93,22 @@ CardDAVConnector.prototype = {
   */
   authorize: function() {
     let deferred = Promise.defer();
-    let username = "";
-    let password = "";
-    // TODO: get username and password from UI.
-    let authString = username + ":" + password;
-    deferred.resolve(btoa(authString));
+    let prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                        .getService(Components.interfaces.nsIPromptService);
+    let username = {value: "user"};
+    let password = {value: "pass"};
+    let check = {value: true};
+
+    let result = prompts.promptUsernameAndPassword(null, "Title", "Enter username and password:",
+                                                   username, password, "Save", check);
+    if (!check.value) {
+      let e = new Error("The authorization was cancelled.");
+      deferred.reject(e);
+    } else {
+      let authString = username.value + ":" + password.value;
+      deferred.resolve(btoa(authString));
+    }
+
     return deferred.promise;
   },
 
@@ -110,12 +121,8 @@ CardDAVConnector.prototype = {
   },
 
   read: function() {
-    let deferred = Promise.defer();
-    let properties = new Array('N', 'FN', 'ORG', 'EMAIL',
-                               'TEL', 'ADR', 'URL', 'NOTE', 
-                               'CATEGORIES', 'UID', 'REV');
-    Task.spawn(function () {
-      let getPromise = this._getvCardsFromServer(true, properties, null);
+    return Task.spawn(function () {
+      let getPromise = this._getvCardsFromServer(true, null);
       let aRecordArray = yield getPromise;
 
       for (let i = 0; i < aRecordArray.length; i++) {
@@ -125,19 +132,12 @@ CardDAVConnector.prototype = {
         this._cache.setRecord(tempUID, tempRecord);
         this._listener.onImport(tempRecord);
       }
-    });
-
-    deferred.resolve(true);
-    return deferred.promise;
+    }.bind(this));
   },
 
   poll: function() {
-    let properties = new Array("UID");
-    let fullProperties = new Array('N', 'FN', 'ORG', 'EMAIL',
-                               'TEL', 'ADR', 'URL', 'NOTE', 
-                               'CATEGORIES', 'UID', 'REV');
     return Task.spawn(function () {
-      let getPromise = this._getvCardsFromServer(true, properties, null);
+      let getPromise = this._getvCardsFromServer(true, null);
       let tempRecordArray = yield getPromise;
 
       let cacheMapPromise = this._cache.getAllRecords();
@@ -150,7 +150,7 @@ CardDAVConnector.prototype = {
         let filter = new Map();
         filter.set("UID", tempUID);
 
-        let getPromise = this._getvCardsFromServer(true, fullProperties, filter);
+        let getPromise = this._getvCardsFromServer(true, filter);
         let aRecordArray = yield getPromise;
 
         if(!map.has(tempUID)) { // New Record
@@ -196,7 +196,7 @@ CardDAVConnector.prototype = {
   // I.e. {"EMAIL":"test@test.com"} would filter for the EMAIL property of test@test.com, 
   // whereas in {"EMAIL":test@test.com, "UID":123} would do the same, but also include 
   // an additonal filter of the UID being 123.
-  _getvCardsFromServer: function(aGetETag, aProperties, aFilter) {
+  _getvCardsFromServer: function(aGetETag, aFilter) {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
@@ -234,13 +234,7 @@ CardDAVConnector.prototype = {
       requestXML += '<D:getetag/>';
     }
 
-    requestXML += '<C:address-data>';
-
-    for (let i = 0; i < aProperties.length; i++) {
-      requestXML += '<C:prop name="' + aProperties[i] + '"/>';
-    }
-
-    requestXML += '</D:prop>';
+    requestXML += '<C:address-data></C:address-data></D:prop>';
 
     if (aFilter) {
       requestXML += '<C:filter test="anyof">';
@@ -271,11 +265,12 @@ CardDAVConnector.prototype = {
           // does not support RegExp Look-behind, each ETag must
           // also have its opening tag removed manually.
           if (aGetETag) {
-            etag = XMLresponse.match(/<D:getetag>(.*?)(?=<\/D:getetag>)/g);
+            etag = XMLresponse.match(/<getetag>(.*?)(?=<\/getetag>)/g);
+
             for (let i = 0; i < etag.length; i++) {
-              etag[i] = etag[i].replace(/<D:getetag>/, "");
+              etag[i] = etag[i].replace(/<getetag>/, "");
             }
-          }
+          } 
 
           // Remove unneeded XML buffers and trim whitespace, 
           // then split each vCard into a seperate array position.
