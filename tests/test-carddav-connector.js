@@ -25,7 +25,7 @@ const kCardDAVXMLContactA = '<D:response>\n' +
        '<D:href>/love.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
-           '<D:getetag>"34fd5t-df33ht"</D:getetag>' +
+           '<getetag>"34fd5t-df33ht"</getetag>' +
            '<C:address-data>\n' +
               'BEGIN:VCARD\n' +
               'N:Lovelace;Ada\n' +
@@ -54,7 +54,7 @@ const kCardDAVXMLContactA2 = '<D:response>\n' +
        '<D:href>/love.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
-           '<D:getetag>"12sd2g-dd22fr"</D:getetag>' +
+           '<getetag>"12sd2g-dd22fr"</getetag>' +
            '<C:address-data>\n' +
               'BEGIN:VCARD\n' +
               'N:Lovelace;Ada\n' +
@@ -83,7 +83,7 @@ const kCardDAVXMLContactB = '<D:response>\n' +
        '<D:href>/bobster.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
-           '<D:getetag>"23ba4d-ff11fb"</D:getetag>' +
+           '<getetag>"23ba4d-ff11fb"</getetag>' +
            '<C:address-data>\n' +
               'BEGIN:VCARD\n' +
               'N:Tester;Bob\n' +
@@ -112,7 +112,7 @@ const kCardDAVXMLContactC = '<D:response>\n' +
        '<D:href>/constorm.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
-           '<D:getetag>"67kk9o-jh98lo"</D:getetag>' +
+           '<getetag>"67kk9o-jh98lo"</getetag>' +
            '<C:address-data>\n' +
               'BEGIN:VCARD\n' +
               'N:Silly;Connor\n' +
@@ -141,7 +141,7 @@ const kCardDAVXMLContactD = '<D:response>\n' +
        '<D:href>/dominator.vcf</D:href>\n' +
        '<D:propstat>\n' +
          '<D:prop>\n' +
-           '<D:getetag>"78ll8k-gh65in"</D:getetag>' +
+           '<getetag>"78ll8k-gh65in"</getetag>' +
            '<C:address-data>\n' +
               'BEGIN:VCARD\n' +
               'N:Nation;Dom\n' +

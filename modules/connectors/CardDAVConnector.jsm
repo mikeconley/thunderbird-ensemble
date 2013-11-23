@@ -28,6 +28,7 @@ CardDAVConnector.prototype = {
   _displayName: "",
   _initialized: false,
   _initializing: false,
+  _credentials: "",
 
   get accountKey() this._accountKey,
   get isSyncable() true,
@@ -37,6 +38,9 @@ CardDAVConnector.prototype = {
   get initializing() this._initializing,
   get initialized() this._initialized,
 
+  // Promise is resolved as true if the connection requires further
+  // credentials from the user, or resolves false if credentials are
+  // not needed. Rejects as an error otherwise.
   testConnection: function() {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
@@ -60,12 +64,18 @@ CardDAVConnector.prototype = {
 
     http.open("OPTIONS", url, true);
 
+    if(Services.io.newURI(url, null, null).scheme === "https") {
+      http.setRequestHeader('Authorization', 'Basic ' + this._credentials);
+    }
+
     http.onload = function(aEvent) {
       if (http.readyState === 4) {
         if (http.status === 200 && 
             http.getAllResponseHeaders() !== null && 
             http.getAllResponseHeaders().indexOf('addressbook') > -1) {
-          deferred.resolve();
+          deferred.resolve(false);
+        } else if (http.status === 401) {
+          deffered.resolve(true);
         } else {
           let e = new Error("The connection errored with status " + 
                             http.status + " during the onload event");
@@ -84,20 +94,23 @@ CardDAVConnector.prototype = {
     return deferred.promise;
   },
 
-  /*
-  This should return a promise that holds a string value of a Base64
-  conversion of the following pattern 'username:password', where 
-  'username is the client's inputted username and 'password' is
-  the clients inputted password. Both these values are seperated by 
-  a colon ':'.
-  */
   authorize: function() {
     let deferred = Promise.defer();
-    let username = "";
-    let password = "";
-    // TODO: get username and password from UI.
-    let authString = username + ":" + password;
-    deferred.resolve(btoa(authString));
+    let prompts = Services.prompt;
+    let username = {value: "user"};
+    let password = {value: "pass"};
+
+    let result = prompts.promptUsernameAndPassword(null, "Authentication", "Enter username and password:",
+                                                   username, password, null, null);
+    if (!check.value) {
+      let e = new Error("The authorization was cancelled.");
+      deferred.reject(e);
+    } else {
+      let authString = username.value + ":" + password.value;
+      this._credentials = btoa(authString);
+      deferred.resolve();
+    }
+
     return deferred.promise;
   },
 
@@ -110,12 +123,8 @@ CardDAVConnector.prototype = {
   },
 
   read: function() {
-    let deferred = Promise.defer();
-    let properties = new Array('N', 'FN', 'ORG', 'EMAIL',
-                               'TEL', 'ADR', 'URL', 'NOTE', 
-                               'CATEGORIES', 'UID', 'REV');
-    Task.spawn(function () {
-      let getPromise = this._getvCardsFromServer(true, properties, null);
+    return Task.spawn(function () {
+      let getPromise = this._getvCardsFromServer(true, null);
       let aRecordArray = yield getPromise;
 
       for (let i = 0; i < aRecordArray.length; i++) {
@@ -125,19 +134,12 @@ CardDAVConnector.prototype = {
         this._cache.setRecord(tempUID, tempRecord);
         this._listener.onImport(tempRecord);
       }
-    });
-
-    deferred.resolve(true);
-    return deferred.promise;
+    }.bind(this));
   },
 
   poll: function() {
-    let properties = new Array("UID");
-    let fullProperties = new Array('N', 'FN', 'ORG', 'EMAIL',
-                               'TEL', 'ADR', 'URL', 'NOTE', 
-                               'CATEGORIES', 'UID', 'REV');
     return Task.spawn(function () {
-      let getPromise = this._getvCardsFromServer(true, properties, null);
+      let getPromise = this._getvCardsFromServer(true, null);
       let tempRecordArray = yield getPromise;
 
       let cacheMapPromise = this._cache.getAllRecords();
@@ -150,7 +152,7 @@ CardDAVConnector.prototype = {
         let filter = new Map();
         filter.set("UID", tempUID);
 
-        let getPromise = this._getvCardsFromServer(true, fullProperties, filter);
+        let getPromise = this._getvCardsFromServer(true, filter);
         let aRecordArray = yield getPromise;
 
         if(!map.has(tempUID)) { // New Record
@@ -196,7 +198,7 @@ CardDAVConnector.prototype = {
   // I.e. {"EMAIL":"test@test.com"} would filter for the EMAIL property of test@test.com, 
   // whereas in {"EMAIL":test@test.com, "UID":123} would do the same, but also include 
   // an additonal filter of the UID being 123.
-  _getvCardsFromServer: function(aGetETag, aProperties, aFilter) {
+  _getvCardsFromServer: function(aGetETag, aFilter) {
     let deferred = Promise.defer();
     let http = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
                  .createInstance(Ci.nsIXMLHttpRequest);
@@ -216,31 +218,35 @@ CardDAVConnector.prototype = {
     http.setRequestHeader('Depth', '1');
     http.setRequestHeader('Content-Type', 'text/xml; charset="utf-8"');
 
-    if (Services.io.newURI(url, null, null).scheme === "https") {
-      Task.spawn(function () {
-        let authPromise = this.authorize(); // get Base64 user:pass
-        let authString = yield authPromise;
-        http.setRequestHeader('Authorization', 'Basic ' + authString);
-        // See http://en.wikipedia.org/wiki/Basic_access_authentication
-      });
-    }
+    let testConnectionPromise = this.testConnection();
+
+    let authPromise = testConnectionPromise.then(function onResolve(requiresAuth) {
+      if (requiresAuth) {
+        Task.spawn(function () {
+          let authPromise = this.authorize();
+          yield authPromise;
+        });
+      }
+
+      if(Services.io.newURI(url, null, null).scheme === "https") {
+        http.setRequestHeader('Authorization', 'Basic ' + this._credentials);
+      }
+    }, function onReject(aReason) {
+      let e = new Error("The connector function had an issue authenticating. " +
+                        "Reason: " + aReason);
+      return deferred.reject(e);
+    });
 
     requestXML = '<?xml version="1.0" encoding="utf-8" ?>' +
                    '<C:addressbook-query xmlns:D="DAV:" ' + 
                    'xmlns:C="urn:ietf:params:xml:ns:carddav">' +
                        '<D:prop>';
 
-    if (aGetETag) {
+    if (aGetETag) {                  
       requestXML += '<D:getetag/>';
     }
 
-    requestXML += '<C:address-data>';
-
-    for (let i = 0; i < aProperties.length; i++) {
-      requestXML += '<C:prop name="' + aProperties[i] + '"/>';
-    }
-
-    requestXML += '</D:prop>';
+    requestXML += '<C:address-data></C:address-data></D:prop>';
 
     if (aFilter) {
       requestXML += '<C:filter test="anyof">';
@@ -271,9 +277,10 @@ CardDAVConnector.prototype = {
           // does not support RegExp Look-behind, each ETag must
           // also have its opening tag removed manually.
           if (aGetETag) {
-            etag = XMLresponse.match(/<D:getetag>(.*?)(?=<\/D:getetag>)/g);
+            etag = XMLresponse.match(/<getetag>(.*?)(?=<\/getetag>)/g);
+
             for (let i = 0; i < etag.length; i++) {
-              etag[i] = etag[i].replace(/<D:getetag>/, "");
+              etag[i] = etag[i].replace(/<getetag>/, "");
             }
           }
 
