@@ -100,7 +100,7 @@ let SQLiteContactStore = {
 
   _migrateDb: function SQLiteCS__migrateDb() {
     return Task.spawn(function() {
-      let dbVersion = yield this._db.getSchemaVersion();
+      let dbVersion = this._db.getSchemaVersion();
       // Preliminaries - make sure we were passed a database in a sane state.
       if (dbVersion == kDbCurrentVersion) {
         return;
